@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { ReactFlowProvider, ReactFlow, addEdge, applyEdgeChanges, applyNodeChanges, MiniMap, Controls, Background } from 'reactflow';
 import 'reactflow/dist/style.css';
 import NodeEditor from './NodeEditor';
@@ -24,8 +24,70 @@ function App() {
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
 
-  const onNodesChange = useCallback((changes) => setNodes((nds) => applyNodeChanges(changes, nds)), []);
-  const onEdgesChange = useCallback((changes) => setEdges((eds) => applyEdgeChanges(changes, eds)), []);
+  const handleRenderScene = useCallback(() => {
+    if (threeSceneRef.current) {
+      threeSceneRef.current.clearScene();
+
+      const updatedNodes = nodes.map(node => {
+        if (node.type === 'positionNode') {
+          return {
+            ...node,
+            data: {
+              x: node.data.x || 0,
+              y: node.data.y || 0,
+              z: node.data.z || 0
+            }
+          };
+        }
+        return node;
+      });
+
+      updatedNodes.filter(node => node.type === 'shapeNode').forEach(shapeNode => {
+        const connectedPositionNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'position')
+          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'positionNode'))[0];
+
+        const connectedColorNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'color')
+          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'colorNode'))[0];
+
+        const connectedSizeNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'size')
+          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'sizeNode'))[0];
+
+        if (connectedPositionNode) {
+          const shapeData = {
+            shape: shapeNode.data.shape,
+            position: {
+              x: parseFloat(connectedPositionNode.data.x),
+              y: parseFloat(connectedPositionNode.data.y),
+              z: parseFloat(connectedPositionNode.data.z)
+            },
+            color: connectedColorNode ? connectedColorNode.data.color : Math.random() * 0xffffff,
+            rotation: { x: 0, y: 0, z: 0 },
+            scale: {
+              x: connectedSizeNode ? connectedSizeNode.data.x : 1,
+              y: connectedSizeNode ? connectedSizeNode.data.y : 1,
+              z: connectedSizeNode ? connectedSizeNode.data.z : 1
+            }
+          };
+          threeSceneRef.current.addShape(shapeData);
+        }
+      });
+    }
+  }, [nodes, edges]);
+
+  useEffect(() => {
+    handleRenderScene();
+  }, [nodes, edges, handleRenderScene]);
+
+  const onNodesChange = useCallback((changes) => {
+    setNodes((nds) => applyNodeChanges(changes, nds));
+    handleRenderScene();
+  }, [handleRenderScene]);
+
+  const onEdgesChange = useCallback((changes) => {
+    setEdges((eds) => applyEdgeChanges(changes, eds));
+    handleRenderScene();
+  }, [handleRenderScene]);
+
   const onConnect = useCallback((params) => {
     // Prevent multiple position, color, or size nodes connecting to the same shape node
     const targetHandle = params.targetHandle;
@@ -42,62 +104,14 @@ function App() {
       return;
     }
     setEdges((eds) => addEdge(params, eds));
-  }, [edges, nodes]);
-
-  function handleRenderScene() {
-    const updatedNodes = nodes.map(node => {
-      if (node.type === 'positionNode') {
-        return {
-          ...node,
-          data: {
-            x: node.data.x || 0,
-            y: node.data.y || 0,
-            z: node.data.z || 0
-          }
-        };
-      }
-      return node;
-    });
-
-    setNodes(updatedNodes);
-
-    updatedNodes.filter(node => node.type === 'shapeNode').forEach(shapeNode => {
-      const connectedPositionNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'position')
-        .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'positionNode'))[0];
-
-      const connectedColorNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'color')
-        .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'colorNode'))[0];
-
-      const connectedSizeNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'size')
-        .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'sizeNode'))[0];
-
-      if (connectedPositionNode) {
-        const shapeData = {
-          shape: shapeNode.data.shape,
-          position: {
-            x: parseFloat(connectedPositionNode.data.x),
-            y: parseFloat(connectedPositionNode.data.y),
-            z: parseFloat(connectedPositionNode.data.z)
-          },
-          color: connectedColorNode ? connectedColorNode.data.color : Math.random() * 0xffffff,
-          rotation: { x: 0, y: 0, z: 0 },
-          scale: {
-            x: connectedSizeNode ? connectedSizeNode.data.x : 1,
-            y: connectedSizeNode ? connectedSizeNode.data.y : 1,
-            z: connectedSizeNode ? connectedSizeNode.data.z : 1
-          }
-        };
-        threeSceneRef.current.addShape(shapeData);
-      }
-    });
-  }
+    handleRenderScene();
+  }, [edges, nodes, handleRenderScene]);
 
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <ReactFlowProvider>
         <div style={{ width: '50vw', height: '100vh', display: 'flex', flexDirection: 'column' }}>
           <NodeEditor setNodes={setNodes} />
-          <button onClick={handleRenderScene}>Render Scene</button>
           <div style={{ flex: 1 }}>
             <ReactFlow
               nodes={nodes}

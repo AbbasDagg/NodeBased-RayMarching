@@ -60,7 +60,7 @@ function App() {
               y: parseFloat(connectedPositionNode.data.y),
               z: parseFloat(connectedPositionNode.data.z)
             },
-            color: connectedColorNode ? connectedColorNode.data.color : Math.random() * 0xffffff,
+            color: connectedColorNode ? connectedColorNode.data.color : 0xffffff,  // Default color to white
             rotation: { x: 0, y: 0, z: 0 },
             scale: {
               x: connectedSizeNode ? connectedSizeNode.data.x : 1,
@@ -89,13 +89,12 @@ function App() {
   }, [handleRenderScene]);
 
   const onConnect = useCallback((params) => {
-    // Prevent multiple position, color, or size nodes connecting to the same shape node
     const targetHandle = params.targetHandle;
     if (edges.some(edge => edge.target === params.target && edge.targetHandle === targetHandle)) {
       alert('This connection point already has a node connected.');
       return;
     }
-    // Allow only position node to connect to position handle, color node to color handle, and size node to size handle
+
     const sourceNode = nodes.find(node => node.id === params.source);
     if ((targetHandle === 'position' && sourceNode.type !== 'positionNode') ||
         (targetHandle === 'color' && sourceNode.type !== 'colorNode') ||
@@ -103,6 +102,7 @@ function App() {
       alert(`You can only connect a ${targetHandle} node to this handle.`);
       return;
     }
+
     setEdges((eds) => addEdge(params, eds));
     handleRenderScene();
   }, [edges, nodes, handleRenderScene]);

@@ -6,7 +6,7 @@ import DropdownMenu from './DropdownMenu';
 const handleStyleRight = { right: '10px' };
 const handleStyleLeft = { left: '10px' };
 
-export function PositionNode({ data }) {
+export function VectorNode({ data }) {
   const [inputData, setInputData] = useState({
     x: data.x || 0,
     y: data.y || 0,
@@ -24,11 +24,11 @@ export function PositionNode({ data }) {
 
   return (
     <div style={{ padding: '10px', border: '1px solid #777', borderRadius: '4px', background: '#444', color: '#fff', width: '80px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Position Node</div>
+      <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Vector Node</div>
       <input type="number" name="x" value={inputData.x} onChange={handleChange} style={{ width: '60px', marginBottom: '5px', padding: '5px', borderRadius: '4px', border: '1px solid #777', background: '#2b2b2b', color: '#fff' }} />
       <input type="number" name="y" value={inputData.y} onChange={handleChange} style={{ width: '60px', marginBottom: '5px', padding: '5px', borderRadius: '4px', border: '1px solid #777', background: '#2b2b2b', color: '#fff' }} />
       <input type="number" name="z" value={inputData.z} onChange={handleChange} style={{ width: '60px', marginBottom: '5px', padding: '5px', borderRadius: '4px', border: '1px solid #777', background: '#2b2b2b', color: '#fff' }} />
-      <Handle type="source" position={Position.Right} id="position" style={handleStyleRight} />
+      <Handle type="source" position={Position.Right} id="vector" style={handleStyleRight} />
     </div>
   );
 }
@@ -110,33 +110,6 @@ export function ColorNode({ data }) {
         styles={{ default: { picker: { width: '120px' } } }}
       />
       <Handle type="source" position={Position.Right} id="color" style={handleStyleRight} />
-    </div>
-  );
-}
-
-export function SizeNode({ data }) {
-  const [inputData, setInputData] = useState({
-    x: data.x || 1,
-    y: data.y || 1,
-    z: data.z || 1,
-  });
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setInputData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
-    data[name] = parseFloat(value) || 1;
-  };
-
-  return (
-    <div style={{ padding: '10px', border: '1px solid #777', borderRadius: '4px', background: '#444', color: '#fff', width: '80px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Size Node</div>
-      <input type="number" name="x" value={inputData.x} onChange={handleChange} style={{ width: '60px', marginBottom: '5px', padding: '5px', borderRadius: '4px', border: '1px solid #777', background: '#2b2b2b', color: '#fff' }} />
-      <input type="number" name="y" value={inputData.y} onChange={handleChange} style={{ width: '60px', marginBottom: '5px', padding: '5px', borderRadius: '4px', border: '1px solid #777', background: '#2b2b2b', color: '#fff' }} />
-      <input type="number" name="z" value={inputData.z} onChange={handleChange} style={{ width: '60px', marginBottom: '5px', padding: '5px', borderRadius: '4px', border: '1px solid #777', background: '#2b2b2b', color: '#fff' }} />
-      <Handle type="source" position={Position.Right} id="size" style={handleStyleRight} />
     </div>
   );
 }

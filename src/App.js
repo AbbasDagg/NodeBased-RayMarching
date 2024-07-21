@@ -3,20 +3,19 @@ import { ReactFlowProvider, ReactFlow, addEdge, applyEdgeChanges, applyNodeChang
 import 'reactflow/dist/style.css';
 import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
-import { PositionNode, ShapeNode, ColorNode, SizeNode } from './CustomNodes';
+import { VectorNode, ShapeNode, ColorNode } from './CustomNodes';
 
 const initialNodes = [
-  { id: '1', type: 'positionNode', position: { x: 0, y: 0 }, data: { x: 0, y: 0, z: 0 } },
+  { id: '1', type: 'vectorNode', position: { x: 0, y: 0 }, data: { x: 0, y: 0, z: 0 } },
   { id: '2', type: 'shapeNode', position: { x: 100, y: 100 }, data: { shape: 'sphere' } },
 ];
 
 const initialEdges = [];
 
 const nodeTypes = {
-  positionNode: PositionNode,
+  vectorNode: VectorNode,
   shapeNode: ShapeNode,
   colorNode: ColorNode,
-  sizeNode: SizeNode,
 };
 
 function App() {
@@ -29,7 +28,7 @@ function App() {
       threeSceneRef.current.clearScene();
 
       const updatedNodes = nodes.map(node => {
-        if (node.type === 'positionNode') {
+        if (node.type === 'vectorNode') {
           return {
             ...node,
             data: {
@@ -44,13 +43,13 @@ function App() {
 
       updatedNodes.filter(node => node.type === 'shapeNode').forEach(shapeNode => {
         const connectedPositionNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'position')
-          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'positionNode'))[0];
+          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))[0];
 
         const connectedColorNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'color')
           .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'colorNode'))[0];
 
         const connectedSizeNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'size')
-          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'sizeNode'))[0];
+          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))[0];
 
         if (connectedPositionNode) {
           const shapeData = {
@@ -60,7 +59,7 @@ function App() {
               y: parseFloat(connectedPositionNode.data.y),
               z: parseFloat(connectedPositionNode.data.z)
             },
-            color: connectedColorNode ? connectedColorNode.data.color : 0xffffff,  // Default color to white
+            color: connectedColorNode ? connectedColorNode.data.color : 0xffffff,
             rotation: { x: 0, y: 0, z: 0 },
             scale: {
               x: connectedSizeNode ? connectedSizeNode.data.x : 1,
@@ -96,9 +95,9 @@ function App() {
     }
 
     const sourceNode = nodes.find(node => node.id === params.source);
-    if ((targetHandle === 'position' && sourceNode.type !== 'positionNode') ||
+    if ((targetHandle === 'position' && sourceNode.type !== 'vectorNode') ||
         (targetHandle === 'color' && sourceNode.type !== 'colorNode') ||
-        (targetHandle === 'size' && sourceNode.type !== 'sizeNode')) {
+        (targetHandle === 'size' && sourceNode.type !== 'vectorNode')) {
       alert(`You can only connect a ${targetHandle} node to this handle.`);
       return;
     }

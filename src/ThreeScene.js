@@ -1,16 +1,20 @@
 import React, { useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import Raymarcher from './MyRaymarcher';
-import { GUI } from 'lil-gui';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment';
 import { PMREMGenerator } from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
+import { GUI } from 'lil-gui';
+import Raymarcher from './MyRaymarcher';
+
+const SCALING_FACTOR = 5; // Scale up shapes to fix a small bug in the raymarcher
 
 const ThreeScene = forwardRef((props, ref) => {
   const raymarcherRef = useRef(null); // Use ref to store the raymarcher instance
+  const pmremGeneratorRef = useRef(null); // Use ref to store the PMREM generator
 
   useImperativeHandle(ref, () => ({
-    addShape: (shapeData, layerIndex) => {
+    addShape: (shapeData) => {
       if (raymarcherRef.current) {
         const operationMap = {
           union: Raymarcher.operations.union,
@@ -18,16 +22,12 @@ const ThreeScene = forwardRef((props, ref) => {
           intersection: Raymarcher.operations.intersection,
         };
 
-        if (!raymarcherRef.current.userData.layers[layerIndex]) {
-          raymarcherRef.current.userData.layers[layerIndex] = [];
-        }
-
-        raymarcherRef.current.userData.layers[layerIndex].push({
+        raymarcherRef.current.userData.layers[0].push({
           color: new THREE.Color(shapeData.color || 0xffffff),
           operation: operationMap[shapeData.operation] || Raymarcher.operations.union, // Default to union if undefined
-          position: new THREE.Vector3(shapeData.position.x, shapeData.position.y, shapeData.position.z),
+          position: new THREE.Vector3(shapeData.position.x * SCALING_FACTOR, shapeData.position.y * SCALING_FACTOR, shapeData.position.z * SCALING_FACTOR),
           rotation: new THREE.Quaternion(),
-          scale: new THREE.Vector3(shapeData.scale.x, shapeData.scale.y, shapeData.scale.z),
+          scale: new THREE.Vector3(shapeData.scale.x * SCALING_FACTOR, shapeData.scale.y * SCALING_FACTOR, shapeData.scale.z * SCALING_FACTOR),
           shape: Raymarcher.shapes[shapeData.shape]
         });
         raymarcherRef.current.needsUpdate = true;
@@ -35,7 +35,7 @@ const ThreeScene = forwardRef((props, ref) => {
     },
     clearScene: () => {
       if (raymarcherRef.current) {
-        raymarcherRef.current.userData.layers = [];
+        raymarcherRef.current.userData.layers[0] = [];
         raymarcherRef.current.needsUpdate = true;
       }
     }
@@ -52,7 +52,8 @@ const ThreeScene = forwardRef((props, ref) => {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.update();
 
-    const pmremGenerator = new PMREMGenerator(renderer);
+    pmremGeneratorRef.current = new PMREMGenerator(renderer);
+    const pmremGenerator = pmremGeneratorRef.current;
     const environmentMap = pmremGenerator.fromScene(new RoomEnvironment()).texture;
 
     const raymarcher = new Raymarcher({
@@ -67,12 +68,36 @@ const ThreeScene = forwardRef((props, ref) => {
     raymarcherRef.current = raymarcher;
     scene.add(raymarcher);
 
-    const gui = new GUI();
-    gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01).name('Resolution');
-    gui.add(raymarcher.userData, 'blending', 0, 2, 0.01).name('Blending');
-    gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01).name('Metalness');
-    gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01).name('Roughness');
-    gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01).name('Env Map Intensity');
+    const environments = {
+      Apartment: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/lebombo_2k.hdr?v=1646042358302',
+      City: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/potsdamer_platz_2k.hdr?v=1646042358575',
+      Forest: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/neurathen_rock_castle_2k.hdr?v=1646042624812',
+      Studio: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/studio_small_08_2k.hdr?v=1646042358774',
+      Warehouse: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/empty_warehouse_01_2k.hdr?v=1646042357806',
+      Sunset: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/venice_sunset_2k.hdr?v=1646042356028',
+      Dawn: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/kiara_1_dawn_2k.hdr?v=1646042357931',
+      Night: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/dikhololo_night_2k.hdr?v=1646042357152',
+    };
+
+    const loader = new RGBELoader();
+    const loadEnvironment = (envName) => {
+      loader.load(environments[envName], (texture) => {
+        const pmremTexture = pmremGenerator.fromEquirectangular(texture).texture;
+        scene.background = pmremTexture;
+        raymarcher.userData.envMap = pmremTexture;
+        raymarcher.needsUpdate = true;
+      });
+    };
+
+    loadEnvironment('Dawn'); // Load a default environment map
+
+    const gui = new GUI({ title: 'three-raymarcher' });
+    gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
+    gui.add(raymarcher.userData, 'blending', 0.2, 2, 0.01);
+    gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);
+    gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);
+    gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);
+    gui.add({ envMap: 'Dawn' }, 'envMap', Object.keys(environments)).onChange(loadEnvironment);
 
     const animate = () => {
       requestAnimationFrame(animate);

@@ -69,6 +69,7 @@ function NodeEditor({ setNodes }) {
       <button onClick={addModeNode}>Add Mode Node</button>
     </div>
   );
+  
 }
 
 export default NodeEditor;

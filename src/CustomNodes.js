@@ -9,10 +9,12 @@ const handleStyleLeft = { left: '10px' };
 export function ModeNode({ data }) {
   const [mode, setMode] = useState(data.mode || 'union');
 
+  useEffect(() => {
+    data.mode = mode;
+  }, [mode]);
+
   const handleSelectMode = (selectedMode) => {
-    const newMode = selectedMode.toLowerCase();
-    setMode(newMode);
-    data.mode = newMode;
+    setMode(selectedMode.toLowerCase());
   };
 
   return (
@@ -28,6 +30,8 @@ export function ModeNode({ data }) {
     </div>
   );
 }
+
+
 
 
 export function VectorNode({ data }) {

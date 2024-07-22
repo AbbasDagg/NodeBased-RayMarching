@@ -97,6 +97,7 @@ function App() {
   }, [nodes, edges]);
   
   
+  
 
   useEffect(() => {
     handleRenderScene();
@@ -113,9 +114,36 @@ function App() {
   }, [handleRenderScene]);
 
   const onConnect = useCallback((params) => {
-    setEdges((eds) => addEdge(params, eds));
-    handleRenderScene();
-  }, [edges, nodes, handleRenderScene]);
+    const { source, sourceHandle, target, targetHandle } = params;
+  
+    const validConnections = {
+      vectorNode: ['position', 'size'],
+      colorNode: ['color'],
+      shapeNode: ['mode'],
+      modeNode: ['render'],
+    };
+  
+    const sourceNode = nodes.find(node => node.id === source);
+    const targetNode = nodes.find(node => node.id === target);
+  
+    if (sourceNode && targetNode) {
+      const validSourceHandles = validConnections[sourceNode.type];
+      if (validSourceHandles && validSourceHandles.includes(targetHandle)) {
+        // Check for existing connections to the same targetHandle
+        const existingConnection = edges.find(edge => edge.target === target && edge.targetHandle === targetHandle);
+        if (!existingConnection) {
+          setEdges((eds) => addEdge(params, eds));
+          handleRenderScene();
+        } else {
+          console.warn('Only one connection allowed per pin');
+        }
+      } else {
+        console.warn('Invalid connection');
+      }
+    }
+  }, [nodes, edges, handleRenderScene]);
+  
+  
 
   return (
     <div style={{ display: 'flex', height: '100vh' }}>

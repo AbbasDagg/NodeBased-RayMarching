@@ -11,21 +11,22 @@ export function ModeNode({ data }) {
 
   useEffect(() => {
     data.mode = mode;
-  }, [mode]);
+  }, [mode, data]);
 
   const handleSelectMode = (selectedMode) => {
     setMode(selectedMode.toLowerCase());
   };
 
   return (
-    <div style={{ padding: '10px', border: '1px solid #777', borderRadius: '4px', background: '#444', color: '#fff', width: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{ padding: '10px', border: '1px solid #777', borderRadius: '4px', background: '#444', color: '#fff', width: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Mode Node</div>
       <select value={mode} onChange={(e) => handleSelectMode(e.target.value)} style={{ marginBottom: '10px', padding: '5px', borderRadius: '4px', background: '#555', color: '#fff' }}>
         <option value="union">Union</option>
         <option value="subtraction">Subtraction</option>
         <option value="intersection">Intersection</option>
       </select>
-      <Handle type="target" position={Position.Left} id="mode" style={{ left: '10px' }} />
+      <Handle type="target" position={Position.Left} id="shape1" style={{ top: '30%', ...handleStyleLeft }} />
+      <Handle type="target" position={Position.Left} id="shape2" style={{ top: '70%', ...handleStyleLeft }} />
       <Handle type="source" position={Position.Right} id="render" style={{ right: '10px' }} />
     </div>
   );

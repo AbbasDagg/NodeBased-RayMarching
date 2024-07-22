@@ -10,15 +10,19 @@ const ThreeScene = forwardRef((props, ref) => {
   const raymarcherRef = useRef(null); // Use ref to store the raymarcher instance
 
   useImperativeHandle(ref, () => ({
-    addShape: (shapeData) => {
+    addShape: (shapeData, layerIndex) => {
       if (raymarcherRef.current) {
         const operationMap = {
           union: Raymarcher.operations.union,
           subtraction: Raymarcher.operations.substraction,
           intersection: Raymarcher.operations.intersection,
         };
-  
-        raymarcherRef.current.userData.layers[0].push({
+
+        if (!raymarcherRef.current.userData.layers[layerIndex]) {
+          raymarcherRef.current.userData.layers[layerIndex] = [];
+        }
+
+        raymarcherRef.current.userData.layers[layerIndex].push({
           color: new THREE.Color(shapeData.color || 0xffffff),
           operation: operationMap[shapeData.operation] || Raymarcher.operations.union, // Default to union if undefined
           position: new THREE.Vector3(shapeData.position.x, shapeData.position.y, shapeData.position.z),
@@ -31,12 +35,11 @@ const ThreeScene = forwardRef((props, ref) => {
     },
     clearScene: () => {
       if (raymarcherRef.current) {
-        raymarcherRef.current.userData.layers[0] = [];
+        raymarcherRef.current.userData.layers = [];
         raymarcherRef.current.needsUpdate = true;
       }
     }
   }));
-  
 
   useEffect(() => {
     const renderer = new THREE.WebGLRenderer({ alpha: true });

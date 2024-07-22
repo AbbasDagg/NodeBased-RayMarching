@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Handle, Position } from 'reactflow';
 import { SketchPicker } from 'react-color';
 import DropdownMenu from './DropdownMenu';
@@ -13,13 +13,18 @@ export function VectorNode({ data }) {
     z: data.z || 0,
   });
 
+  useEffect(() => {
+    data.x = inputData.x;
+    data.y = inputData.y;
+    data.z = inputData.z;
+  }, [inputData, data]);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setInputData((prevData) => ({
       ...prevData,
-      [name]: value,
+      [name]: parseFloat(value) || 0,
     }));
-    data[name] = parseFloat(value) || 0;
   };
 
   return (
@@ -44,6 +49,10 @@ export function ShapeNode({ data }) {
   const handleToggleDropdown = () => {
     setShowDropdown(!showDropdown);
   };
+
+  useEffect(() => {
+    // Trigger update on data change
+  }, [data.shape]);
 
   return (
     <div
@@ -87,7 +96,12 @@ export function ShapeNode({ data }) {
         style={{ ...handleStyleLeft, top: '80%', backgroundColor: 'orange', borderRadius: '50%' }}
       />
       <span style={{ position: 'absolute', left: '50px', top: '80%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Color</span>
-      <Handle type="source" position={Position.Right} id="shape" style={handleStyleRight} />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="render"
+        style={{ ...handleStyleRight, top: '50%', backgroundColor: 'blue', borderRadius: '50%' }}
+      />
     </div>
   );
 }
@@ -99,6 +113,10 @@ export function ColorNode({ data }) {
     setColor(color.hex);
     data.color = color.hex;
   };
+
+  useEffect(() => {
+    data.color = color;
+  }, [color, data]);
 
   return (
     <div style={{ padding: '10px', border: '2px solid #333', borderRadius: '8px', background: 'linear-gradient(135deg, #3b3b3b, #1e1e1e)', color: '#fff', width: '180px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -117,9 +135,9 @@ export function ColorNode({ data }) {
 
 export function RenderNode({ data }) {
   return (
-    <div style={{ padding: '10px', border: '1px solid #777', borderRadius: '4px', background: '#444', color: '#fff', width: '100px', textAlign: 'center' }}>
-      <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Render</div>
-      <Handle type="target" position={Position.Left} id="shape" style={{ left: '10px' }} />
+    <div style={{ padding: '10px', border: '1px solid #333', borderRadius: '8px', background: 'linear-gradient(135deg, #3b3b3b, #1e1e1e)', color: '#fff', width: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Render Node</div>
+      <Handle type="target" position={Position.Left} id="render" style={{ ...handleStyleLeft, top: '50%', backgroundColor: 'blue', borderRadius: '50%' }} />
     </div>
   );
 }

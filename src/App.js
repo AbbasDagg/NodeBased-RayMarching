@@ -43,12 +43,11 @@ function App() {
         return node;
       });
 
-      const renderNode = updatedNodes.find(node => node.type === 'renderNode');
-      if (renderNode) {
+      const renderNodes = updatedNodes.filter(node => node.type === 'renderNode');
+      renderNodes.forEach(renderNode => {
         const connectedShapeNodes = edges
-          .filter(edge => edge.target === renderNode.id)
-          .map(edge => updatedNodes.find(node => node.id === edge.source && node.type === 'shapeNode'))
-          .filter(Boolean);
+          .filter(edge => edge.target === renderNode.id && edge.targetHandle === 'render')
+          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'shapeNode'));
 
         connectedShapeNodes.forEach(shapeNode => {
           const connectedPositionNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'position')
@@ -62,23 +61,22 @@ function App() {
 
           const shapeData = {
             shape: shapeNode.data.shape,
-            position: connectedPositionNode ? {
-              x: parseFloat(connectedPositionNode.data.x),
-              y: parseFloat(connectedPositionNode.data.y),
-              z: parseFloat(connectedPositionNode.data.z)
-            } : { x: 0, y: 0, z: 0 },
+            position: {
+              x: connectedPositionNode ? parseFloat(connectedPositionNode.data.x) : 0,
+              y: connectedPositionNode ? parseFloat(connectedPositionNode.data.y) : 0,
+              z: connectedPositionNode ? parseFloat(connectedPositionNode.data.z) : 0,
+            },
             color: connectedColorNode ? connectedColorNode.data.color : 0xffffff,
             rotation: { x: 0, y: 0, z: 0 },
-            scale: connectedSizeNode ? {
-              x: parseFloat(connectedSizeNode.data.x),
-              y: parseFloat(connectedSizeNode.data.y),
-              z: parseFloat(connectedSizeNode.data.z)
-            } : { x: 1, y: 1, z: 1 }
+            scale: {
+              x: connectedSizeNode ? connectedSizeNode.data.x : 1,
+              y: connectedSizeNode ? connectedSizeNode.data.y : 1,
+              z: connectedSizeNode ? connectedSizeNode.data.z : 1,
+            }
           };
-
           threeSceneRef.current.addShape(shapeData);
         });
-      }
+      });
     }
   }, [nodes, edges]);
 
@@ -97,24 +95,6 @@ function App() {
   }, [handleRenderScene]);
 
   const onConnect = useCallback((params) => {
-    const targetHandle = params.targetHandle;
-    const targetNode = nodes.find(node => node.id === params.target);
-    
-    if (targetNode.type === 'renderNode' && params.sourceHandle !== 'shape') {
-      alert('Only shape nodes can be connected to the render node.');
-      return;
-    }
-
-    if (targetHandle && targetHandle !== 'shape') {
-      const sourceNode = nodes.find(node => node.id === params.source);
-      if ((targetHandle === 'position' && sourceNode.type !== 'vectorNode') ||
-          (targetHandle === 'color' && sourceNode.type !== 'colorNode') ||
-          (targetHandle === 'size' && sourceNode.type !== 'vectorNode')) {
-        alert(`You can only connect a ${targetHandle} node to this handle.`);
-        return;
-      }
-    }
-
     setEdges((eds) => addEdge(params, eds));
     handleRenderScene();
   }, [edges, nodes, handleRenderScene]);

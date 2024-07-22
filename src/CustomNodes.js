@@ -6,6 +6,30 @@ import DropdownMenu from './DropdownMenu';
 const handleStyleRight = { right: '10px' };
 const handleStyleLeft = { left: '10px' };
 
+export function ModeNode({ data }) {
+  const [mode, setMode] = useState(data.mode || 'union');
+
+  const handleSelectMode = (selectedMode) => {
+    const newMode = selectedMode.toLowerCase();
+    setMode(newMode);
+    data.mode = newMode;
+  };
+
+  return (
+    <div style={{ padding: '10px', border: '1px solid #777', borderRadius: '4px', background: '#444', color: '#fff', width: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Mode Node</div>
+      <select value={mode} onChange={(e) => handleSelectMode(e.target.value)} style={{ marginBottom: '10px', padding: '5px', borderRadius: '4px', background: '#555', color: '#fff' }}>
+        <option value="union">Union</option>
+        <option value="subtraction">Subtraction</option>
+        <option value="intersection">Intersection</option>
+      </select>
+      <Handle type="target" position={Position.Left} id="mode" style={{ left: '10px' }} />
+      <Handle type="source" position={Position.Right} id="render" style={{ right: '10px' }} />
+    </div>
+  );
+}
+
+
 export function VectorNode({ data }) {
   const [inputData, setInputData] = useState({
     x: data.x || 0,

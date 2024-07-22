@@ -12,15 +12,21 @@ const ThreeScene = forwardRef((props, ref) => {
   useImperativeHandle(ref, () => ({
     addShape: (shapeData) => {
       if (raymarcherRef.current) {
+        const operationMap = {
+          union: Raymarcher.operations.union,
+          subtraction: Raymarcher.operations.substraction,
+          intersection: Raymarcher.operations.intersection,
+        };
+  
         raymarcherRef.current.userData.layers[0].push({
           color: new THREE.Color(shapeData.color || 0xffffff),
-          operation: Raymarcher.operations.union,
+          operation: operationMap[shapeData.operation] || Raymarcher.operations.union, // Default to union if undefined
           position: new THREE.Vector3(shapeData.position.x, shapeData.position.y, shapeData.position.z),
           rotation: new THREE.Quaternion(),
-          scale: new THREE.Vector3(shapeData.scale.x, shapeData.scale.y, shapeData.scale.z), // Use scale from shapeData
+          scale: new THREE.Vector3(shapeData.scale.x, shapeData.scale.y, shapeData.scale.z),
           shape: Raymarcher.shapes[shapeData.shape]
         });
-        raymarcherRef.current.needsUpdate = true; // Trigger update in raymarcher
+        raymarcherRef.current.needsUpdate = true;
       }
     },
     clearScene: () => {
@@ -30,6 +36,7 @@ const ThreeScene = forwardRef((props, ref) => {
       }
     }
   }));
+  
 
   useEffect(() => {
     const renderer = new THREE.WebGLRenderer({ alpha: true });

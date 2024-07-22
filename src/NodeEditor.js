@@ -49,12 +49,24 @@ function NodeEditor({ setNodes }) {
     setNodeCount(nodeCount + 1);
   };
 
+  const addModeNode = () => {
+    const newNode = {
+      id: (nodeCount + 1).toString(),
+      type: 'modeNode',
+      data: { mode: 'union' },
+      position: { x: Math.random() * 250, y: Math.random() * 250 },
+    };
+    reactFlowInstance.setNodes((nds) => nds.concat(newNode));
+    setNodeCount(nodeCount + 1);
+  };
+  
   return (
     <div style={{ width: '100%', padding: '10px', display: 'flex', justifyContent: 'space-between' }}>
       <button onClick={addVectorNode}>Add Vector Node</button>
       <button onClick={addShapeNode}>Add Shape Node</button>
       <button onClick={addColorNode}>Add Color Node</button>
       <button onClick={addRenderNode}>Add Render Node</button>
+      <button onClick={addModeNode}>Add Mode Node</button>
     </div>
   );
 }

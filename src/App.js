@@ -3,7 +3,7 @@ import { ReactFlowProvider, ReactFlow, addEdge, applyEdgeChanges, applyNodeChang
 import 'reactflow/dist/style.css';
 import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
-import { VectorNode, ShapeNode, ColorNode, RenderNode } from './CustomNodes';
+import { VectorNode, ShapeNode, ColorNode, RenderNode, ModeNode } from './CustomNodes';
 
 const initialNodes = [
   { id: '1', type: 'vectorNode', position: { x: 0, y: 0 }, data: { x: 0, y: 0, z: 0 } },
@@ -18,6 +18,7 @@ const nodeTypes = {
   shapeNode: ShapeNode,
   colorNode: ColorNode,
   renderNode: RenderNode,
+  modeNode: ModeNode,
 };
 
 function App() {
@@ -28,7 +29,7 @@ function App() {
   const handleRenderScene = useCallback(() => {
     if (threeSceneRef.current) {
       threeSceneRef.current.clearScene();
-
+  
       const updatedNodes = nodes.map(node => {
         if (node.type === 'vectorNode') {
           return {
@@ -42,25 +43,40 @@ function App() {
         }
         return node;
       });
-
+  
       const renderNodes = updatedNodes.filter(node => node.type === 'renderNode');
       renderNodes.forEach(renderNode => {
-        const connectedShapeNodes = edges
+        const connectedModeNodes = edges
           .filter(edge => edge.target === renderNode.id && edge.targetHandle === 'render')
-          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'shapeNode'));
-
-        connectedShapeNodes.forEach(shapeNode => {
-          const connectedPositionNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'position')
-            .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))[0];
-
-          const connectedColorNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'color')
-            .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'colorNode'))[0];
-
-          const connectedSizeNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'size')
-            .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))[0];
-
+          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'modeNode'))
+          .filter(Boolean); // Filter out undefined values
+  
+        connectedModeNodes.forEach(modeNode => {
+          const connectedShapeNode = edges
+            .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'mode')
+            .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'shapeNode'))
+            .filter(Boolean)[0];
+  
+          if (!connectedShapeNode) return; // Skip if shape node is not found
+  
+          const connectedPositionNode = edges
+            .filter(edge => edge.target === connectedShapeNode.id && edge.targetHandle === 'position')
+            .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
+            .filter(Boolean)[0];
+  
+          const connectedColorNode = edges
+            .filter(edge => edge.target === connectedShapeNode.id && edge.targetHandle === 'color')
+            .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'colorNode'))
+            .filter(Boolean)[0];
+  
+          const connectedSizeNode = edges
+            .filter(edge => edge.target === connectedShapeNode.id && edge.targetHandle === 'size')
+            .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
+            .filter(Boolean)[0];
+  
           const shapeData = {
-            shape: shapeNode.data.shape,
+            shape: connectedShapeNode.data.shape,
+            operation: modeNode.data.mode,
             position: {
               x: connectedPositionNode ? parseFloat(connectedPositionNode.data.x) : 0,
               y: connectedPositionNode ? parseFloat(connectedPositionNode.data.y) : 0,
@@ -79,6 +95,8 @@ function App() {
       });
     }
   }, [nodes, edges]);
+  
+  
 
   useEffect(() => {
     handleRenderScene();

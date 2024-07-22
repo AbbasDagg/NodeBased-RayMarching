@@ -3,11 +3,12 @@ import { ReactFlowProvider, ReactFlow, addEdge, applyEdgeChanges, applyNodeChang
 import 'reactflow/dist/style.css';
 import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
-import { VectorNode, ShapeNode, ColorNode } from './CustomNodes';
+import { VectorNode, ShapeNode, ColorNode, RenderNode } from './CustomNodes';
 
 const initialNodes = [
   { id: '1', type: 'vectorNode', position: { x: 0, y: 0 }, data: { x: 0, y: 0, z: 0 } },
   { id: '2', type: 'shapeNode', position: { x: 100, y: 100 }, data: { shape: 'sphere' } },
+  { id: '3', type: 'renderNode', position: { x: 200, y: 200 }, data: { label: 'Render' } },
 ];
 
 const initialEdges = [];
@@ -16,6 +17,7 @@ const nodeTypes = {
   vectorNode: VectorNode,
   shapeNode: ShapeNode,
   colorNode: ColorNode,
+  renderNode: RenderNode,
 };
 
 function App() {
@@ -41,35 +43,42 @@ function App() {
         return node;
       });
 
-      updatedNodes.filter(node => node.type === 'shapeNode').forEach(shapeNode => {
-        const connectedPositionNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'position')
-          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))[0];
+      const renderNode = updatedNodes.find(node => node.type === 'renderNode');
+      if (renderNode) {
+        const connectedShapeNodes = edges
+          .filter(edge => edge.target === renderNode.id)
+          .map(edge => updatedNodes.find(node => node.id === edge.source && node.type === 'shapeNode'))
+          .filter(Boolean);
 
-        const connectedColorNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'color')
-          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'colorNode'))[0];
+        connectedShapeNodes.forEach(shapeNode => {
+          const connectedPositionNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'position')
+            .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))[0];
 
-        const connectedSizeNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'size')
-          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))[0];
+          const connectedColorNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'color')
+            .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'colorNode'))[0];
 
-        if (connectedPositionNode) {
+          const connectedSizeNode = edges.filter(edge => edge.target === shapeNode.id && edge.targetHandle === 'size')
+            .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))[0];
+
           const shapeData = {
             shape: shapeNode.data.shape,
-            position: {
+            position: connectedPositionNode ? {
               x: parseFloat(connectedPositionNode.data.x),
               y: parseFloat(connectedPositionNode.data.y),
               z: parseFloat(connectedPositionNode.data.z)
-            },
+            } : { x: 0, y: 0, z: 0 },
             color: connectedColorNode ? connectedColorNode.data.color : 0xffffff,
             rotation: { x: 0, y: 0, z: 0 },
-            scale: {
-              x: connectedSizeNode ? connectedSizeNode.data.x : 1,
-              y: connectedSizeNode ? connectedSizeNode.data.y : 1,
-              z: connectedSizeNode ? connectedSizeNode.data.z : 1
-            }
+            scale: connectedSizeNode ? {
+              x: parseFloat(connectedSizeNode.data.x),
+              y: parseFloat(connectedSizeNode.data.y),
+              z: parseFloat(connectedSizeNode.data.z)
+            } : { x: 1, y: 1, z: 1 }
           };
+
           threeSceneRef.current.addShape(shapeData);
-        }
-      });
+        });
+      }
     }
   }, [nodes, edges]);
 
@@ -89,17 +98,21 @@ function App() {
 
   const onConnect = useCallback((params) => {
     const targetHandle = params.targetHandle;
-    if (edges.some(edge => edge.target === params.target && edge.targetHandle === targetHandle)) {
-      alert('This connection point already has a node connected.');
+    const targetNode = nodes.find(node => node.id === params.target);
+    
+    if (targetNode.type === 'renderNode' && params.sourceHandle !== 'shape') {
+      alert('Only shape nodes can be connected to the render node.');
       return;
     }
 
-    const sourceNode = nodes.find(node => node.id === params.source);
-    if ((targetHandle === 'position' && sourceNode.type !== 'vectorNode') ||
-        (targetHandle === 'color' && sourceNode.type !== 'colorNode') ||
-        (targetHandle === 'size' && sourceNode.type !== 'vectorNode')) {
-      alert(`You can only connect a ${targetHandle} node to this handle.`);
-      return;
+    if (targetHandle && targetHandle !== 'shape') {
+      const sourceNode = nodes.find(node => node.id === params.source);
+      if ((targetHandle === 'position' && sourceNode.type !== 'vectorNode') ||
+          (targetHandle === 'color' && sourceNode.type !== 'colorNode') ||
+          (targetHandle === 'size' && sourceNode.type !== 'vectorNode')) {
+        alert(`You can only connect a ${targetHandle} node to this handle.`);
+        return;
+      }
     }
 
     setEdges((eds) => addEdge(params, eds));

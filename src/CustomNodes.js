@@ -87,6 +87,7 @@ export function ShapeNode({ data }) {
         style={{ ...handleStyleLeft, top: '80%', backgroundColor: 'orange', borderRadius: '50%' }}
       />
       <span style={{ position: 'absolute', left: '50px', top: '80%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Color</span>
+      <Handle type="source" position={Position.Right} id="shape" style={handleStyleRight} />
     </div>
   );
 }
@@ -110,6 +111,15 @@ export function ColorNode({ data }) {
         styles={{ default: { picker: { width: '120px' } } }}
       />
       <Handle type="source" position={Position.Right} id="color" style={handleStyleRight} />
+    </div>
+  );
+}
+
+export function RenderNode({ data }) {
+  return (
+    <div style={{ padding: '10px', border: '1px solid #777', borderRadius: '4px', background: '#444', color: '#fff', width: '100px', textAlign: 'center' }}>
+      <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Render</div>
+      <Handle type="target" position={Position.Left} id="shape" style={{ left: '10px' }} />
     </div>
   );
 }

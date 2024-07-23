@@ -69,14 +69,22 @@ const ThreeScene = forwardRef((props, ref) => {
     scene.add(raymarcher);
 
     const environments = {
-      Apartment: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/lebombo_2k.hdr?v=1646042358302',
-      City: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/potsdamer_platz_2k.hdr?v=1646042358575',
-      Forest: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/neurathen_rock_castle_2k.hdr?v=1646042624812',
-      Studio: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/studio_small_08_2k.hdr?v=1646042358774',
-      Warehouse: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/empty_warehouse_01_2k.hdr?v=1646042357806',
-      Sunset: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/venice_sunset_2k.hdr?v=1646042356028',
-      Dawn: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/kiara_1_dawn_2k.hdr?v=1646042357931',
-      Night: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/dikhololo_night_2k.hdr?v=1646042357152',
+      BrightSky: 'maps/industrial_sunset_puresky_4k.hdr', // Keep, bright sky
+      Cloudy: 'maps/sunflowers_puresky_2k.hdr',  // maybe? cloudy sky
+      Dawn: 'maps/kiara_1_dawn_2k.hdr',  // Keep maybe 
+      PinkNight: 'maps/winter_evening_4k.hdr', // Keep, pink
+      Shangai: 'maps/shanghai_bund_4k.hdr', // neon city
+      Cinema : 'maps/pretville_cinema_4k.hdr',  // Keep
+      BrightRoom: 'maps/lebombo_2k.hdr', // maybe? lit up room
+      EmptyRoom: 'maps/small_empty_room_3_2k.hdr',  // Keep
+      Studio: 'maps/studio_small_08_2k.hdr',  // Keep
+      MedivalCafe: 'maps/medieval_cafe_4k.hdr',
+      //Garden: 'maps/garden_nook_2k.hdr',
+      //PureSky: 'maps/kloofendal_43d_clear_puresky_2k.hdr', 
+      //castle: 'maps/neurathen_rock_castle_2k.hdr',
+      //DarkCity: 'maps/potsdamer_platz_2k.hdr',  // Keep maybe, city
+      //de_balie: 'maps/de_balie_4k.hdr',  // maybe 
+      //blue_lagoon: 'maps/blue_lagoon_night_4k.hdr',
     };
 
     const loader = new RGBELoader();

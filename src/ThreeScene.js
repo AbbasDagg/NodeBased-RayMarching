@@ -12,6 +12,9 @@ const SCALING_FACTOR = 5; // Scale up shapes to fix a small bug in the raymarche
 const ThreeScene = forwardRef((props, ref) => {
   const raymarcherRef = useRef(null); // Use ref to store the raymarcher instance
   const pmremGeneratorRef = useRef(null); // Use ref to store the PMREM generator
+  const rendererRef = useRef(null); // Use ref to store the renderer
+  const cameraRef = useRef(null); // Use ref to store the camera
+  const controlsRef = useRef(null); // Use ref to store the orbit controls
 
   useImperativeHandle(ref, () => ({
     addShape: (shapeData) => {
@@ -38,18 +41,28 @@ const ThreeScene = forwardRef((props, ref) => {
         raymarcherRef.current.userData.layers[0] = [];
         raymarcherRef.current.needsUpdate = true;
       }
-    }
+    },
+    resizeRenderer: (width, height) => {
+      if (rendererRef.current && cameraRef.current) {
+        rendererRef.current.setSize(width, height);
+        cameraRef.current.aspect = width / height;
+        cameraRef.current.updateProjectionMatrix();
+      }
+    },
   }));
 
   useEffect(() => {
     const renderer = new THREE.WebGLRenderer({ alpha: true });
+    rendererRef.current = renderer;
     renderer.setSize(window.innerWidth / 2, window.innerHeight);
     document.getElementById('three-scene').appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+    cameraRef.current = camera;
     camera.position.set(0, 0, 36);
     const controls = new OrbitControls(camera, renderer.domElement);
+    controlsRef.current = controls;
     controls.update();
 
     pmremGeneratorRef.current = new PMREMGenerator(renderer);
@@ -120,7 +133,7 @@ const ThreeScene = forwardRef((props, ref) => {
     };
   }, []);
 
-  return <div id="three-scene" style={{ width: '50vw', height: '100%' }} />;
+  return <div id="three-scene" style={{ width: '100%', height: '100%' }} />;
 });
 
 export default ThreeScene;

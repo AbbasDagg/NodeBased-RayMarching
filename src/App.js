@@ -25,6 +25,7 @@ function App() {
   const threeSceneRef = useRef();
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const handleRenderScene = useCallback(() => {
     if (threeSceneRef.current) {
@@ -166,10 +167,19 @@ function App() {
     }
   }, [nodes, edges, handleRenderScene]);
 
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+    if (!isFullscreen) {
+      threeSceneRef.current.resizeRenderer(window.innerWidth, window.innerHeight);
+    } else {
+      threeSceneRef.current.resizeRenderer(window.innerWidth / 2, window.innerHeight);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <ReactFlowProvider>
-        <div style={{ width: '50vw', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ width: isFullscreen ? '0' : '50vw', height: '100vh', display: isFullscreen ? 'none' : 'flex', flexDirection: 'column' }}>
           <NodeEditor setNodes={setNodes} />
           <div style={{ flex: 1 }}>
             <ReactFlow
@@ -188,7 +198,14 @@ function App() {
           </div>
         </div>
       </ReactFlowProvider>
-      <ThreeScene ref={threeSceneRef} />
+      <div style={{ width: isFullscreen ? '100vw' : '50vw', height: '100%', position: 'relative', transition: 'width 0.5s' }}>
+        <button onClick={toggleFullscreen} style={{ position: 'absolute', bottom: '10px', right: '10px', zIndex: 1 }}>
+          {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+        </button>
+        <div style={{ width: '100%', height: '100%' }}>
+          <ThreeScene ref={threeSceneRef} />
+        </div>
+      </div>
     </div>
   );
 }

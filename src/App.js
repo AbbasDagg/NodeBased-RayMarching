@@ -176,10 +176,33 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    const leftPane = document.getElementById('left-pane');
+    const threeSceneContainer = document.getElementById('three-scene-container');
+
+    if (isFullscreen) {
+      leftPane.style.transition = 'width 0.5s ease';
+      threeSceneContainer.style.transition = 'width 0.5s ease';
+      leftPane.style.width = '0';
+      threeSceneContainer.style.width = '100vw';
+    } else {
+      leftPane.style.transition = 'width 0.5s ease';
+      threeSceneContainer.style.transition = 'width 0.5s ease';
+      leftPane.style.width = '50vw';
+      threeSceneContainer.style.width = '50vw';
+    }
+  }, [isFullscreen]);
+
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <ReactFlowProvider>
-        <div style={{ width: isFullscreen ? '0' : '50vw', height: '100vh', display: isFullscreen ? 'none' : 'flex', flexDirection: 'column' }}>
+        <div id="left-pane" style={{
+          width: isFullscreen ? '0' : '50vw',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'width 0.5s ease'
+        }}>
           <NodeEditor setNodes={setNodes} />
           <div style={{ flex: 1 }}>
             <ReactFlow
@@ -198,13 +221,21 @@ function App() {
           </div>
         </div>
       </ReactFlowProvider>
-      <div style={{ width: isFullscreen ? '100vw' : '50vw', height: '100%', position: 'relative', transition: 'width 0.5s' }}>
-        <button onClick={toggleFullscreen} style={{ position: 'absolute', bottom: '10px', right: '10px', zIndex: 1 }}>
+      <div id="three-scene-container" style={{
+        width: isFullscreen ? '100vw' : '50vw',
+        height: '100%',
+        position: 'relative',
+        transition: 'width 0.5s ease'
+      }}>
+        <button onClick={toggleFullscreen} style={{
+          position: 'absolute',
+          bottom: '10px',
+          right: '10px',
+          zIndex: 1
+        }}>
           {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
         </button>
-        <div style={{ width: '100%', height: '100%' }}>
-          <ThreeScene ref={threeSceneRef} />
-        </div>
+        <ThreeScene ref={threeSceneRef} />
       </div>
     </div>
   );

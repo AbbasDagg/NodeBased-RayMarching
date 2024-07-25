@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useReactFlow } from 'reactflow';
+import './App.css'; // Import the CSS file
 
 function NodeEditor({ setNodes }) {
   const [nodeCount, setNodeCount] = useState(3); // Starts at 3 because of initial nodes
@@ -62,11 +63,11 @@ function NodeEditor({ setNodes }) {
   
   return (
     <div style={{ width: '100%', padding: '10px', display: 'flex', justifyContent: 'space-between' }}>
-      <button onClick={addVectorNode}>Add Vector Node</button>
-      <button onClick={addShapeNode}>Add Shape Node</button>
-      <button onClick={addColorNode}>Add Color Node</button>
-      <button onClick={addRenderNode}>Add Render Node</button>
-      <button onClick={addModeNode}>Add Mode Node</button>
+      <button class="button-85" onClick={addVectorNode}>Add Vector Node</button>
+      <button class="button-85" onClick={addShapeNode}>Add Shape Node</button>
+      <button class="button-85" onClick={addColorNode}>Add Color Node</button>
+      <button class="button-85" onClick={addRenderNode}>Add Render Node</button>
+      <button class="button-85" onClick={addModeNode}>Add Mode Node</button>
     </div>
   );
   

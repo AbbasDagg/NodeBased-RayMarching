@@ -71,11 +71,11 @@ const ThreeScene = forwardRef((props, ref) => {
 
     const raymarcher = new Raymarcher({
       envMap: environmentMap,
-      resolution: 0.5,
-      blending: 1,
+      resolution: 0.7,
+      blending: 0.2,
       roughness: 0,
-      metalness: 0,
-      envMapIntensity: 0.6,
+      metalness: 1,
+      envMapIntensity: 0.7,
       layers: [[]] // Start with a single empty layer
     });
     raymarcherRef.current = raymarcher;
@@ -113,11 +113,11 @@ const ThreeScene = forwardRef((props, ref) => {
     loadEnvironment('Dawn'); // Load a default environment map
 
     const gui = new GUI({ title: 'three-raymarcher' });
-    gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01).setValue(0.8);;
-    gui.add(raymarcher.userData, 'blending', 0.2, 2, 0.01).setValue(0.2);;
-    gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01).setValue(1);;
-    gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01).setValue(0);;
-    gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01).setValue(0.7);;
+    gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);//.setValue(0.8);;
+    gui.add(raymarcher.userData, 'blending', 0.2, 2, 0.01);//.setValue(0.2);;
+    gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);//.setValue(1);;
+    gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);//.setValue(0);;
+    gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);//.setValue(0.7);;
     gui.add({ envMap: 'Dawn' }, 'envMap', Object.keys(environments)).onChange(loadEnvironment);
 
     const animate = () => {

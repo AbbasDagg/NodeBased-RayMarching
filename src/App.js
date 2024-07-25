@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { ReactFlowProvider, ReactFlow, addEdge, applyEdgeChanges, applyNodeChanges, MiniMap, Controls, Background } from 'reactflow';
 import 'reactflow/dist/style.css';
+import './App.css'; // Import the CSS file
 import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
 import { VectorNode, ShapeNode, ColorNode, RenderNode, ModeNode } from './CustomNodes';
@@ -227,7 +228,7 @@ function App() {
         position: 'relative',
         transition: 'width 0.5s ease'
       }}>
-        <button onClick={toggleFullscreen} style={{
+        <button class="button-85" onClick={toggleFullscreen} style={{
           position: 'absolute',
           bottom: '10px',
           right: '10px',

@@ -114,11 +114,11 @@ const ThreeScene = forwardRef((props, ref) => {
 
     const gui = new GUI({ title: 'three-raymarcher' });
     gui.close();
-    gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);//.setValue(0.8);;
-    gui.add(raymarcher.userData, 'blending', 0.2, 2, 0.01);//.setValue(0.2);;
-    gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);//.setValue(1);;
-    gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);//.setValue(0);;
-    gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);//.setValue(0.7);;
+    gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);//.setValue(0.8);
+    gui.add(raymarcher.userData, 'blending', 0.2, 2, 0.01);//.setValue(0.2);
+    gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);//.setValue(1);
+    gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);//.setValue(0);
+    gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);//.setValue(0.7);
     gui.add({ envMap: 'BrightSky' }, 'envMap', Object.keys(environments)).onChange(loadEnvironment);
 
     const animate = () => {

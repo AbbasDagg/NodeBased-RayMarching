@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useReactFlow } from 'reactflow';
 import './App.css'; // Import the CSS file
 
-function NodeEditor({ setNodes }) {
+function NodeEditor({ setNodes, isFullscreen }) {
   const [nodeCount, setNodeCount] = useState(3); // Starts at 3 because of initial nodes
   const reactFlowInstance = useReactFlow();
 
@@ -60,19 +60,16 @@ function NodeEditor({ setNodes }) {
     reactFlowInstance.setNodes((nds) => nds.concat(newNode));
     setNodeCount(nodeCount + 1);
   };
-  
+
   return (
-    <div style={{ width: '100%', padding: '0px', display: 'flex', justifyContent: 'space-between' }}>
-      <button className="pshdown2" onClick={addVectorNode} style={{ width: '120px', margin: '20px' }}>Vector</button>
-      <button className="pshdown2" onClick={addShapeNode} style={{ width: '120px', margin: '20px' }}>Shape</button>
-      <button className="pshdown2" onClick={addColorNode} style={{ width: '120px', margin: '20px' }}>Color</button>
-      <button className="pshdown2" onClick={addRenderNode} style={{ width: '120px', margin: '20px' }}>Render</button>
-      <button className="pshdown2" onClick={addModeNode} style={{ width: '120px', margin: '20px' }}>Mode</button>
+    <div className={`node-editor-buttons ${isFullscreen ? 'hidden' : ''}`} style={{ width: '100%', padding: '0px', display: 'flex', justifyContent: 'space-between' }}>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addVectorNode} style={{ width: '120px', margin: '20px' }}>Vector</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addShapeNode} style={{ width: '120px', margin: '20px' }}>Shape</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addColorNode} style={{ width: '120px', margin: '20px' }}>Color</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addRenderNode} style={{ width: '120px', margin: '20px' }}>Render</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addModeNode} style={{ width: '120px', margin: '20px' }}>Mode</button>
     </div>
   );
-  
-  
-  
 }
 
 export default NodeEditor;

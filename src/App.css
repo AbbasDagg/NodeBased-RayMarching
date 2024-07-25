@@ -227,33 +227,30 @@
 /* Fullscreen Button Styles */
 .fullscreen-button-container {
     --color: #a5a5b0;
-    --size: 25px; /* Increase the size */
+    --size: 25px;
     display: flex;
     justify-content: center;
     align-items: center;
-    position: relative;
     cursor: pointer;
     font-size: var(--size);
     user-select: none;
     fill: var(--color);
   }
   
-  .fullscreen-button-container .expand {
-    position: absolute;
-    width: var(--size); /* Ensure SVG width matches the size */
-    height: var(--size); /* Ensure SVG height matches the size */
-    animation: keyframes-fill .5s;
+  .fullscreen-button-container .expand,
+  .fullscreen-button-container .compress {
+    width: var(--size);
+    height: var(--size);
   }
   
   .fullscreen-button-container .compress {
-    position: absolute;
     display: none;
-    width: var(--size); /* Ensure SVG width matches the size */
-    height: var(--size); /* Ensure SVG height matches the size */
-    animation: keyframes-fill .5s;
   }
   
-  /* On check event */
+  .fullscreen-button-container input {
+    display: none; /* Hide the checkbox */
+  }
+  
   .fullscreen-button-container input:checked ~ .expand {
     display: none;
   }
@@ -262,23 +259,33 @@
     display: block;
   }
   
-  /* Hide the default checkbox */
-  .fullscreen-button-container input {
+  .hidden {
+    display: none; /* Hide other elements when in fullscreen mode */
+  }
+  
+  /* Ensure NodeEditor buttons are positioned correctly */
+  #left-pane {
+    position: relative;
+  }
+  
+  #left-pane .node-editor-buttons {
     position: absolute;
-    opacity: 0;
-    cursor: pointer;
-    height: 0;
-    width: 0;
+    top: 10px;
+    left: 10px;
+    z-index: 1;
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
   }
   
-  /* Animation */
-  @keyframes keyframes-fill {
-    0% {
-      transform: scale(0);
-      opacity: 0;
-    }
-  
-    50% {
-      transform: scale(1.2);
-    }
+  .node-editor-buttons button {
+    flex: 1 1 auto;
+    margin: 5px;
+    min-width: 100px;
   }
+  
+  .hidden {
+    display: none;
+  }
+
+  

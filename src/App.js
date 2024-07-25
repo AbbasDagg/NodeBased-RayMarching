@@ -22,21 +22,12 @@ const nodeTypes = {
   modeNode: ModeNode,
 };
 
-const FullscreenButton = ({ isFullscreen, toggleFullscreen, style }) => {
-  return (
-    <div className="fullscreen-button-container" onClick={toggleFullscreen} style={style}>
-      <input type="checkbox" checked={isFullscreen} onChange={toggleFullscreen} />
-      <img className="expand" src="/svg/expand.svg" alt="expand" />
-      <img className="compress" src="/svg/collapse.svg" alt="compress" />
-    </div>
-  );
-};
-
 function App() {
   const threeSceneRef = useRef();
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
   const handleRenderScene = useCallback(() => {
     if (threeSceneRef.current) {
       threeSceneRef.current.clearScene();
@@ -186,6 +177,24 @@ function App() {
     }
   };
 
+  const handleWindowResize = () => {
+    if (threeSceneRef.current) {
+      threeSceneRef.current.resizeRenderer(window.innerWidth / (isFullscreen ? 1 : 2), window.innerHeight);
+    }
+    // Ensure the left pane resizing
+    const leftPane = document.getElementById('left-pane');
+    if (leftPane) {
+      leftPane.style.width = isFullscreen ? '0' : '50vw';
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('resize', handleWindowResize);
+    return () => {
+      window.removeEventListener('resize', handleWindowResize);
+    };
+  }, [isFullscreen]);
+
   useEffect(() => {
     const leftPane = document.getElementById('left-pane');
     const threeSceneContainer = document.getElementById('three-scene-container');
@@ -212,8 +221,8 @@ function App() {
           display: 'flex',
           flexDirection: 'column',
           transition: 'width 0.5s ease'
-        }}>
-          <NodeEditor setNodes={setNodes} />
+        }} className={isFullscreen ? 'hidden' : ''}>
+          <NodeEditor setNodes={setNodes} isFullscreen={isFullscreen} />
           <div style={{ flex: 1 }}>
             <ReactFlow
               nodes={nodes}
@@ -237,13 +246,17 @@ function App() {
         position: 'relative',
         transition: 'width 0.5s ease'
       }}>
-        <FullscreenButton isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} style={{
-        position: 'absolute',
-        bottom: '25px', // 5px away from the bottom
-        right: '25px',  // 5px away from the right
-        zIndex: 1
-      }} />
         <ThreeScene ref={threeSceneRef} />
+        <div className={`fullscreen-button-container`} onClick={toggleFullscreen} style={{
+          position: 'absolute',
+          bottom: '5px',
+          right: '5px',
+          zIndex: 1
+        }}>
+          <input type="checkbox" checked={isFullscreen} onChange={toggleFullscreen} />
+          <img className="expand" src="/svg/expand.svg" alt="expand" />
+          <img className="compress" src="/svg/collapse.svg" alt="compress" />
+        </div>
       </div>
     </div>
   );

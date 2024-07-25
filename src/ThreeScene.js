@@ -113,6 +113,7 @@ const ThreeScene = forwardRef((props, ref) => {
     loadEnvironment('Dawn'); // Load a default environment map
 
     const gui = new GUI({ title: 'three-raymarcher' });
+    gui.close();
     gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);//.setValue(0.8);;
     gui.add(raymarcher.userData, 'blending', 0.2, 2, 0.01);//.setValue(0.2);;
     gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);//.setValue(1);;

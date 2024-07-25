@@ -22,12 +22,21 @@ const nodeTypes = {
   modeNode: ModeNode,
 };
 
+const FullscreenButton = ({ isFullscreen, toggleFullscreen, style }) => {
+  return (
+    <div className="fullscreen-button-container" onClick={toggleFullscreen} style={style}>
+      <input type="checkbox" checked={isFullscreen} onChange={toggleFullscreen} />
+      <img className="expand" src="/svg/expand.svg" alt="expand" />
+      <img className="compress" src="/svg/collapse.svg" alt="compress" />
+    </div>
+  );
+};
+
 function App() {
   const threeSceneRef = useRef();
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
   const [isFullscreen, setIsFullscreen] = useState(false);
-
   const handleRenderScene = useCallback(() => {
     if (threeSceneRef.current) {
       threeSceneRef.current.clearScene();
@@ -228,15 +237,12 @@ function App() {
         position: 'relative',
         transition: 'width 0.5s ease'
       }}>
-        <button class="pshdown2" onClick={toggleFullscreen} style={{
-          width: '120px',
-          position: 'absolute',
-          bottom: '10px',
-          right: '10px',
-          zIndex: 1
-        }}>
-          {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-        </button>
+        <FullscreenButton isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} style={{
+        position: 'absolute',
+        bottom: '25px', // 5px away from the bottom
+        right: '25px',  // 5px away from the right
+        zIndex: 1
+      }} />
         <ThreeScene ref={threeSceneRef} />
       </div>
     </div>

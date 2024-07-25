@@ -72,7 +72,7 @@ const ThreeScene = forwardRef((props, ref) => {
     const raymarcher = new Raymarcher({
       envMap: environmentMap,
       resolution: 0.7,
-      blending: 0.2,
+      blending: 1,
       roughness: 0,
       metalness: 1,
       envMapIntensity: 0.7,
@@ -110,7 +110,7 @@ const ThreeScene = forwardRef((props, ref) => {
       });
     };
 
-    loadEnvironment('Dawn'); // Load a default environment map
+    loadEnvironment('BrightSky'); // Load a default environment map
 
     const gui = new GUI({ title: 'three-raymarcher' });
     gui.close();
@@ -119,7 +119,7 @@ const ThreeScene = forwardRef((props, ref) => {
     gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);//.setValue(1);;
     gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);//.setValue(0);;
     gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);//.setValue(0.7);;
-    gui.add({ envMap: 'Dawn' }, 'envMap', Object.keys(environments)).onChange(loadEnvironment);
+    gui.add({ envMap: 'BrightSky' }, 'envMap', Object.keys(environments)).onChange(loadEnvironment);
 
     const animate = () => {
       requestAnimationFrame(animate);

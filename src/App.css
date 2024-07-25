@@ -223,3 +223,62 @@
     color: grey;
   }
   
+
+/* Fullscreen Button Styles */
+.fullscreen-button-container {
+    --color: #a5a5b0;
+    --size: 25px; /* Increase the size */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    font-size: var(--size);
+    user-select: none;
+    fill: var(--color);
+  }
+  
+  .fullscreen-button-container .expand {
+    position: absolute;
+    width: var(--size); /* Ensure SVG width matches the size */
+    height: var(--size); /* Ensure SVG height matches the size */
+    animation: keyframes-fill .5s;
+  }
+  
+  .fullscreen-button-container .compress {
+    position: absolute;
+    display: none;
+    width: var(--size); /* Ensure SVG width matches the size */
+    height: var(--size); /* Ensure SVG height matches the size */
+    animation: keyframes-fill .5s;
+  }
+  
+  /* On check event */
+  .fullscreen-button-container input:checked ~ .expand {
+    display: none;
+  }
+  
+  .fullscreen-button-container input:checked ~ .compress {
+    display: block;
+  }
+  
+  /* Hide the default checkbox */
+  .fullscreen-button-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+  }
+  
+  /* Animation */
+  @keyframes keyframes-fill {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+  
+    50% {
+      transform: scale(1.2);
+    }
+  }

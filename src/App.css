@@ -288,4 +288,14 @@
     display: none;
   }
 
-  
+/* Draggable Divider Styles */
+.divider {
+    width: 5px;
+    background: #ccc;
+    cursor: ew-resize;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 10;
+    transition: none; /* Ensure no transition for resizing */
+}

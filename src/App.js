@@ -228,7 +228,8 @@ function App() {
         position: 'relative',
         transition: 'width 0.5s ease'
       }}>
-        <button class="button-85" onClick={toggleFullscreen} style={{
+        <button class="pshdown2" onClick={toggleFullscreen} style={{
+          width: '120px',
           position: 'absolute',
           bottom: '10px',
           right: '10px',

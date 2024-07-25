@@ -62,14 +62,16 @@ function NodeEditor({ setNodes }) {
   };
   
   return (
-    <div style={{ width: '100%', padding: '10px', display: 'flex', justifyContent: 'space-between' }}>
-      <button class="button-85" onClick={addVectorNode}>Add Vector Node</button>
-      <button class="button-85" onClick={addShapeNode}>Add Shape Node</button>
-      <button class="button-85" onClick={addColorNode}>Add Color Node</button>
-      <button class="button-85" onClick={addRenderNode}>Add Render Node</button>
-      <button class="button-85" onClick={addModeNode}>Add Mode Node</button>
+    <div style={{ width: '100%', padding: '0px', display: 'flex', justifyContent: 'space-between' }}>
+      <button className="pshdown2" onClick={addVectorNode} style={{ width: '120px', margin: '20px' }}>Vector</button>
+      <button className="pshdown2" onClick={addShapeNode} style={{ width: '120px', margin: '20px' }}>Shape</button>
+      <button className="pshdown2" onClick={addColorNode} style={{ width: '120px', margin: '20px' }}>Color</button>
+      <button className="pshdown2" onClick={addRenderNode} style={{ width: '120px', margin: '20px' }}>Render</button>
+      <button className="pshdown2" onClick={addModeNode} style={{ width: '120px', margin: '20px' }}>Mode</button>
     </div>
   );
+  
+  
   
 }
 

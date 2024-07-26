@@ -27,7 +27,7 @@ function App() {
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [leftPaneWidth, setLeftPaneWidth] = useState('50vw');
+  const [leftPaneWidth, setLeftPaneWidth] = useState(window.innerWidth / 2);
 
   const handleRenderScene = useCallback(() => {
     if (threeSceneRef.current) {
@@ -171,16 +171,45 @@ function App() {
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
+    const leftPane = document.getElementById('left-pane');
+    const threeSceneContainer = document.getElementById('three-scene-container');
+    const divider = document.querySelector('.divider');
+
+    if (leftPane && threeSceneContainer && divider) {
+      leftPane.style.transition = 'width 0.5s ease'; // Add transition for fullscreen toggle
+      threeSceneContainer.style.transition = 'width 0.5s ease'; // Add transition for fullscreen toggle
+
+      if (!isFullscreen) {
+        leftPane.style.width = '0';
+        threeSceneContainer.style.width = '100vw';
+        divider.style.display = 'none'; // Hide the divider in fullscreen mode
+      } else {
+        leftPane.style.width = `${leftPaneWidth}px`;
+        threeSceneContainer.style.width = `calc(100vw - ${leftPaneWidth}px)`;
+        divider.style.display = 'block'; // Show the divider when exiting fullscreen
+      }
+    }
+
+    setTimeout(() => {
+      if (threeSceneRef.current) {
+        threeSceneRef.current.resizeRenderer(window.innerWidth - (isFullscreen ? leftPaneWidth : 0), window.innerHeight);
+      }
+    }, 500); // Match the duration of the transition
   };
 
   const handleWindowResize = () => {
-    if (threeSceneRef.current) {
-      threeSceneRef.current.resizeRenderer(window.innerWidth / (isFullscreen ? 1 : 2), window.innerHeight);
-    }
-    // Ensure the left pane resizing
     const leftPane = document.getElementById('left-pane');
-    if (leftPane) {
-      leftPane.style.width = isFullscreen ? '0' : leftPaneWidth;
+    const threeSceneContainer = document.getElementById('three-scene-container');
+    const newLeftPaneWidth = Math.min(Math.max(leftPaneWidth, window.innerWidth * 0.2), window.innerWidth * 0.8);
+    setLeftPaneWidth(newLeftPaneWidth);
+
+    if (leftPane && threeSceneContainer) {
+      leftPane.style.width = isFullscreen ? '0' : `${newLeftPaneWidth}px`;
+      threeSceneContainer.style.width = isFullscreen ? '100vw' : `calc(100vw - ${newLeftPaneWidth}px)`;
+    }
+
+    if (threeSceneRef.current) {
+      threeSceneRef.current.resizeRenderer(window.innerWidth - (isFullscreen ? 0 : newLeftPaneWidth), window.innerHeight);
     }
   };
 
@@ -192,24 +221,8 @@ function App() {
   }, [isFullscreen, leftPaneWidth]);
 
   useEffect(() => {
-    if (threeSceneRef.current) {
-      threeSceneRef.current.resizeRenderer(window.innerWidth / (isFullscreen ? 1 : 2), window.innerHeight);
-    }
-    const leftPane = document.getElementById('left-pane');
-    const threeSceneContainer = document.getElementById('three-scene-container');
-
-    if (isFullscreen) {
-      leftPane.style.transition = 'width 0.5s ease';
-      threeSceneContainer.style.transition = 'width 0.5s ease';
-      leftPane.style.width = '0';
-      threeSceneContainer.style.width = '100vw';
-    } else {
-      leftPane.style.transition = 'width 0.5s ease';
-      threeSceneContainer.style.transition = 'width 0.5s ease';
-      leftPane.style.width = leftPaneWidth;
-      threeSceneContainer.style.width = `calc(100vw - ${leftPaneWidth})`;
-    }
-  }, [isFullscreen, leftPaneWidth]);
+    handleWindowResize();
+  }, [isFullscreen]);
 
   const startResizing = (e) => {
     document.addEventListener('mousemove', resize);
@@ -219,16 +232,16 @@ function App() {
   const resize = (e) => {
     const minLeftPaneWidth = window.innerWidth * 0.2; // 20% of the window width
     const maxLeftPaneWidth = window.innerWidth * 0.8; // 80% of the window width
-    const newWidth = Math.max(Math.min(e.clientX, maxLeftPaneWidth), minLeftPaneWidth) + 'px';
+    const newWidth = Math.max(Math.min(e.clientX, maxLeftPaneWidth), minLeftPaneWidth);
     setLeftPaneWidth(newWidth);
     const leftPane = document.getElementById('left-pane');
     const threeSceneContainer = document.getElementById('three-scene-container');
     if (leftPane && threeSceneContainer) {
       leftPane.style.transition = 'none'; // Remove transition for instant resizing
       threeSceneContainer.style.transition = 'none'; // Remove transition for instant resizing
-      leftPane.style.width = newWidth;
-      threeSceneContainer.style.width = `calc(100vw - ${newWidth})`;
-      threeSceneRef.current.resizeRenderer(window.innerWidth - parseInt(newWidth), window.innerHeight);
+      leftPane.style.width = `${newWidth}px`;
+      threeSceneContainer.style.width = `calc(100vw - ${newWidth}px)`;
+      threeSceneRef.current.resizeRenderer(window.innerWidth - newWidth, window.innerHeight);
     }
   };
 
@@ -247,7 +260,7 @@ function App() {
     <div style={{ display: 'flex', height: '100vh' }}>
       <ReactFlowProvider>
         <div id="left-pane" style={{
-          width: isFullscreen ? '0' : leftPaneWidth,
+          width: isFullscreen ? '0' : `${leftPaneWidth}px`,
           height: '100vh',
           display: 'flex',
           flexDirection: 'column',
@@ -274,13 +287,13 @@ function App() {
           className="divider"
           onMouseDown={startResizing}
           style={{
-            left: leftPaneWidth,
+            left: `${leftPaneWidth}px`,
             display: isFullscreen ? 'none' : 'block'
           }}
         />
       </ReactFlowProvider>
       <div id="three-scene-container" style={{
-        width: isFullscreen ? '100vw' : `calc(100vw - ${leftPaneWidth})`,
+        width: isFullscreen ? '100vw' : `calc(100vw - ${leftPaneWidth}px)`,
         height: '100%',
         position: 'relative',
         transition: 'width 0.5s ease'

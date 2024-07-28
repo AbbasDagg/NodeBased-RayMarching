@@ -82,6 +82,7 @@ const ThreeScene = forwardRef((props, ref) => {
     scene.add(raymarcher);
 
     const environments = {
+      RoomEnvironment: 'RoomEnvironment', // built in
       BrightSky: 'maps/industrial_sunset_puresky_4k.hdr', // Keep, bright sky
       Cloudy: 'maps/sunflowers_puresky_2k.hdr',  // maybe? cloudy sky
       Dawn: 'maps/kiara_1_dawn_2k.hdr',  // Keep maybe 
@@ -102,15 +103,23 @@ const ThreeScene = forwardRef((props, ref) => {
 
     const loader = new RGBELoader();
     const loadEnvironment = (envName) => {
-      loader.load(environments[envName], (texture) => {
-        const pmremTexture = pmremGenerator.fromEquirectangular(texture).texture;
+      if (envName === 'RoomEnvironment') {
+        const pmremTexture = pmremGenerator.fromScene(new RoomEnvironment()).texture;
         scene.background = pmremTexture;
         raymarcher.userData.envMap = pmremTexture;
         raymarcher.needsUpdate = true;
-      });
+      } else {
+        loader.load(environments[envName], (texture) => {
+          const pmremTexture = pmremGenerator.fromEquirectangular(texture).texture;
+          scene.background = pmremTexture;
+          raymarcher.userData.envMap = pmremTexture;
+          raymarcher.needsUpdate = true;
+        });
+      }
     };
+    
 
-    loadEnvironment('BrightSky'); // Load a default environment map
+    loadEnvironment('RoomEnvironment'); // Load a default environment map
 
     const gui = new GUI({ title: 'three-raymarcher' });
     gui.close();
@@ -119,7 +128,7 @@ const ThreeScene = forwardRef((props, ref) => {
     gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);//.setValue(1);
     gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);//.setValue(0);
     gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);//.setValue(0.7);
-    gui.add({ envMap: 'BrightSky' }, 'envMap', Object.keys(environments)).onChange(loadEnvironment);
+    gui.add({ envMap: 'RoomEnvironment' }, 'envMap', Object.keys(environments)).onChange(loadEnvironment);
 
     const animate = () => {
       requestAnimationFrame(animate);

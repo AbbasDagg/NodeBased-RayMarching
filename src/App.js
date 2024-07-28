@@ -4,11 +4,11 @@ import 'reactflow/dist/style.css';
 import './App.css'; // Import the CSS file
 import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
-import { VectorNode, ShapeNode, ColorNode, RenderNode, ModeNode } from './CustomNodes';
+import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode } from './CustomNodes';
 
 const initialNodes = [
   { id: '1', type: 'vectorNode', position: { x: 0, y: 0 }, data: { x: 0, y: 0, z: 0 } },
-  { id: '2', type: 'shapeNode', position: { x: 100, y: 100 }, data: { shape: 'sphere' } },
+  { id: '2', type: 'sphereNode', position: { x: 100, y: 100 }, data: { shape: 'sphere' } },
   { id: '3', type: 'renderNode', position: { x: 200, y: 200 }, data: { label: 'Render' } },
 ];
 
@@ -16,7 +16,10 @@ const initialEdges = [];
 
 const nodeTypes = {
   vectorNode: VectorNode,
-  shapeNode: ShapeNode,
+  sphereNode: SphereNode,
+  torusNode: TorusNode,
+  boxNode: BoxNode,
+  capsuleNode: CapsuleNode,
   colorNode: ColorNode,
   renderNode: RenderNode,
   modeNode: ModeNode,
@@ -54,7 +57,7 @@ function App() {
         const traverse = (nodeId, operation) => {
           const node = updatedNodes.find(n => n.id === nodeId);
 
-          if (node.type === 'shapeNode') {
+          if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode'].includes(node.type)) {
             const connectedPositionNode = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'position')
               .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
@@ -145,7 +148,10 @@ function App() {
     const validConnections = {
       vectorNode: ['position', 'size'],
       colorNode: ['color'],
-      shapeNode: ['shape1', 'shape2'],
+      sphereNode: ['shape1', 'shape2'],
+      torusNode: ['shape1', 'shape2'],
+      boxNode: ['shape1', 'shape2'],
+      capsuleNode: ['shape1', 'shape2'],
       modeNode: ['shape1', 'shape2', 'render'],
     };
 

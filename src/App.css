@@ -1,4 +1,4 @@
-/* Button style 1 */
+/* General button styles */
 .glowing {
     padding: 0.6em 2em;
     border: none;
@@ -12,21 +12,21 @@
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
-  }
-  
-  .glowing:before {
+}
+
+.glowing:before {
     content: "";
     background: linear-gradient(
-      45deg,
-      #ff0000,
-      #ff7300,
-      #fffb00,
-      #48ff00,
-      #00ffd5,
-      #002bff,
-      #7a00ff,
-      #ff00c8,
-      #ff0000
+        45deg,
+        #ff0000,
+        #ff7300,
+        #fffb00,
+        #48ff00,
+        #00ffd5,
+        #002bff,
+        #7a00ff,
+        #ff00c8,
+        #ff0000
     );
     position: absolute;
     top: -2px;
@@ -40,21 +40,21 @@
     animation: glowing-glowing 20s linear infinite;
     transition: opacity 0.3s ease-in-out;
     border-radius: 10px;
-  }
-  
-  @keyframes glowing-glowing {
+}
+
+@keyframes glowing-glowing {
     0% {
-      background-position: 0 0;
+        background-position: 0 0;
     }
     50% {
-      background-position: 400% 0;
+        background-position: 400% 0;
     }
     100% {
-      background-position: 0 0;
+        background-position: 0 0;
     }
-  }
-  
-  .glowing:after {
+}
+
+.glowing:after {
     z-index: -1;
     content: "";
     position: absolute;
@@ -64,10 +64,10 @@
     left: 0;
     top: 0;
     border-radius: 10px;
-  }
-  
-  /* Button style 2 */
-  .delete {
+}
+
+/* Button style 2 */
+.delete {
     width: 50px;
     height: 50px;
     border-radius: 50%;
@@ -82,49 +82,49 @@
     transition-duration: 0.3s;
     overflow: hidden;
     position: relative;
-  }
-  
-  .svgIcon {
+}
+
+.svgIcon {
     width: 12px;
     transition-duration: 0.3s;
-  }
-  
-  .svgIcon path {
+}
+
+.svgIcon path {
     fill: white;
-  }
-  
-  .delete:hover {
+}
+
+.delete:hover {
     width: 140px;
     border-radius: 50px;
     transition-duration: 0.3s;
     background-color: rgb(255, 69, 69);
     align-items: center;
-  }
-  
-  .delete:hover .svgIcon {
+}
+
+.delete:hover .svgIcon {
     width: 50px;
     transition-duration: 0.3s;
     transform: translateY(60%);
-  }
-  
-  .delete::before {
+}
+
+.delete::before {
     position: absolute;
     top: -20px;
     content: "Delete";
     color: white;
     transition-duration: 0.3s;
     font-size: 2px;
-  }
-  
-  .delete:hover::before {
+}
+
+.delete:hover::before {
     font-size: 13px;
     opacity: 1;
     transform: translateY(30px);
     transition-duration: 0.3s;
-  }
-  
-  /* Button style 3 */
-  .pshdown1 {
+}
+
+/* Button style 3 */
+.pshdown1 {
     border: none;
     outline: none;
     background-color: #6c5ce7;
@@ -135,15 +135,15 @@
     border-radius: 5px;
     transition: all ease 0.1s;
     box-shadow: 0px 5px 0px 0px #a29bfe;
-  }
-  
-  .pshdown1:active {
+}
+
+.pshdown1:active {
     transform: translateY(5px);
     box-shadow: 0px 0px 0px 0px #a29bfe;
-  }
-  
-  /* Button style 4 */
-  .button-4 {
+}
+
+/* Button style 4 */
+.button-4 {
     width: 150px;
     height: 50px;
     border-radius: 5px;
@@ -156,13 +156,13 @@
     align-items: center;
     background: #040f16;
     color: #f5f5f5;
-  }
-  
-  .button-4:hover {
+}
+
+.button-4:hover {
     box-shadow: 0 0 20px 0px #2e2e2e3a;
-  }
-  
-  .button-4 .icon {
+}
+
+.button-4 .icon {
     position: absolute;
     height: 40px;
     width: 70px;
@@ -170,59 +170,86 @@
     justify-content: center;
     align-items: center;
     transition: all 0.5s;
-  }
-  
-  .button-4 .text {
+}
+
+.button-4 .text {
     transform: translateX(55px);
-  }
-  
-  .button-4:hover .icon {
+}
+
+.button-4:hover .icon {
     width: 175px;
-  }
-  
-  .button-4:hover .text {
+}
+
+.button-4:hover .text {
     transition: all 0.5s;
     opacity: 0;
-  }
-  
-  .button-4:focus {
+}
+
+.button-4:focus {
     outline: none;
-  }
-  
-  .button-4:active .icon {
+}
+
+.button-4:active .icon {
     transform: scale(0.85);
-  }
-  
-  /* Button style 5 */
-  .pshdown2 {
+}
+
+/* Button style 5 */
+.pshdown2 {
     background-color: #eee;
     border: none;
     padding: 1rem;
     font-size: 1rem;
-    width: 10em;
+    width: 99%; /* Decreased by 1% */
     border-radius: 1rem;
     color: lightcoral;
     box-shadow: 0 0.4rem #dfd9d9;
     cursor: pointer;
-  }
-  
-  .pshdown2:active {
+    transition: width 0.5s ease, padding 0.5s ease;
+}
+
+.pshdown2:active {
     color: white;
     box-shadow: 0 0.2rem #dfd9d9;
     transform: translateY(0.2rem);
-  }
-  
-  .pshdown2:hover:not(:disabled) {
+}
+
+.pshdown2:hover:not(:disabled) {
     background: lightcoral;
     color: white;
     text-shadow: 0 0.1rem #bcb4b4;
-  }
-  
-  .pshdown2:disabled {
+}
+
+.pshdown2:disabled {
     cursor: auto;
     color: grey;
-  }
-  
+}
+
+/* Shape menu styles */
+.shape-menu {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    width: 100%;
+    z-index: 1; /* Ensure it is above other elements */
+}
+
+.shape-menu .pshdown2 {
+    width: 100%;
+    margin: 0;
+    font-size: 1rem;
+    padding: 1rem;
+    border-radius: 1rem;
+    color: lightcoral;
+    background-color: #eee;
+    box-shadow: 0 0.4rem #dfd9d9;
+    cursor: pointer;
+    transition: width 0.5s ease, padding 0.5s ease;
+}
 
 /* Fullscreen Button Styles */
 .fullscreen-button-container {
@@ -235,40 +262,40 @@
     font-size: var(--size);
     user-select: none;
     fill: var(--color);
-  }
-  
-  .fullscreen-button-container .expand,
-  .fullscreen-button-container .compress {
+}
+
+.fullscreen-button-container .expand,
+.fullscreen-button-container .compress {
     width: var(--size);
     height: var(--size);
-  }
-  
-  .fullscreen-button-container .compress {
+}
+
+.fullscreen-button-container .compress {
     display: none;
-  }
-  
-  .fullscreen-button-container input {
+}
+
+.fullscreen-button-container input {
     display: none; /* Hide the checkbox */
-  }
-  
-  .fullscreen-button-container input:checked ~ .expand {
+}
+
+.fullscreen-button-container input:checked ~ .expand {
     display: none;
-  }
-  
-  .fullscreen-button-container input:checked ~ .compress {
+}
+
+.fullscreen-button-container input:checked ~ .compress {
     display: block;
-  }
-  
-  .hidden {
+}
+
+.hidden {
     display: none; /* Hide other elements when in fullscreen mode */
-  }
-  
-  /* Ensure NodeEditor buttons are positioned correctly */
-  #left-pane {
+}
+
+/* Ensure NodeEditor buttons are positioned correctly */
+#left-pane {
     position: relative;
-  }
-  
-  #left-pane .node-editor-buttons {
+}
+
+#left-pane .node-editor-buttons {
     position: absolute;
     top: 10px;
     left: 10px;
@@ -276,17 +303,17 @@
     width: 100%;
     display: flex;
     flex-wrap: wrap;
-  }
-  
-  .node-editor-buttons button {
+    gap: 10px; /* Add gap between buttons */
+}
+
+.node-editor-buttons button {
     flex: 1 1 auto;
-    margin: 5px;
     min-width: 100px;
-  }
-  
-  .hidden {
+}
+
+.hidden {
     display: none;
-  }
+}
 
 /* Draggable Divider Styles */
 .divider {

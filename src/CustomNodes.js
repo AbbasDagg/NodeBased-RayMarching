@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Handle, Position } from 'reactflow';
 import { SketchPicker } from 'react-color';
 
-const handleStyleRight = { right: '10px' };
-const handleStyleLeft = { left: '10px' };
+const handleStyleRight = { right: '5%', backgroundColor: 'white' };
+const handleStyleLeft = { left: '5%', backgroundColor: 'white' };
+const specialRight = { right: '2%', backgroundColor: 'white' };
 
 export function ModeNode({ data }) {
   const [mode, setMode] = useState(data.mode || 'union');
@@ -17,16 +18,18 @@ export function ModeNode({ data }) {
   };
 
   return (
-    <div style={{ padding: '10px', border: '1px solid #777', borderRadius: '4px', background: '#444', color: '#fff', width: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Mode Node</div>
-      <select value={mode} onChange={(e) => handleSelectMode(e.target.value)} style={{ marginBottom: '10px', padding: '5px', borderRadius: '4px', background: '#555', color: '#fff' }}>
-        <option value="union">Union</option>
-        <option value="subtraction">Subtraction</option>
-        <option value="intersection">Intersection</option>
-      </select>
-      <Handle type="target" position={Position.Left} id="shape1" style={{ top: '30%', ...handleStyleLeft }} />
-      <Handle type="target" position={Position.Left} id="shape2" style={{ top: '70%', ...handleStyleLeft }} />
-      <Handle type="source" position={Position.Right} id="render" style={{ right: '10px' }} />
+    <div className="card" style={{ width: '120px', height: 'auto', border: '2px solid #fff' }}>
+      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Mode</div>
+        <select value={mode} onChange={(e) => handleSelectMode(e.target.value)} style={{ width: '90px' ,marginBottom: '10px', padding: '5px', borderRadius: '4px', background: '#fff', color: '#000' }}>
+          <option value="union">Union</option>
+          <option value="subtraction">Subtraction</option>
+          <option value="intersection">Intersection</option>
+        </select>
+        <Handle type="target" position={Position.Left} id="shape1" style={{ top: '34%', ...handleStyleLeft }} />
+        <Handle type="target" position={Position.Left} id="shape2" style={{ top: '85%', ...handleStyleLeft }} />
+        <Handle type="source" position={Position.Right} id="render" style={{ top: '60%' ,...handleStyleRight }} />
+      </div>
     </div>
   );
 }
@@ -53,72 +56,82 @@ export function VectorNode({ data }) {
   };
 
   return (
-    <div style={{ padding: '10px', border: '1px solid #777', borderRadius: '4px', background: '#444', color: '#fff', width: '80px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Vector Node</div>
-      <input type="number" name="x" value={inputData.x} onChange={handleChange} style={{ width: '60px', marginBottom: '5px', padding: '5px', borderRadius: '4px', border: '1px solid #777', background: '#2b2b2b', color: '#fff' }} />
-      <input type="number" name="y" value={inputData.y} onChange={handleChange} style={{ width: '60px', marginBottom: '5px', padding: '5px', borderRadius: '4px', border: '1px solid #777', background: '#2b2b2b', color: '#fff' }} />
-      <input type="number" name="z" value={inputData.z} onChange={handleChange} style={{ width: '60px', marginBottom: '5px', padding: '5px', borderRadius: '4px', border: '1px solid #777', background: '#2b2b2b', color: '#fff' }} />
-      <Handle type="source" position={Position.Right} id="vector" style={handleStyleRight} />
+    <div className="card" style={{ width: '80px', height: 'auto', border: '2px solid #fff' }}>
+      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Vector</div>
+        <input type="number" name="x" value={inputData.x} onChange={handleChange} style={{ width: '45px', marginBottom: '5px', padding: '5px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }} />
+        <input type="number" name="y" value={inputData.y} onChange={handleChange} style={{ width: '45px', marginBottom: '5px', padding: '5px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }} />
+        <input type="number" name="z" value={inputData.z} onChange={handleChange} style={{ width: '45px', marginBottom: '5px', padding: '5px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }} />
+        <Handle type="source" position={Position.Right} id="vector" style={{ ...handleStyleRight }} />
+      </div>
     </div>
   );
 }
 
 export function SphereNode({ data }) {
   return (
-    <div style={{ padding: '20px', background: 'linear-gradient(135deg, #546e7a, #37474f)', borderRadius: '10px', width: '220px', height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-      <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '16px', marginBottom: '20px' }}>Shape: Sphere</div>
-      <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '20%', backgroundColor: 'yellow', borderRadius: '50%' }} />
-      <span style={{ position: 'absolute', left: '50px', top: '20%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Position</span>
-      <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%', backgroundColor: 'green', borderRadius: '50%' }} />
-      <span style={{ position: 'absolute', left: '50px', top: '50%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Size</span>
-      <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '80%', backgroundColor: 'orange', borderRadius: '50%' }} />
-      <span style={{ position: 'absolute', left: '50px', top: '80%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Color</span>
-      <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%', backgroundColor: 'blue', borderRadius: '50%' }} />
+    <div className="card" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
+      <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '16px', marginBottom: '20px' }}>Shape: Sphere</div>
+        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '20%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '20%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Position</span>
+        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '50%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Size</span>
+        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '80%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '80%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Color</span>
+        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%' }} />
+      </div>
     </div>
   );
 }
 
 export function TorusNode({ data }) {
   return (
-    <div style={{ padding: '20px', background: 'linear-gradient(135deg, #546e7a, #37474f)', borderRadius: '10px', width: '220px', height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-      <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '16px', marginBottom: '20px' }}>Shape: Torus</div>
-      <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '20%', backgroundColor: 'yellow', borderRadius: '50%' }} />
-      <span style={{ position: 'absolute', left: '50px', top: '20%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Position</span>
-      <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%', backgroundColor: 'green', borderRadius: '50%' }} />
-      <span style={{ position: 'absolute', left: '50px', top: '50%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Size</span>
-      <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '80%', backgroundColor: 'orange', borderRadius: '50%' }} />
-      <span style={{ position: 'absolute', left: '50px', top: '80%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Color</span>
-      <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%', backgroundColor: 'blue', borderRadius: '50%' }} />
+    <div className="card" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
+      <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '16px', marginBottom: '20px' }}>Shape: Torus</div>
+        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '20%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '20%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Position</span>
+        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '50%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Size</span>
+        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '80%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '80%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Color</span>
+        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%' }} />
+      </div>
     </div>
   );
 }
 
 export function BoxNode({ data }) {
   return (
-    <div style={{ padding: '20px', background: 'linear-gradient(135deg, #546e7a, #37474f)', borderRadius: '10px', width: '220px', height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-      <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '16px', marginBottom: '20px' }}>Shape: Box</div>
-      <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '20%', backgroundColor: 'yellow', borderRadius: '50%' }} />
-      <span style={{ position: 'absolute', left: '50px', top: '20%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Position</span>
-      <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%', backgroundColor: 'green', borderRadius: '50%' }} />
-      <span style={{ position: 'absolute', left: '50px', top: '50%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Size</span>
-      <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '80%', backgroundColor: 'orange', borderRadius: '50%' }} />
-      <span style={{ position: 'absolute', left: '50px', top: '80%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Color</span>
-      <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%', backgroundColor: 'blue', borderRadius: '50%' }} />
+    <div className="card" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
+      <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '16px', marginBottom: '20px' }}>Shape: Box</div>
+        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '20%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '20%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Position</span>
+        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '50%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Size</span>
+        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '80%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '80%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Color</span>
+        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%' }} />
+      </div>
     </div>
   );
 }
 
 export function CapsuleNode({ data }) {
   return (
-    <div style={{ padding: '20px', background: 'linear-gradient(135deg, #546e7a, #37474f)', borderRadius: '10px', width: '220px', height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-      <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '16px', marginBottom: '20px' }}>Shape: Capsule</div>
-      <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '20%', backgroundColor: 'yellow', borderRadius: '50%' }} />
-      <span style={{ position: 'absolute', left: '50px', top: '20%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Position</span>
-      <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%', backgroundColor: 'green', borderRadius: '50%' }} />
-      <span style={{ position: 'absolute', left: '50px', top: '50%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Size</span>
-      <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '80%', backgroundColor: 'orange', borderRadius: '50%' }} />
-      <span style={{ position: 'absolute', left: '50px', top: '80%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Color</span>
-      <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%', backgroundColor: 'blue', borderRadius: '50%' }} />
+    <div className="card" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
+      <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '16px', marginBottom: '20px' }}>Shape: Capsule</div>
+        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '20%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '20%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Position</span>
+        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '50%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Size</span>
+        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '80%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '80%', color: '#fff', fontSize: '12px', transform: 'translateY(-50%)' }}>Color</span>
+        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%' }} />
+      </div>
     </div>
   );
 }
@@ -136,25 +149,29 @@ export function ColorNode({ data }) {
   }, [color, data]);
 
   return (
-    <div style={{ padding: '10px', border: '2px solid #333', borderRadius: '8px', background: 'linear-gradient(135deg, #3b3b3b, #1e1e1e)', color: '#fff', width: '180px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Color Node</div>
-      <SketchPicker
-        color={color}
-        onChange={handleChange}
-        disableAlpha
-        presetColors={[]}
-        styles={{ default: { picker: { width: '120px' } } }}
-      />
-      <Handle type="source" position={Position.Right} id="color" style={handleStyleRight} />
+    <div className="card" style={{ width: '180px', height: 'auto', border: '2px solid #fff' }}>
+      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Color Node</div>
+        <SketchPicker
+          color={color}
+          onChange={handleChange}
+          disableAlpha
+          presetColors={[]}
+          styles={{ default: { picker: { width: '120px' } } }}
+        />
+        <Handle type="source" position={Position.Right} id="color" style={handleStyleRight} />
+      </div>
     </div>
   );
 }
 
 export function RenderNode({ data }) {
   return (
-    <div style={{ padding: '10px', border: '1px solid #333', borderRadius: '8px', background: 'linear-gradient(135deg, #3b3b3b, #1e1e1e)', color: '#fff', width: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Render Node</div>
-      <Handle type="target" position={Position.Left} id="render" style={{ ...handleStyleLeft, top: '50%', backgroundColor: 'blue', borderRadius: '50%' }} />
+    <div className="card" style={{ width: '120px', height: 'auto', border: '2px solid #fff' }}>
+      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Render Node</div>
+        <Handle type="target" position={Position.Left} id="render" style={{ ...handleStyleLeft, top: '50%' }} />
+      </div>
     </div>
   );
 }

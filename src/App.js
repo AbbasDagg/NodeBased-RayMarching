@@ -161,7 +161,7 @@ function App() {
     const { source, sourceHandle, target, targetHandle } = params;
   
     const validConnections = {
-      vectorNode: ['position', 'size', 'rotation'], // Include rotation here
+      vectorNode: ['position', 'size', 'rotation'], 
       colorNode: ['color'],
       sphereNode: ['shape1', 'shape2'],
       torusNode: ['shape1', 'shape2'],

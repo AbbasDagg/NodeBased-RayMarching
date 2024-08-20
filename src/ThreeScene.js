@@ -24,12 +24,23 @@ const ThreeScene = forwardRef((props, ref) => {
           subtraction: Raymarcher.operations.substraction,
           intersection: Raymarcher.operations.intersection,
         };
-
+  
+        const rotationVector = new THREE.Vector3(
+          (shapeData.rotation.x % 360) * (Math.PI / 180), // Convert degrees to radians
+          (shapeData.rotation.y % 360) * (Math.PI / 180),
+          (shapeData.rotation.z % 360) * (Math.PI / 180)
+        );
+        
+        // Create a quaternion from the Euler angles
+        const quaternion = new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(rotationVector.x, rotationVector.y, rotationVector.z)
+        );
+  
         raymarcherRef.current.userData.layers[0].push({
           color: new THREE.Color(shapeData.color || 0xffffff),
           operation: operationMap[shapeData.operation] || Raymarcher.operations.union, // Default to union if undefined
           position: new THREE.Vector3(shapeData.position.x * SCALING_FACTOR, shapeData.position.y * SCALING_FACTOR, shapeData.position.z * SCALING_FACTOR),
-          rotation: new THREE.Quaternion(),
+          rotation: quaternion, // Apply the quaternion for rotation
           scale: new THREE.Vector3(shapeData.scale.x * SCALING_FACTOR, shapeData.scale.y * SCALING_FACTOR, shapeData.scale.z * SCALING_FACTOR),
           shape: Raymarcher.shapes[shapeData.shape]
         });
@@ -50,6 +61,7 @@ const ThreeScene = forwardRef((props, ref) => {
       }
     },
   }));
+  
 
   useEffect(() => {
     const renderer = new THREE.WebGLRenderer({ alpha: true });
@@ -124,7 +136,7 @@ const ThreeScene = forwardRef((props, ref) => {
     const gui = new GUI({ title: 'three-raymarcher' });
     gui.close();
     gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);//.setValue(0.8);
-    gui.add(raymarcher.userData, 'blending', 0.2, 2, 0.01);//.setValue(0.2);
+    gui.add(raymarcher.userData, 'blending', 0, 2, 0.01);//.setValue(0.2);
     gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);//.setValue(1);
     gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);//.setValue(0);
     gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);//.setValue(0.7);

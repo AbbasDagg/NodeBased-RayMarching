@@ -35,7 +35,7 @@ function App() {
   const handleRenderScene = useCallback(() => {
     if (threeSceneRef.current) {
       threeSceneRef.current.clearScene();
-
+  
       const updatedNodes = nodes.map(node => {
         if (node.type === 'vectorNode') {
           return {
@@ -49,30 +49,43 @@ function App() {
         }
         return node;
       });
-
+  
       const renderNodes = updatedNodes.filter(node => node.type === 'renderNode');
       renderNodes.forEach((renderNode, layerIndex) => {
         const shapes = [];
-
+  
         const traverse = (nodeId, operation) => {
           const node = updatedNodes.find(n => n.id === nodeId);
-
+  
           if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode'].includes(node.type)) {
             const connectedPositionNode = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'position')
               .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
               .filter(Boolean)[0];
-
+  
             const connectedColorNode = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'color')
               .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'colorNode'))
               .filter(Boolean)[0];
-
+  
             const connectedSizeNode = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'size')
               .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
               .filter(Boolean)[0];
-
+  
+            const connectedRotationNode = edges
+              .filter(edge => edge.target === node.id && edge.targetHandle === 'rotation')
+              .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
+              .filter(Boolean)[0];
+  
+            const rotation = connectedRotationNode
+              ? {
+                  x: (connectedRotationNode.data.x % 360) || 0,
+                  y: (connectedRotationNode.data.y % 360) || 0,
+                  z: (connectedRotationNode.data.z % 360) || 0,
+                }
+              : { x: 0, y: 0, z: 0 };
+  
             shapes.push({
               shape: node.data.shape,
               operation: operation || 'union', // Use provided operation or default to union
@@ -82,7 +95,7 @@ function App() {
                 z: connectedPositionNode ? parseFloat(connectedPositionNode.data.z) : 0,
               },
               color: connectedColorNode ? connectedColorNode.data.color : 0xffffff,
-              rotation: { x: 0, y: 0, z: 0 },
+              rotation: rotation,
               scale: {
                 x: connectedSizeNode ? connectedSizeNode.data.x : 1,
                 y: connectedSizeNode ? connectedSizeNode.data.y : 1,
@@ -93,33 +106,33 @@ function App() {
             const shape1NodeId = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'shape1')
               .map(edge => edge.source)[0];
-
+  
             const shape2NodeId = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'shape2')
               .map(edge => edge.source)[0];
-
+  
             if (shape1NodeId) traverse(shape1NodeId, node.data.mode);
             if (shape2NodeId) traverse(shape2NodeId, node.data.mode);
           }
         };
-
+  
         const modeNodes = edges
           .filter(edge => edge.target === renderNode.id && edge.targetHandle === 'render')
           .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'modeNode'))
           .filter(Boolean);
-
+  
         modeNodes.forEach(modeNode => {
           const shape1NodeId = edges
             .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'shape1')
             .map(edge => edge.source)[0];
-
+  
           const shape2NodeId = edges
             .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'shape2')
             .map(edge => edge.source)[0];
-
+  
           if (shape1NodeId) traverse(shape1NodeId, modeNode.data.mode);
           if (shape2NodeId) traverse(shape2NodeId, modeNode.data.mode);
-
+  
           shapes.forEach(shapeData => {
             threeSceneRef.current.addShape(shapeData, layerIndex);
           });
@@ -127,6 +140,8 @@ function App() {
       });
     }
   }, [nodes, edges]);
+  
+  
 
   useEffect(() => {
     handleRenderScene();
@@ -144,9 +159,9 @@ function App() {
 
   const onConnect = useCallback((params) => {
     const { source, sourceHandle, target, targetHandle } = params;
-
+  
     const validConnections = {
-      vectorNode: ['position', 'size'],
+      vectorNode: ['position', 'size', 'rotation'], // Include rotation here
       colorNode: ['color'],
       sphereNode: ['shape1', 'shape2'],
       torusNode: ['shape1', 'shape2'],
@@ -154,10 +169,10 @@ function App() {
       capsuleNode: ['shape1', 'shape2'],
       modeNode: ['shape1', 'shape2', 'render'],
     };
-
+  
     const sourceNode = nodes.find(node => node.id === source);
     const targetNode = nodes.find(node => node.id === target);
-
+  
     if (sourceNode && targetNode) {
       const validSourceHandles = validConnections[sourceNode.type];
       if (validSourceHandles && validSourceHandles.includes(targetHandle)) {
@@ -174,6 +189,7 @@ function App() {
       }
     }
   }, [nodes, edges, handleRenderScene]);
+  
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);

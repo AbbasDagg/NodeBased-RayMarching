@@ -411,7 +411,7 @@
   .button::before {
     position: absolute;
     top: -20px;
-    content: "Delete";
+    content: "Reset";
     color: white;
     transition-duration: .3s;
     font-size: 2px;

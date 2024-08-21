@@ -6,7 +6,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
   const [nodeCount, setNodeCount] = useState(3); // Starts at 3 because of initial nodes
   const reactFlowInstance = useReactFlow();
   const [showShapeMenu, setShowShapeMenu] = useState(false);
-  const shapeMenuRef = useRef(null);  // Add this
+  const shapeMenuRef = useRef(null);
 
   const addVectorNode = () => {
     const newNode = {
@@ -19,11 +19,11 @@ function NodeEditor({ setNodes, isFullscreen }) {
     setNodeCount(nodeCount + 1);
   };
 
-  const addShapeNode = (shapeType, layerId) => {
+  const addShapeNode = (shapeType) => {
     const newNode = {
       id: (nodeCount + 1).toString(),
       type: shapeType,
-      data: { shape: shapeType.replace('Node', '').toLowerCase(), layerId },
+      data: { shape: shapeType.replace('Node', '').toLowerCase() },
       position: { x: Math.random() * 250, y: Math.random() * 250 },
     };
     reactFlowInstance.setNodes((nds) => nds.concat(newNode));
@@ -68,6 +68,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
     setShowShapeMenu(!showShapeMenu);
   };
 
+  // Close shape menu if clicking outside of it
   const handleClickOutside = (event) => {
     if (shapeMenuRef.current && !shapeMenuRef.current.contains(event.target)) {
       setShowShapeMenu(false);

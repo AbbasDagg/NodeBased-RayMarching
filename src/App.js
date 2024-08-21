@@ -9,7 +9,7 @@ import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, Ren
 const initialNodes = [
   { id: '1', type: 'vectorNode', position: { x: 0, y: 0 }, data: { x: 0, y: 0, z: 0 } },
   { id: '2', type: 'sphereNode', position: { x: 100, y: 100 }, data: { shape: 'sphere' } },
-  { id: '3', type: 'renderNode', position: { x: 200, y: 200 }, data: { label: 'Render' } },
+  { id: '3', type: 'renderNode', position: { x: 200, y: 200 }, data: { label: 'Render', layerId: 'layer-1' } },
 ];
 
 const initialEdges = [];
@@ -74,46 +74,33 @@ function App() {
     if (threeSceneRef.current) {
       threeSceneRef.current.clearScene();
 
-      const updatedNodes = nodes.map(node => {
-        if (node.type === 'vectorNode') {
-          return {
-            ...node,
-            data: {
-              x: node.data.x || 0,
-              y: node.data.y || 0,
-              z: node.data.z || 0
-            }
-          };
-        }
-        return node;
-      });
+      const renderNodes = nodes.filter(node => node.type === 'renderNode');
 
-      const renderNodes = updatedNodes.filter(node => node.type === 'renderNode');
       renderNodes.forEach((renderNode, layerIndex) => {
         const shapes = [];
 
         const traverse = (nodeId, operation) => {
-          const node = updatedNodes.find(n => n.id === nodeId);
+          const node = nodes.find(n => n.id === nodeId);
 
           if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode'].includes(node.type)) {
             const connectedPositionNode = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'position')
-              .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
+              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
               .filter(Boolean)[0];
 
             const connectedColorNode = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'color')
-              .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'colorNode'))
+              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'colorNode'))
               .filter(Boolean)[0];
 
             const connectedSizeNode = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'size')
-              .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
+              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
               .filter(Boolean)[0];
 
             const connectedRotationNode = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'rotation')
-              .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
+              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
               .filter(Boolean)[0];
 
             const rotation = connectedRotationNode
@@ -156,7 +143,7 @@ function App() {
 
         const modeNodes = edges
           .filter(edge => edge.target === renderNode.id && edge.targetHandle === 'render')
-          .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'modeNode'))
+          .map(edge => nodes.find(n => n.id === edge.source && n.type === 'modeNode'))
           .filter(Boolean);
 
         modeNodes.forEach(modeNode => {
@@ -170,10 +157,11 @@ function App() {
 
           if (shape1NodeId) traverse(shape1NodeId, modeNode.data.mode);
           if (shape2NodeId) traverse(shape2NodeId, modeNode.data.mode);
+        });
 
-          shapes.forEach(shapeData => {
-            threeSceneRef.current.addShape(shapeData, layerIndex);
-          });
+        // Add shapes to the layer corresponding to the render node
+        shapes.forEach(shapeData => {
+          threeSceneRef.current.addShape(shapeData, `layer-${layerIndex + 1}`);
         });
       });
     }

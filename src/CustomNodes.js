@@ -7,16 +7,32 @@ const handleStyleLeft = { left: '5%', backgroundColor: 'black',};
 
 export function ModeNode({ data }) {
   const [mode, setMode] = useState(data.mode || 'union');
+  const reactFlowInstance = useReactFlow();
 
-  useEffect(() => {
-    data.mode = mode;
-  }, [mode, data]);
+  const handleModeChange = (e) => {
+    const newMode = e.target.value.toLowerCase();
+    setMode(newMode);
+    data.mode = newMode;
+
+    reactFlowInstance.setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id === data.id) {
+          return { ...node, data: { ...node.data, mode: newMode } };
+        }
+        return node;
+      })
+    );
+  };
 
   return (
     <div className="card" style={{ width: '120px', height: 'auto', border: '2px solid #fff' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Mode</div>
-        <select value={mode} onChange={(e) => setMode(e.target.value.toLowerCase())} style={{ width: '90px', marginBottom: '10px', padding: '5px', borderRadius: '4px', background: '#fff', color: '#000' }}>
+        <select
+          value={mode}
+          onChange={handleModeChange}
+          style={{ width: '90px', marginBottom: '10px', padding: '5px', borderRadius: '4px', background: '#fff', color: '#000' }}
+        >
           <option value="union">Union</option>
           <option value="subtraction">Subtraction</option>
           <option value="intersection">Intersection</option>

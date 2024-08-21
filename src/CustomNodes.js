@@ -154,30 +154,43 @@ export function CapsuleNode({ data }) {
   );
 }
 
-export function ColorNode({ data }) {
-  const [color, setColor] = useState(data.color);
+export function ColorNode({ data, isConnectable }) {
+  const [color, setColor] = useState(data.color || '#ffffff');
 
-  const handleChange = (color) => {
-    setColor(color.hex);
-    data.color = color.hex;
+  const handleChange = (event) => {
+    const newColor = event.target.value;
+    setColor(newColor);
+    data.color = newColor;
   };
 
-  useEffect(() => {
-    data.color = color;
-  }, [color, data]);
-
   return (
-    <div className="card" style={{ width: '180px', height: 'auto', border: '2px solid #fff' }}>
-      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Color Node</div>
-        <SketchPicker
-          color={color}
+    <div className="card" style={{ width: '130px', height: '120px' , border: '2px solid #fff' }}>
+      <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '16px' }}>Color Node</div>
+        
+        <input
+          type="color"
+          value={color}
           onChange={handleChange}
-          disableAlpha
-          presetColors={[]}
-          styles={{ default: { picker: { width: '120px' } } }}
+          className="nodrag"
+          style={{
+            cursor: 'pointer',
+            width: '60%',
+            height: '30px',
+            border: 'none',
+            padding: '0',
+          }}
         />
-        <Handle type="source" position={Position.Right} id="color" style={handleStyleRight} />
+
+        <div style={{ marginTop: '10px', fontSize: '14px' }}>{color}</div>
+
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="color"
+          style={handleStyleRight}
+          isConnectable={isConnectable}
+        />
       </div>
     </div>
   );

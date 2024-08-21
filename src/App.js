@@ -52,9 +52,16 @@ function App() {
     if (contextMenu.nodeId) {
       const nodeToCopy = nodes.find((node) => node.id === contextMenu.nodeId);
       if (nodeToCopy) {
+        let newId;
+        for (let i = 1; i <= 1000; i++) {
+          if (!nodes.find((node) => node.id === i.toString())) {
+            newId = i.toString();
+            break;
+          }
+        }
         const newNode = {
           ...nodeToCopy,
-          id: `${nodes.length + 1}`,
+          id: newId,
           position: { x: nodeToCopy.position.x + 20, y: nodeToCopy.position.y + 20 },
         };
         setNodes((nds) => nds.concat(newNode));
@@ -74,33 +81,33 @@ function App() {
     if (threeSceneRef.current) {
       threeSceneRef.current.clearScene();
 
-      const renderNodes = nodes.filter(node => node.type === 'renderNode');
+      const renderNodes = nodes.filter((node) => node.type === 'renderNode');
 
       renderNodes.forEach((renderNode, layerIndex) => {
         const shapes = [];
 
         const traverse = (nodeId, operation) => {
-          const node = nodes.find(n => n.id === nodeId);
+          const node = nodes.find((n) => n.id === nodeId);
 
           if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode'].includes(node.type)) {
             const connectedPositionNode = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'position')
-              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
+              .filter((edge) => edge.target === node.id && edge.targetHandle === 'position')
+              .map((edge) => nodes.find((n) => n.id === edge.source && n.type === 'vectorNode'))
               .filter(Boolean)[0];
 
             const connectedColorNode = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'color')
-              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'colorNode'))
+              .filter((edge) => edge.target === node.id && edge.targetHandle === 'color')
+              .map((edge) => nodes.find((n) => n.id === edge.source && n.type === 'colorNode'))
               .filter(Boolean)[0];
 
             const connectedSizeNode = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'size')
-              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
+              .filter((edge) => edge.target === node.id && edge.targetHandle === 'size')
+              .map((edge) => nodes.find((n) => n.id === edge.source && n.type === 'vectorNode'))
               .filter(Boolean)[0];
 
             const connectedRotationNode = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'rotation')
-              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
+              .filter((edge) => edge.target === node.id && edge.targetHandle === 'rotation')
+              .map((edge) => nodes.find((n) => n.id === edge.source && n.type === 'vectorNode'))
               .filter(Boolean)[0];
 
             const rotation = connectedRotationNode
@@ -125,16 +132,16 @@ function App() {
                 x: connectedSizeNode ? connectedSizeNode.data.x : 1,
                 y: connectedSizeNode ? connectedSizeNode.data.y : 1,
                 z: connectedSizeNode ? connectedSizeNode.data.z : 1,
-              }
+              },
             });
           } else if (node.type === 'modeNode') {
             const shape1NodeId = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'shape1')
-              .map(edge => edge.source)[0];
+              .filter((edge) => edge.target === node.id && edge.targetHandle === 'shape1')
+              .map((edge) => edge.source)[0];
 
             const shape2NodeId = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'shape2')
-              .map(edge => edge.source)[0];
+              .filter((edge) => edge.target === node.id && edge.targetHandle === 'shape2')
+              .map((edge) => edge.source)[0];
 
             if (shape1NodeId) traverse(shape1NodeId, node.data.mode);
             if (shape2NodeId) traverse(shape2NodeId, node.data.mode);
@@ -142,26 +149,26 @@ function App() {
         };
 
         const modeNodes = edges
-          .filter(edge => edge.target === renderNode.id && edge.targetHandle === 'render')
-          .map(edge => nodes.find(n => n.id === edge.source && n.type === 'modeNode'))
+          .filter((edge) => edge.target === renderNode.id && edge.targetHandle === 'render')
+          .map((edge) => nodes.find((n) => n.id === edge.source && n.type === 'modeNode'))
           .filter(Boolean);
 
-        modeNodes.forEach(modeNode => {
+        modeNodes.forEach((modeNode) => {
           const shape1NodeId = edges
-            .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'shape1')
-            .map(edge => edge.source)[0];
+            .filter((edge) => edge.target === modeNode.id && edge.targetHandle === 'shape1')
+            .map((edge) => edge.source)[0];
 
           const shape2NodeId = edges
-            .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'shape2')
-            .map(edge => edge.source)[0];
+            .filter((edge) => edge.target === modeNode.id && edge.targetHandle === 'shape2')
+            .map((edge) => edge.source)[0];
 
           if (shape1NodeId) traverse(shape1NodeId, modeNode.data.mode);
           if (shape2NodeId) traverse(shape2NodeId, modeNode.data.mode);
         });
 
         // Add shapes to the layer corresponding to the render node
-        shapes.forEach(shapeData => {
-          threeSceneRef.current.addShape(shapeData, `layer-${layerIndex + 1}`);
+        shapes.forEach((shapeData) => {
+          threeSceneRef.current.addShape(shapeData, renderNode.data.layerId);
         });
       });
     }
@@ -171,48 +178,57 @@ function App() {
     handleRenderScene();
   }, [nodes, edges, handleRenderScene]);
 
-  const onNodesChange = useCallback((changes) => {
-    setNodes((nds) => applyNodeChanges(changes, nds));
-    handleRenderScene();
-  }, [handleRenderScene]);
+  const onNodesChange = useCallback(
+    (changes) => {
+      setNodes((nds) => applyNodeChanges(changes, nds));
+      handleRenderScene();
+    },
+    [handleRenderScene]
+  );
 
-  const onEdgesChange = useCallback((changes) => {
-    setEdges((eds) => applyEdgeChanges(changes, eds));
-    handleRenderScene();
-  }, [handleRenderScene]);
+  const onEdgesChange = useCallback(
+    (changes) => {
+      setEdges((eds) => applyEdgeChanges(changes, eds));
+      handleRenderScene();
+    },
+    [handleRenderScene]
+  );
 
-  const onConnect = useCallback((params) => {
-    const { source, sourceHandle, target, targetHandle } = params;
+  const onConnect = useCallback(
+    (params) => {
+      const { source, sourceHandle, target, targetHandle } = params;
 
-    const validConnections = {
-      vectorNode: ['position', 'size', 'rotation'],
-      colorNode: ['color'],
-      sphereNode: ['shape1', 'shape2'],
-      torusNode: ['shape1', 'shape2'],
-      boxNode: ['shape1', 'shape2'],
-      capsuleNode: ['shape1', 'shape2'],
-      modeNode: ['shape1', 'shape2', 'render'],
-    };
+      const validConnections = {
+        vectorNode: ['position', 'size', 'rotation'],
+        colorNode: ['color'],
+        sphereNode: ['shape1', 'shape2'],
+        torusNode: ['shape1', 'shape2'],
+        boxNode: ['shape1', 'shape2'],
+        capsuleNode: ['shape1', 'shape2'],
+        modeNode: ['shape1', 'shape2', 'render'],
+      };
 
-    const sourceNode = nodes.find(node => node.id === source);
-    const targetNode = nodes.find(node => node.id === target);
+      const sourceNode = nodes.find((node) => node.id === source);
+      const targetNode = nodes.find((node) => node.id === target);
 
-    if (sourceNode && targetNode) {
-      const validSourceHandles = validConnections[sourceNode.type];
-      if (validSourceHandles && validSourceHandles.includes(targetHandle)) {
-        // Check for existing connections to the same targetHandle
-        const existingConnection = edges.find(edge => edge.target === target && edge.targetHandle === targetHandle);
-        if (!existingConnection) {
-          setEdges((eds) => addEdge(params, eds));
-          handleRenderScene();
+      if (sourceNode && targetNode) {
+        const validSourceHandles = validConnections[sourceNode.type];
+        if (validSourceHandles && validSourceHandles.includes(targetHandle)) {
+          // Check for existing connections to the same targetHandle
+          const existingConnection = edges.find((edge) => edge.target === target && edge.targetHandle === targetHandle);
+          if (!existingConnection) {
+            setEdges((eds) => addEdge(params, eds));
+            handleRenderScene();
+          } else {
+            console.warn('Only one connection allowed per pin');
+          }
         } else {
-          console.warn('Only one connection allowed per pin');
+          console.warn('Invalid connection');
         }
-      } else {
-        console.warn('Invalid connection');
       }
-    }
-  }, [nodes, edges, handleRenderScene]);
+    },
+    [nodes, edges, handleRenderScene]
+  );
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -304,13 +320,17 @@ function App() {
   return (
     <div style={{ display: 'flex', height: '100vh' }} onClick={closeContextMenu}>
       <ReactFlowProvider>
-        <div id="left-pane" style={{
-          width: isFullscreen ? '0' : `${leftPaneWidth}px`,
-          height: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          transition: 'width 0.5s ease'
-        }} className={isFullscreen ? 'hidden' : ''}>
+        <div
+          id="left-pane"
+          style={{
+            width: isFullscreen ? '0' : `${leftPaneWidth}px`,
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            transition: 'width 0.5s ease',
+          }}
+          className={isFullscreen ? 'hidden' : ''}
+        >
           <NodeEditor setNodes={setNodes} isFullscreen={isFullscreen} />
           <div style={{ flex: 1 }}>
             <ReactFlow
@@ -323,7 +343,7 @@ function App() {
               fitView
               onPaneContextMenu={(event) => event.preventDefault()} // Prevents right-click on the empty canvas
               onNodeContextMenu={(event, node) => handleContextMenu(event, node)} // Right-click on a node
-              >
+            >
               <Controls />
               <MiniMap />
               <Background variant="dots" gap={12} size={1} />
@@ -335,23 +355,30 @@ function App() {
           onMouseDown={startResizing}
           style={{
             left: `${leftPaneWidth}px`,
-            display: isFullscreen ? 'none' : 'block'
+            display: isFullscreen ? 'none' : 'block',
           }}
         />
       </ReactFlowProvider>
-      <div id="three-scene-container" style={{
-        width: isFullscreen ? '100vw' : `calc(100vw - ${leftPaneWidth}px)`,
-        height: '100%',
-        position: 'relative',
-        transition: 'width 0.5s ease'
-      }}>
+      <div
+        id="three-scene-container"
+        style={{
+          width: isFullscreen ? '100vw' : `calc(100vw - ${leftPaneWidth}px)`,
+          height: '100%',
+          position: 'relative',
+          transition: 'width 0.5s ease',
+        }}
+      >
         <ThreeScene ref={threeSceneRef} />
-        <div className={`fullscreen-button-container`} onClick={toggleFullscreen} style={{
-          position: 'absolute',
-          bottom: '5px',
-          right: '5px',
-          zIndex: 1
-        }}>
+        <div
+          className={`fullscreen-button-container`}
+          onClick={toggleFullscreen}
+          style={{
+            position: 'absolute',
+            bottom: '5px',
+            right: '5px',
+            zIndex: 1,
+          }}
+        >
           <input type="checkbox" checked={isFullscreen} onChange={toggleFullscreen} />
           <img className="expand" src="/svg/expand.svg" alt="expand" />
           <img className="compress" src="/svg/collapse.svg" alt="compress" />
@@ -360,9 +387,23 @@ function App() {
 
       {/* Render the context menu */}
       {contextMenu.visible && contextMenu.nodeId && (
-        <div className="context-menu" style={{ top: contextMenu.y, left: contextMenu.x, padding: '10px', background: 'white', border: '1px solid black', zIndex: 1000 }}>
-          <button style={{ display: 'block', marginBottom: '5px' }} onClick={handleCopyNode}>Copy</button>
-          <button style={{ display: 'block' }} onClick={handleDeleteNode}>Delete</button>
+        <div
+          className="context-menu"
+          style={{
+            top: contextMenu.y,
+            left: contextMenu.x,
+            padding: '10px',
+            background: 'white',
+            border: '1px solid black',
+            zIndex: 1000,
+          }}
+        >
+          <button style={{ display: 'block', marginBottom: '5px' }} onClick={handleCopyNode}>
+            Copy
+          </button>
+          <button style={{ display: 'block' }} onClick={handleDeleteNode}>
+            Delete
+          </button>
         </div>
       )}
     </div>

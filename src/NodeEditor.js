@@ -8,9 +8,20 @@ function NodeEditor({ setNodes, isFullscreen }) {
   const [showShapeMenu, setShowShapeMenu] = useState(false);
   const shapeMenuRef = useRef(null);
 
+  const generateUniqueId = () => {
+    let id;
+    let exists;
+    for (let i = 1; i <= 1000; i++) {
+      id = i.toString();
+      exists = reactFlowInstance.getNodes().some((node) => node.id === id);
+      if (!exists) break;
+    }
+    return id;
+  };
+
   const addVectorNode = () => {
     const newNode = {
-      id: (nodeCount + 1).toString(),
+      id: generateUniqueId(),
       type: 'vectorNode',
       data: { x: 0, y: 0, z: 0 },
       position: { x: Math.random() * 250, y: Math.random() * 250 },
@@ -21,19 +32,19 @@ function NodeEditor({ setNodes, isFullscreen }) {
 
   const addShapeNode = (shapeType) => {
     const newNode = {
-      id: (nodeCount + 1).toString(),
+      id: generateUniqueId(),
       type: shapeType,
       data: { shape: shapeType.replace('Node', '').toLowerCase() },
       position: { x: Math.random() * 250, y: Math.random() * 250 },
     };
     reactFlowInstance.setNodes((nds) => nds.concat(newNode));
     setNodeCount(nodeCount + 1);
-    setShowShapeMenu(false);  // Close the menu after adding a shape
+    setShowShapeMenu(false); // Close the menu after adding a shape
   };
 
   const addColorNode = () => {
     const newNode = {
-      id: (nodeCount + 1).toString(),
+      id: generateUniqueId(),
       type: 'colorNode',
       data: { color: '#ffffff' },
       position: { x: Math.random() * 250, y: Math.random() * 250 },
@@ -44,7 +55,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
 
   const addRenderNode = () => {
     const newNode = {
-      id: (nodeCount + 1).toString(),
+      id: generateUniqueId(),
       type: 'renderNode',
       data: { label: 'Render', layerId: `layer-${nodeCount + 1}` },
       position: { x: Math.random() * 250, y: Math.random() * 250 },
@@ -55,7 +66,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
 
   const addModeNode = () => {
     const newNode = {
-      id: (nodeCount + 1).toString(),
+      id: generateUniqueId(),
       type: 'modeNode',
       data: { mode: 'union' },
       position: { x: Math.random() * 250, y: Math.random() * 250 },

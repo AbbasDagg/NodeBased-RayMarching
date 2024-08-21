@@ -4,11 +4,15 @@ import './App.css'; // Import the CSS file
 
 function NodeEditor({ setNodes, isFullscreen }) {
   const [nodeCount, setNodeCount] = useState(3); // Starts at 3 because of initial nodes
+  const [availableIds, setAvailableIds] = useState([]);
   const reactFlowInstance = useReactFlow();
   const [showShapeMenu, setShowShapeMenu] = useState(false);
   const shapeMenuRef = useRef(null);
 
   const generateUniqueId = () => {
+    if (availableIds.length > 0) {
+      return availableIds.pop();
+    }
     let id;
     let exists;
     for (let i = 1; i <= 1000; i++) {
@@ -86,6 +90,20 @@ function NodeEditor({ setNodes, isFullscreen }) {
     }
   };
 
+  const resetAllNodes = () => {
+    // Get IDs of existing nodes
+    const currentIds = reactFlowInstance.getNodes().map(node => node.id);
+
+    // Clear nodes
+    reactFlowInstance.setNodes([]);
+
+    // Reset node count
+    setNodeCount(0);
+
+    // Add all IDs back to the available list
+    setAvailableIds((prev) => [...prev, ...currentIds]);
+  };
+
   useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
@@ -112,14 +130,13 @@ function NodeEditor({ setNodes, isFullscreen }) {
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addRenderNode} style={{ flex: '1 1 19%' }}>Render</button>
 
       {/* New button added to the bottom left corner */}
-      <div style={{ position: 'fixed' , bottom: '10px', left: '50px' }}>
-  <button className="button" style={{ width: '70px', height: '40px' }}>
-    <svg className="svgIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '70px' }}>
-      <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
-    </svg>
-  </button>
-</div>
-
+      <div style={{ position: 'fixed', bottom: '10px', left: '50px' }}>
+        <button className="button" style={{ width: '70px', height: '40px' }} onClick={resetAllNodes}>
+          <svg className="svgIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '70px' }}>
+            <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

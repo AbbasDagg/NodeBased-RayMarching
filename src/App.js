@@ -4,13 +4,15 @@ import 'reactflow/dist/style.css';
 import './App.css'; // Import the CSS file
 import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
-import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode } from './CustomNodes';
+import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode } from './CustomNodes';
 
 const initialNodes = [
   { id: '1', type: 'vectorNode', position: { x: 0, y: 0 }, data: { x: 0, y: 0, z: 0 } },
   { id: '2', type: 'sphereNode', position: { x: 100, y: 100 }, data: { shape: 'sphere' } },
   { id: '3', type: 'renderNode', position: { x: 200, y: 200 }, data: { label: 'Render', layerId: 'layer-1' } },
+  { id: '4', type: 'motorNode', position: { x: 300, y: 300 }, data: { xRange: { min: 0, max: 10, step: 1 }, yRange: { min: 0, max: 10, step: 1 }, zRange: { min: 0, max: 10, step: 1 } } }, // New MotorNode
 ];
+
 
 const initialEdges = [];
 
@@ -23,6 +25,7 @@ const nodeTypes = {
   colorNode: ColorNode,
   renderNode: RenderNode,
   modeNode: ModeNode,
+  motorNode: MotorNode,
 };
 
 function App() {

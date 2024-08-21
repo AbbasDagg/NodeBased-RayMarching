@@ -18,18 +18,17 @@ function NodeEditor({ setNodes, isFullscreen }) {
     setNodeCount(nodeCount + 1);
   };
 
-  const addShapeNode = (shapeType) => {
+  const addShapeNode = (shapeType, layerId) => {
     const newNode = {
       id: (nodeCount + 1).toString(),
       type: shapeType,
-      data: { shape: shapeType.replace('Node', '').toLowerCase() },
+      data: { shape: shapeType.replace('Node', '').toLowerCase(), layerId },
       position: { x: Math.random() * 250, y: Math.random() * 250 },
     };
     reactFlowInstance.setNodes((nds) => nds.concat(newNode));
     setNodeCount(nodeCount + 1);
-    setShowShapeMenu(false);
   };
-
+  
   const addColorNode = () => {
     const newNode = {
       id: (nodeCount + 1).toString(),
@@ -45,13 +44,13 @@ function NodeEditor({ setNodes, isFullscreen }) {
     const newNode = {
       id: (nodeCount + 1).toString(),
       type: 'renderNode',
-      data: { label: 'Render' },
+      data: { label: 'Render', layerId: `layer-${nodeCount + 1}` },
       position: { x: Math.random() * 250, y: Math.random() * 250 },
     };
     reactFlowInstance.setNodes((nds) => nds.concat(newNode));
     setNodeCount(nodeCount + 1);
   };
-
+  
   const addModeNode = () => {
     const newNode = {
       id: (nodeCount + 1).toString(),

@@ -59,21 +59,28 @@ export function VectorNode({ data, isConnectable }) {
       const newData = { ...prevData, [name]: value };
       data[name] = value;
 
-      reactFlowInstance.setNodes(nodes =>
-        nodes.map(node => {
-          if (node.id === data.id) {
-            return { ...node, data: { ...node.data, ...newData } };
+      reactFlowInstance.setNodes(nodes => {
+        return nodes.map(node => {
+          // Find edges that are connected to this vector node
+          const relevantEdges = reactFlowInstance.getEdges().filter(edge => edge.source === data.id);
+          
+          // Check if the current node is connected to this vector node
+          const isConnectedToCurrentNode = relevantEdges.some(edge => edge.target === node.id && edge.targetHandle === name);
+          
+          if (isConnectedToCurrentNode) {
+            return { ...node, data: { ...node.data, [name]: value } };
           }
+          
           return node;
-        })
-      );
+        });
+      });
 
       return newData;
     });
   };
 
   return (
-    <div className="card" style={{ width: '200px',height :'200px' , border: '2px solid #fff' }}>
+    <div className="card" style={{ width: '200px', height: '200px', border: '2px solid #fff' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>Vector</div>
         <input type="number" name="x" value={inputData.x} onChange={e => handleChange('x', parseFloat(e.target.value))} className="nodrag" style={{ width: '35%', marginBottom: '5px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }} />

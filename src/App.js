@@ -153,10 +153,29 @@ function App() {
   }, [handleRenderScene]);
 
   const onEdgesChange = useCallback((changes) => {
-    setEdges((eds) => applyEdgeChanges(changes, eds));
-    handleRenderScene();
-  }, [handleRenderScene]);
-
+    setEdges((prevEdges) => {
+      const updatedEdges = prevEdges.filter(edge => !changes.find(change => change.id === edge.id));
+      
+      if (changes.some(change => change.type === 'remove')) {
+        const removedEdges = changes.filter(change => change.type === 'remove');
+        
+        removedEdges.forEach((removedEdge) => {
+          const targetNode = nodes.find(node => node.id === removedEdge.target);
+          if (targetNode) {
+            const targetHandle = removedEdge.targetHandle;
+            if (targetHandle === 'size') {
+              targetNode.data.size = 0; // Reset size or any other property
+            }
+            // Similarly handle other properties like position, color, etc.
+          }
+        });
+      }
+      
+      return updatedEdges;
+    });
+  }, [nodes]);
+  
+  
   const onConnect = useCallback((params) => {
     const { source, sourceHandle, target, targetHandle } = params;
   

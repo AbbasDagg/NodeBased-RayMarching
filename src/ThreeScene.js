@@ -17,7 +17,7 @@ const ThreeScene = forwardRef((props, ref) => {
   const controlsRef = useRef(null); // Use ref to store the orbit controls
 
   useImperativeHandle(ref, () => ({
-    addShape: (shapeData) => {
+    addShape: (shapeData, layerId) => {
       if (raymarcherRef.current) {
         const operationMap = {
           union: Raymarcher.operations.union,
@@ -36,7 +36,13 @@ const ThreeScene = forwardRef((props, ref) => {
           new THREE.Euler(rotationVector.x, rotationVector.y, rotationVector.z)
         );
   
-        raymarcherRef.current.userData.layers[0].push({
+        // Ensure the correct layer exists
+        if (!raymarcherRef.current.userData.layers[layerId]) {
+          raymarcherRef.current.userData.layers[layerId] = [];
+        }
+  
+        // Add the shape to the specified layer
+        raymarcherRef.current.userData.layers[layerId].push({
           color: new THREE.Color(shapeData.color || 0xffffff),
           operation: operationMap[shapeData.operation] || Raymarcher.operations.union, // Default to union if undefined
           position: new THREE.Vector3(shapeData.position.x * SCALING_FACTOR, shapeData.position.y * SCALING_FACTOR, shapeData.position.z * SCALING_FACTOR),
@@ -49,7 +55,7 @@ const ThreeScene = forwardRef((props, ref) => {
     },
     clearScene: () => {
       if (raymarcherRef.current) {
-        raymarcherRef.current.userData.layers[0] = [];
+        raymarcherRef.current.userData.layers = []; // Clear all layers
         raymarcherRef.current.needsUpdate = true;
       }
     },
@@ -61,6 +67,7 @@ const ThreeScene = forwardRef((props, ref) => {
       }
     },
   }));
+  
   
 
   useEffect(() => {

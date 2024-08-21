@@ -308,7 +308,7 @@
 
 .node-editor-buttons button {
     flex: 1 1 auto;
-    min-width: 100px;
+    min-width: 10px;
 }
 
 .hidden {
@@ -420,7 +420,7 @@
   .button:hover::before {
     font-size: 13px;
     opacity: 1;
-    transform: translateY(30px);
+    transform: translateY(32px);
     transition-duration: .3s;
   }
   

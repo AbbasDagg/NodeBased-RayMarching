@@ -32,10 +32,48 @@ function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [leftPaneWidth, setLeftPaneWidth] = useState(window.innerWidth / 2);
 
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, nodeId: null });
+
+  const handleContextMenu = (event, node) => {
+    event.preventDefault(); // Prevent the default right-click menu from showing
+    if (node) {
+      setContextMenu({
+        visible: true,
+        x: event.clientX,
+        y: event.clientY,
+        nodeId: node.id,
+      });
+    }
+  };
+
+  const closeContextMenu = () => setContextMenu({ ...contextMenu, visible: false });
+
+  const handleCopyNode = () => {
+    if (contextMenu.nodeId) {
+      const nodeToCopy = nodes.find((node) => node.id === contextMenu.nodeId);
+      if (nodeToCopy) {
+        const newNode = {
+          ...nodeToCopy,
+          id: `${nodes.length + 1}`,
+          position: { x: nodeToCopy.position.x + 20, y: nodeToCopy.position.y + 20 },
+        };
+        setNodes((nds) => nds.concat(newNode));
+        setContextMenu({ ...contextMenu, visible: false });
+      }
+    }
+  };
+
+  const handleDeleteNode = () => {
+    if (contextMenu.nodeId) {
+      setNodes((nds) => nds.filter((node) => node.id !== contextMenu.nodeId));
+      setContextMenu({ ...contextMenu, visible: false });
+    }
+  };
+
   const handleRenderScene = useCallback(() => {
     if (threeSceneRef.current) {
       threeSceneRef.current.clearScene();
-  
+
       const updatedNodes = nodes.map(node => {
         if (node.type === 'vectorNode') {
           return {
@@ -49,35 +87,35 @@ function App() {
         }
         return node;
       });
-  
+
       const renderNodes = updatedNodes.filter(node => node.type === 'renderNode');
       renderNodes.forEach((renderNode, layerIndex) => {
         const shapes = [];
-  
+
         const traverse = (nodeId, operation) => {
           const node = updatedNodes.find(n => n.id === nodeId);
-  
+
           if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode'].includes(node.type)) {
             const connectedPositionNode = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'position')
               .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
               .filter(Boolean)[0];
-  
+
             const connectedColorNode = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'color')
               .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'colorNode'))
               .filter(Boolean)[0];
-  
+
             const connectedSizeNode = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'size')
               .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
               .filter(Boolean)[0];
-  
+
             const connectedRotationNode = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'rotation')
               .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
               .filter(Boolean)[0];
-  
+
             const rotation = connectedRotationNode
               ? {
                   x: (connectedRotationNode.data.x % 360) || 0,
@@ -85,7 +123,7 @@ function App() {
                   z: (connectedRotationNode.data.z % 360) || 0,
                 }
               : { x: 0, y: 0, z: 0 };
-  
+
             shapes.push({
               shape: node.data.shape,
               operation: operation || 'union', // Use provided operation or default to union
@@ -106,33 +144,33 @@ function App() {
             const shape1NodeId = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'shape1')
               .map(edge => edge.source)[0];
-  
+
             const shape2NodeId = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'shape2')
               .map(edge => edge.source)[0];
-  
+
             if (shape1NodeId) traverse(shape1NodeId, node.data.mode);
             if (shape2NodeId) traverse(shape2NodeId, node.data.mode);
           }
         };
-  
+
         const modeNodes = edges
           .filter(edge => edge.target === renderNode.id && edge.targetHandle === 'render')
           .map(edge => updatedNodes.find(n => n.id === edge.source && n.type === 'modeNode'))
           .filter(Boolean);
-  
+
         modeNodes.forEach(modeNode => {
           const shape1NodeId = edges
             .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'shape1')
             .map(edge => edge.source)[0];
-  
+
           const shape2NodeId = edges
             .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'shape2')
             .map(edge => edge.source)[0];
-  
+
           if (shape1NodeId) traverse(shape1NodeId, modeNode.data.mode);
           if (shape2NodeId) traverse(shape2NodeId, modeNode.data.mode);
-  
+
           shapes.forEach(shapeData => {
             threeSceneRef.current.addShape(shapeData, layerIndex);
           });
@@ -140,8 +178,6 @@ function App() {
       });
     }
   }, [nodes, edges]);
-  
-  
 
   useEffect(() => {
     handleRenderScene();
@@ -153,34 +189,15 @@ function App() {
   }, [handleRenderScene]);
 
   const onEdgesChange = useCallback((changes) => {
-    setEdges((prevEdges) => {
-      const updatedEdges = prevEdges.filter(edge => !changes.find(change => change.id === edge.id));
-      
-      if (changes.some(change => change.type === 'remove')) {
-        const removedEdges = changes.filter(change => change.type === 'remove');
-        
-        removedEdges.forEach((removedEdge) => {
-          const targetNode = nodes.find(node => node.id === removedEdge.target);
-          if (targetNode) {
-            const targetHandle = removedEdge.targetHandle;
-            if (targetHandle === 'size') {
-              targetNode.data.size = 0; // Reset size or any other property
-            }
-            // Similarly handle other properties like position, color, etc.
-          }
-        });
-      }
-      
-      return updatedEdges;
-    });
-  }, [nodes]);
-  
-  
+    setEdges((eds) => applyEdgeChanges(changes, eds));
+    handleRenderScene();
+  }, [handleRenderScene]);
+
   const onConnect = useCallback((params) => {
     const { source, sourceHandle, target, targetHandle } = params;
-  
+
     const validConnections = {
-      vectorNode: ['position', 'size', 'rotation'], 
+      vectorNode: ['position', 'size', 'rotation'],
       colorNode: ['color'],
       sphereNode: ['shape1', 'shape2'],
       torusNode: ['shape1', 'shape2'],
@@ -188,10 +205,10 @@ function App() {
       capsuleNode: ['shape1', 'shape2'],
       modeNode: ['shape1', 'shape2', 'render'],
     };
-  
+
     const sourceNode = nodes.find(node => node.id === source);
     const targetNode = nodes.find(node => node.id === target);
-  
+
     if (sourceNode && targetNode) {
       const validSourceHandles = validConnections[sourceNode.type];
       if (validSourceHandles && validSourceHandles.includes(targetHandle)) {
@@ -208,7 +225,6 @@ function App() {
       }
     }
   }, [nodes, edges, handleRenderScene]);
-  
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -298,7 +314,7 @@ function App() {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
+    <div style={{ display: 'flex', height: '100vh' }} onClick={closeContextMenu}>
       <ReactFlowProvider>
         <div id="left-pane" style={{
           width: isFullscreen ? '0' : `${leftPaneWidth}px`,
@@ -317,7 +333,9 @@ function App() {
               onConnect={onConnect}
               nodeTypes={nodeTypes}
               fitView
-            >
+              onPaneContextMenu={(event) => event.preventDefault()} // Prevents right-click on the empty canvas
+              onNodeContextMenu={(event, node) => handleContextMenu(event, node)} // Right-click on a node
+              >
               <Controls />
               <MiniMap />
               <Background variant="dots" gap={12} size={1} />
@@ -351,6 +369,14 @@ function App() {
           <img className="compress" src="/svg/collapse.svg" alt="compress" />
         </div>
       </div>
+
+      {/* Render the context menu */}
+      {contextMenu.visible && contextMenu.nodeId && (
+        <div className="context-menu" style={{ top: contextMenu.y, left: contextMenu.x, padding: '10px', background: 'white', border: '1px solid black', zIndex: 1000 }}>
+          <button style={{ display: 'block', marginBottom: '5px' }} onClick={handleCopyNode}>Copy</button>
+          <button style={{ display: 'block' }} onClick={handleDeleteNode}>Delete</button>
+        </div>
+      )}
     </div>
   );
 }

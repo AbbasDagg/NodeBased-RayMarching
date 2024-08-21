@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useReactFlow } from 'reactflow';
 import './App.css'; // Import the CSS file
 
@@ -6,6 +6,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
   const [nodeCount, setNodeCount] = useState(3); // Starts at 3 because of initial nodes
   const reactFlowInstance = useReactFlow();
   const [showShapeMenu, setShowShapeMenu] = useState(false);
+  const shapeMenuRef = useRef(null);  // Add this
 
   const addVectorNode = () => {
     const newNode = {
@@ -27,8 +28,9 @@ function NodeEditor({ setNodes, isFullscreen }) {
     };
     reactFlowInstance.setNodes((nds) => nds.concat(newNode));
     setNodeCount(nodeCount + 1);
+    setShowShapeMenu(false);  // Close the menu after adding a shape
   };
-  
+
   const addColorNode = () => {
     const newNode = {
       id: (nodeCount + 1).toString(),
@@ -50,7 +52,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
     reactFlowInstance.setNodes((nds) => nds.concat(newNode));
     setNodeCount(nodeCount + 1);
   };
-  
+
   const addModeNode = () => {
     const newNode = {
       id: (nodeCount + 1).toString(),
@@ -66,10 +68,23 @@ function NodeEditor({ setNodes, isFullscreen }) {
     setShowShapeMenu(!showShapeMenu);
   };
 
+  const handleClickOutside = (event) => {
+    if (shapeMenuRef.current && !shapeMenuRef.current.contains(event.target)) {
+      setShowShapeMenu(false);
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className={`node-editor-buttons ${isFullscreen ? 'hidden' : ''}`} style={{ width: '98%', padding: '0px', display: 'flex', justifyContent: 'space-between' }}>
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addVectorNode} style={{ flex: '1 1 19%' }}>Vector</button>
-      <div style={{ position: 'relative', flex: '1 1 19%' }}>
+      <div ref={shapeMenuRef} style={{ position: 'relative', flex: '1 1 19%' }}>
         <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={toggleShapeMenu} style={{ width: '100%' }}>Shape</button>
         {showShapeMenu && (
           <div className="shape-menu">
@@ -83,7 +98,6 @@ function NodeEditor({ setNodes, isFullscreen }) {
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addColorNode} style={{ flex: '1 1 19%' }}>Color</button>
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addModeNode} style={{ flex: '1 1 19%' }}>Mode</button>
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addRenderNode} style={{ flex: '1 1 19%' }}>Render</button>
-
     </div>
   );
 }

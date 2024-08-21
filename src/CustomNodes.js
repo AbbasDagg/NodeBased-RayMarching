@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Handle, Position } from 'reactflow';
+import { Handle, Position, useReactFlow } from 'reactflow';
 import { SketchPicker } from 'react-color';
 
 const handleStyleRight = { right: '5%', backgroundColor: 'black' };
@@ -156,22 +156,38 @@ export function CapsuleNode({ data }) {
 
 export function ColorNode({ data, isConnectable }) {
   const [color, setColor] = useState(data.color || '#ffffff');
+  const reactFlowInstance = useReactFlow();
 
   const handleChange = (event) => {
     const newColor = event.target.value;
     setColor(newColor);
     data.color = newColor;
+
+    reactFlowInstance.setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id === data.id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              color: newColor,
+            },
+          };
+        }
+        return node;
+      })
+    );
   };
 
   return (
-    <div className="card" style={{ width: '130px', height: '120px' , border: '2px solid #fff' }}>
-      <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="card" style={{ width: '120px', height: '90px', border: '2px solid #fff' }}>
+      <div style={{ padding: '12px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '16px' }}>Color Node</div>
         
         <input
           type="color"
           value={color}
-          onChange={handleChange}
+          onChange={handleChange}  // Use onChange for real-time updates
           className="nodrag"
           style={{
             cursor: 'pointer',
@@ -182,7 +198,6 @@ export function ColorNode({ data, isConnectable }) {
           }}
         />
 
-        <div style={{ marginTop: '10px', fontSize: '14px' }}>{color}</div>
 
         <Handle
           type="source"

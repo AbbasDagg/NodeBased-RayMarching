@@ -82,8 +82,9 @@ function NodeEditor({ setNodes, isFullscreen }) {
         )}
       </div>
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addColorNode} style={{ flex: '1 1 19%' }}>Color</button>
-      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addRenderNode} style={{ flex: '1 1 19%' }}>Render</button>
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addModeNode} style={{ flex: '1 1 19%' }}>Mode</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addRenderNode} style={{ flex: '1 1 19%' }}>Render</button>
+
     </div>
   );
 }

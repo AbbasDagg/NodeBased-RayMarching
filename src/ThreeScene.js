@@ -15,6 +15,8 @@ const ThreeScene = forwardRef((props, ref) => {
   const rendererRef = useRef(null); // Use ref to store the renderer
   const cameraRef = useRef(null); // Use ref to store the camera
   const controlsRef = useRef(null); // Use ref to store the orbit controls
+  const velocityRef = useRef(new THREE.Vector2(0, 0)); // Track the camera's velocity
+  const lastPositionRef = useRef(new THREE.Vector2(0, 0)); // Track the last position to calculate velocity
 
   useImperativeHandle(ref, () => ({
     addShape: (shapeData, layerId) => {
@@ -24,23 +26,23 @@ const ThreeScene = forwardRef((props, ref) => {
           subtraction: Raymarcher.operations.substraction,
           intersection: Raymarcher.operations.intersection,
         };
-  
+
         const rotationVector = new THREE.Vector3(
           (shapeData.rotation.x % 360) * (Math.PI / 180), // Convert degrees to radians
           (shapeData.rotation.y % 360) * (Math.PI / 180),
           (shapeData.rotation.z % 360) * (Math.PI / 180)
         );
-        
+
         // Create a quaternion from the Euler angles
         const quaternion = new THREE.Quaternion().setFromEuler(
           new THREE.Euler(rotationVector.x, rotationVector.y, rotationVector.z)
         );
-  
+
         // Ensure the correct layer exists
         if (!raymarcherRef.current.userData.layers[layerId]) {
           raymarcherRef.current.userData.layers[layerId] = [];
         }
-  
+
         // Add the shape to the specified layer
         raymarcherRef.current.userData.layers[layerId].push({
           color: new THREE.Color(shapeData.color || 0xffffff),
@@ -67,8 +69,6 @@ const ThreeScene = forwardRef((props, ref) => {
       }
     },
   }));
-  
-  
 
   useEffect(() => {
     const renderer = new THREE.WebGLRenderer({ alpha: true });
@@ -80,9 +80,39 @@ const ThreeScene = forwardRef((props, ref) => {
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
     cameraRef.current = camera;
     camera.position.set(0, 0, 36);
+
     const controls = new OrbitControls(camera, renderer.domElement);
     controlsRef.current = controls;
-    controls.update();
+
+    // Smoothness settings
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.rotateSpeed = 0.7;
+
+    // Track the last position and calculate velocity when the user stops moving
+    const updateLastPosition = () => {
+      lastPositionRef.current.set(
+        controls.getAzimuthalAngle(),
+        controls.getPolarAngle()
+      );
+    };
+
+    controls.addEventListener('start', updateLastPosition);
+    controls.addEventListener('change', () => {
+      const azimuthalAngle = controls.getAzimuthalAngle();
+      const polarAngle = controls.getPolarAngle();
+
+      velocityRef.current.set(
+        azimuthalAngle - lastPositionRef.current.x,
+        polarAngle - lastPositionRef.current.y
+      );
+
+      updateLastPosition();
+    });
+
+    controls.addEventListener('end', () => {
+      velocityRef.current.multiplyScalar(0.9); // Apply a smaller initial "drift" after interaction stops
+    });
 
     pmremGeneratorRef.current = new PMREMGenerator(renderer);
     const pmremGenerator = pmremGeneratorRef.current;
@@ -93,7 +123,7 @@ const ThreeScene = forwardRef((props, ref) => {
       resolution: 0.7,
       blending: 1,
       roughness: 0,
-      metalness: 1,
+      metalness: 0.7,
       envMapIntensity: 0.7,
       layers: [[]] // Start with a single empty layer
     });
@@ -112,12 +142,6 @@ const ThreeScene = forwardRef((props, ref) => {
       EmptyRoom: 'maps/small_empty_room_3_2k.hdr',  // Keep
       Studio: 'maps/studio_small_08_2k.hdr',  // Keep
       MedivalCafe: 'maps/medieval_cafe_4k.hdr',
-      //Garden: 'maps/garden_nook_2k.hdr',
-      //PureSky: 'maps/kloofendal_43d_clear_puresky_2k.hdr', 
-      //castle: 'maps/neurathen_rock_castle_2k.hdr',
-      //DarkCity: 'maps/potsdamer_platz_2k.hdr',  // Keep maybe, city
-      //de_balie: 'maps/de_balie_4k.hdr',  // maybe 
-      //blue_lagoon: 'maps/blue_lagoon_night_4k.hdr',
     };
 
     const loader = new RGBELoader();
@@ -136,22 +160,34 @@ const ThreeScene = forwardRef((props, ref) => {
         });
       }
     };
-    
 
     loadEnvironment('RoomEnvironment'); // Load a default environment map
 
     const gui = new GUI({ title: 'three-raymarcher' });
     gui.close();
-    gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);//.setValue(0.8);
-    gui.add(raymarcher.userData, 'blending', 0, 2, 0.01);//.setValue(0.2);
-    gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);//.setValue(1);
-    gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);//.setValue(0);
-    gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);//.setValue(0.7);
+    gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
+    gui.add(raymarcher.userData, 'blending', 0, 2, 0.01);
+    gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);
+    gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);
+    gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);
     gui.add({ envMap: 'RoomEnvironment' }, 'envMap', Object.keys(environments)).onChange(loadEnvironment);
 
     const animate = () => {
       requestAnimationFrame(animate);
-      controls.update();
+
+      // Apply drift (inertia) effect
+      if (velocityRef.current.lengthSq() > 0.00001) {
+        controlsRef.current.azimuthalAngle += velocityRef.current.x;
+        controlsRef.current.polarAngle += velocityRef.current.y;
+
+        // Gradually reduce the velocity
+        velocityRef.current.multiplyScalar(0.95);
+      } else {
+        // Stop the velocity completely if it's too small
+        velocityRef.current.set(0, 0);
+      }
+
+      controls.update(); // Update controls with new angles
       renderer.render(scene, camera);
     };
     animate();

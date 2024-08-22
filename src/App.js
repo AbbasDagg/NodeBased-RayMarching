@@ -120,83 +120,64 @@ function App() {
           const node = nodes.find(n => n.id === nodeId);
   
           if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode'].includes(node.type)) {
-            const connectedPositionNode = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'position')
-              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
-              .filter(Boolean)[0];
-  
-            const connectedColorNode = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'color')
-              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'colorNode'))
-              .filter(Boolean)[0];
-  
-            const connectedSizeNode = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'size')
-              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
-              .filter(Boolean)[0];
-  
-            const connectedRotationNode = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'rotation')
-              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
-              .filter(Boolean)[0];
-  
-            const connectedMotorNode = edges
-              .filter(edge => edge.target === node.id)
-              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'motorNode'))
-              .filter(Boolean)[0];
-  
             let position = { x: 0, y: 0, z: 0 };
             let rotation = { x: 0, y: 0, z: 0 };
             let scale = { x: 1, y: 1, z: 1 };
-            let color = connectedColorNode ? connectedColorNode.data.color : 0xffffff;
+            let color = 0xffffff;
   
-            if (connectedPositionNode) {
-              position = {
-                x: connectedPositionNode.data.x,
-                y: connectedPositionNode.data.y,
-                z: connectedPositionNode.data.z,
-              };
-            }
+            // Find all connected edges for position, rotation, and size
+            edges.forEach(edge => {
+              const sourceNode = nodes.find(n => n.id === edge.source);
+              if (sourceNode) {
+                const time = Date.now() / 1000;
+                const { xRange, yRange, zRange } = sourceNode.data;
   
-            if (connectedRotationNode) {
-              rotation = {
-                x: connectedRotationNode.data.x,
-                y: connectedRotationNode.data.y,
-                z: connectedRotationNode.data.z,
-              };
-            }
-  
-            if (connectedSizeNode) {
-              scale = {
-                x: connectedSizeNode.data.x,
-                y: connectedSizeNode.data.y,
-                z: connectedSizeNode.data.z,
-              };
-            }
-  
-            if (connectedMotorNode) {
-              const time = Date.now() / 1000;
-              const { xRange, yRange, zRange } = connectedMotorNode.data;
-  
-              // Apply motor influence based on which handle is connected
-              edges.forEach(edge => {
-                if (edge.target === node.id) {
-                  if (edge.targetHandle === 'position') {
-                    position.x = xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min);
-                    position.y = yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min);
-                    position.z = zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min);
-                  } else if (edge.targetHandle === 'rotation') {
-                    rotation.x = xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min);
-                    rotation.y = yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min);
-                    rotation.z = zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min);
-                  } else if (edge.targetHandle === 'size') {
-                    scale.x = xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min);
-                    scale.y = yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min);
-                    scale.z = zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min);
+                if (sourceNode.type === 'vectorNode') {
+                  if (edge.target === node.id && edge.targetHandle === 'position') {
+                    position = {
+                      x: sourceNode.data.x,
+                      y: sourceNode.data.y,
+                      z: sourceNode.data.z,
+                    };
+                  } else if (edge.target === node.id && edge.targetHandle === 'rotation') {
+                    rotation = {
+                      x: sourceNode.data.x,
+                      y: sourceNode.data.y,
+                      z: sourceNode.data.z,
+                    };
+                  } else if (edge.target === node.id && edge.targetHandle === 'size') {
+                    scale = {
+                      x: sourceNode.data.x,
+                      y: sourceNode.data.y,
+                      z: sourceNode.data.z,
+                    };
+                  }
+                } else if (sourceNode.type === 'colorNode' && edge.target === node.id && edge.targetHandle === 'color') {
+                  color = sourceNode.data.color;
+                } else if (sourceNode.type === 'motorNode') {
+                  // Apply motor influence to the corresponding target pin
+                  if (edge.target === node.id && edge.targetHandle === 'position') {
+                    position = {
+                      x: xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min),
+                      y: yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min),
+                      z: zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min),
+                    };
+                  } else if (edge.target === node.id && edge.targetHandle === 'rotation') {
+                    rotation = {
+                      x: xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min),
+                      y: yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min),
+                      z: zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min),
+                    };
+                  } else if (edge.target === node.id && edge.targetHandle === 'size') {
+                    scale = {
+                      x: xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min),
+                      y: yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min),
+                      z: zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min),
+                    };
                   }
                 }
-              });
-            }
+              }
+            });
   
             shapes.push({
               shape: node.data.shape,
@@ -244,7 +225,6 @@ function App() {
       });
     }
   }, [nodes, edges]);
-  
   
   
   useEffect(() => {

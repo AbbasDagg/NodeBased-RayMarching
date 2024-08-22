@@ -222,20 +222,18 @@ export function MotorNode({ data, isConnectable }) {
   };
 
   return (
-    <div className="card" style={{ width: '220px', height: '170px', border: '2px solid #fff' }}>
+    <div className="card" style={{ width: '175px', height: '170px', border: '2px solid #fff', padding: '10px' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '15px' , marginTop: '5px'}}>Motor Node</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', width: '72%', marginBottom: '5px', paddingLeft: '35px', paddingRight: '25px', fontSize: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '42%', marginBottom: '5px', paddingLeft: '35px', paddingRight: '15px', fontSize: '14px' }}>
           <span>From</span>
           <span>To</span>
-          <span>Step</span>
         </div>
         {['X', 'Y', 'Z'].map(axis => (
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }} key={axis}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px', marginRight: '10px' }} key={axis}>
             {axis}:
-            <input type="number" value={eval(`${axis.toLowerCase()}Range`).min} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'min', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
-            <input type="number" value={eval(`${axis.toLowerCase()}Range`).max} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'max', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
-            <input type="number" value={eval(`${axis.toLowerCase()}Range`).step} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'step', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
+            <input type="number" value={eval(`${axis.toLowerCase()}Range`).min} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'min', e.target.value)} className="nodrag" style={{ width: '40%', marginLeft: '0px', right: '5px',  padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
+            <input type="number" value={eval(`${axis.toLowerCase()}Range`).max} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'max', e.target.value)} className="nodrag" style={{ width: '40%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
           </div>
         ))}
         <Handle type="source" position={Position.Right} id="vector" style={handleStyleRight} isConnectable={isConnectable} />

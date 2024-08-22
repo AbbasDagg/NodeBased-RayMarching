@@ -52,25 +52,47 @@ export function VectorNode({ data, isConnectable }) {
     y: data.y || 0,
     z: data.z || 0,
   });
+  const [range, setRange] = useState({
+    min: -100,
+    max: 100,
+    step: 1,
+  });
   const reactFlowInstance = useReactFlow();
 
+  const adjustRangeForRotation = () => {
+    const connectedEdges = reactFlowInstance.getEdges().filter(
+      (edge) => edge.source === data.id && edge.targetHandle === 'rotation'
+    );
+    if (connectedEdges.length > 0) {
+      setRange({ min: -360, max: 360, step: 5 });
+    } else {
+      setRange({ min: -100, max: 100, step: 1 });
+    }
+  };
+
   const handleChange = (name, value) => {
-    setInputData(prevData => {
+    setInputData((prevData) => {
       const newData = { ...prevData, [name]: value };
       data[name] = value;
 
-      reactFlowInstance.setNodes(nodes => {
-        return nodes.map(node => {
-          // Find edges that are connected to this vector node
-          const relevantEdges = reactFlowInstance.getEdges().filter(edge => edge.source === data.id);
-          
-          // Check if the current node is connected to this vector node
-          const isConnectedToCurrentNode = relevantEdges.some(edge => edge.target === node.id && edge.targetHandle === name);
-          
+      reactFlowInstance.setNodes((nodes) => {
+        return nodes.map((node) => {
+          // Update nodes based on the connection type
+          const relevantEdges = reactFlowInstance
+            .getEdges()
+            .filter((edge) => edge.source === data.id);
+
+          const isConnectedToCurrentNode = relevantEdges.some(
+            (edge) =>
+              edge.target === node.id &&
+              edge.targetHandle === name &&
+              edge.sourceHandle === 'vector'
+          );
+
           if (isConnectedToCurrentNode) {
             return { ...node, data: { ...node.data, [name]: value } };
           }
-          
+
           return node;
         });
       });
@@ -79,40 +101,117 @@ export function VectorNode({ data, isConnectable }) {
     });
   };
 
+  useEffect(() => {
+    adjustRangeForRotation();
+    const intervalId = setInterval(adjustRangeForRotation, 100); // Check periodically
+    return () => clearInterval(intervalId); // Cleanup on unmount
+  }, [reactFlowInstance]);
+
   return (
     <div className="card" style={{ width: '200px', height: '200px', border: '2px solid #fff' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>Vector</div>
-        <input type="number" name="x" value={inputData.x} onChange={e => handleChange('x', parseFloat(e.target.value))} className="nodrag" style={{ width: '35%', marginBottom: '5px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }} />
-        <input type="range" min="-100" max="100" value={inputData.x} onChange={e => handleChange('x', parseFloat(e.target.value))} className="nodrag" style={{ width: '80%', marginBottom: '5px' }} />
-        <input type="number" name="y" value={inputData.y} onChange={e => handleChange('y', parseFloat(e.target.value))} className="nodrag" style={{ width: '35%', marginBottom: '5px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }} />
-        <input type="range" min="-100" max="100" value={inputData.y} onChange={e => handleChange('y', parseFloat(e.target.value))} className="nodrag" style={{ width: '80%', marginBottom: '5px' }} />
-        <input type="number" name="z" value={inputData.z} onChange={e => handleChange('z', parseFloat(e.target.value))} className="nodrag" style={{ width: '35%', marginBottom: '5px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }} />
-        <input type="range" min="-100" max="100" value={inputData.z} onChange={e => handleChange('z', parseFloat(e.target.value))} className="nodrag" style={{ width: '80%', marginBottom: '5px' }} />
+        <input
+          type="number"
+          name="x"
+          value={inputData.x}
+          onChange={(e) => handleChange('x', parseFloat(e.target.value))}
+          className="nodrag"
+          style={{
+            width: '35%',
+            marginBottom: '5px',
+            padding: '3px',
+            borderRadius: '4px',
+            border: '1px solid #777',
+            background: '#fff',
+            color: '#000',
+          }}
+        />
+        <input
+          type="range"
+          min={range.min}
+          max={range.max}
+          step={range.step}
+          value={inputData.x}
+          onChange={(e) => handleChange('x', parseFloat(e.target.value))}
+          className="nodrag"
+          style={{ width: '80%', marginBottom: '5px' }}
+        />
+        <input
+          type="number"
+          name="y"
+          value={inputData.y}
+          onChange={(e) => handleChange('y', parseFloat(e.target.value))}
+          className="nodrag"
+          style={{
+            width: '35%',
+            marginBottom: '5px',
+            padding: '3px',
+            borderRadius: '4px',
+            border: '1px solid #777',
+            background: '#fff',
+            color: '#000',
+          }}
+        />
+        <input
+          type="range"
+          min={range.min}
+          max={range.max}
+          step={range.step}
+          value={inputData.y}
+          onChange={(e) => handleChange('y', parseFloat(e.target.value))}
+          className="nodrag"
+          style={{ width: '80%', marginBottom: '5px' }}
+        />
+        <input
+          type="number"
+          name="z"
+          value={inputData.z}
+          onChange={(e) => handleChange('z', parseFloat(e.target.value))}
+          className="nodrag"
+          style={{
+            width: '35%',
+            marginBottom: '5px',
+            padding: '3px',
+            borderRadius: '4px',
+            border: '1px solid #777',
+            background: '#fff',
+            color: '#000',
+          }}
+        />
+        <input
+          type="range"
+          min={range.min}
+          max={range.max}
+          step={range.step}
+          value={inputData.z}
+          onChange={(e) => handleChange('z', parseFloat(e.target.value))}
+          className="nodrag"
+          style={{ width: '80%', marginBottom: '5px' }}
+        />
         <Handle type="source" position={Position.Right} id="vector" style={handleStyleRight} isConnectable={isConnectable} />
       </div>
     </div>
   );
 }
 
+
 export function MotorNode({ data, isConnectable }) {
   const [xRange, setXRange] = useState({
     min: data.xRange?.min || 0,
-    max: data.xRange?.max || 0,
+    max: data.xRange?.max || 10,
     step: data.xRange?.step || 1,
   });
   const [yRange, setYRange] = useState({
     min: data.yRange?.min || 0,
-    max: data.yRange?.max || 0,
+    max: data.yRange?.max || 10,
     step: data.yRange?.step || 1,
   });
   const [zRange, setZRange] = useState({
     min: data.zRange?.min || 0,
-    max: data.zRange?.max || 0,
+    max: data.zRange?.max || 10,
     step: data.zRange?.step || 1,
   });
-
-  const reactFlowInstance = useReactFlow();
 
   const handleChange = (axis, name, value) => {
     const newValue = parseFloat(value);
@@ -120,15 +219,6 @@ export function MotorNode({ data, isConnectable }) {
     if (axis === 'yRange') setYRange((prev) => ({ ...prev, [name]: newValue }));
     if (axis === 'zRange') setZRange((prev) => ({ ...prev, [name]: newValue }));
     data[axis] = { ...data[axis], [name]: newValue };
-    
-    reactFlowInstance.setNodes((nodes) =>
-      nodes.map((node) => {
-        if (node.id === data.id) {
-          return { ...node, data: { ...node.data, [axis]: { ...data[axis], [name]: newValue } } };
-        }
-        return node;
-      })
-    );
   };
 
   return (
@@ -140,29 +230,20 @@ export function MotorNode({ data, isConnectable }) {
           <span>To</span>
           <span>Step</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-          X:
-          <input type="number" value={xRange.min} onChange={(e) => handleChange('xRange', 'min', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
-          <input type="number" value={xRange.max} onChange={(e) => handleChange('xRange', 'max', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
-          <input type="number" value={xRange.step} onChange={(e) => handleChange('xRange', 'step', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-          Y:
-          <input type="number" value={yRange.min} onChange={(e) => handleChange('yRange', 'min', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '11.5px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
-          <input type="number" value={yRange.max} onChange={(e) => handleChange('yRange', 'max', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
-          <input type="number" value={yRange.step} onChange={(e) => handleChange('yRange', 'step', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-          Z:
-          <input type="number" value={zRange.min} onChange={(e) => handleChange('zRange', 'min', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '11.5px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
-          <input type="number" value={zRange.max} onChange={(e) => handleChange('zRange', 'max', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
-          <input type="number" value={zRange.step} onChange={(e) => handleChange('zRange', 'step', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
-        </div>
+        {['X', 'Y', 'Z'].map(axis => (
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }} key={axis}>
+            {axis}:
+            <input type="number" value={eval(`${axis.toLowerCase()}Range`).min} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'min', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
+            <input type="number" value={eval(`${axis.toLowerCase()}Range`).max} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'max', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
+            <input type="number" value={eval(`${axis.toLowerCase()}Range`).step} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'step', e.target.value)} className="nodrag" style={{ width: '20%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
+          </div>
+        ))}
         <Handle type="source" position={Position.Right} id="vector" style={handleStyleRight} isConnectable={isConnectable} />
       </div>
     </div>
   );
 }
+
 
 export function SphereNode({ data }) {
   const outlineColor = 'white'; // Default to black

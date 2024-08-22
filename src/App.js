@@ -14,6 +14,7 @@ const initialNodes = [
 ];
 
 
+
 const initialEdges = [];
 
 const nodeTypes = {
@@ -55,6 +56,7 @@ function App() {
     if (contextMenu.nodeId) {
       const nodeToCopy = nodes.find((node) => node.id === contextMenu.nodeId);
       if (nodeToCopy) {
+        // Generate a new unique ID for the copied node
         let newId;
         for (let i = 1; i <= 1000; i++) {
           if (!nodes.find((node) => node.id === i.toString())) {
@@ -62,20 +64,45 @@ function App() {
             break;
           }
         }
+  
+        console.log(`Copying node ID: ${nodeToCopy.id}`);
+        console.log(`Generated new ID: ${newId}`);
+  
         const newNode = {
           ...nodeToCopy,
           id: newId,
           position: { x: nodeToCopy.position.x + 20, y: nodeToCopy.position.y + 20 },
+          data: { ...nodeToCopy.data }, // Copy node data without connections
         };
+  
+        console.log(`New node created with ID: ${newNode.id}, position: (${newNode.position.x}, ${newNode.position.y})`);
+  
+        // Add the new node to the list of nodes
         setNodes((nds) => nds.concat(newNode));
+        
+        // Do not copy any edges, the new node should have no connections
+        // Remove any existing connections for the new node, just in case
+        setEdges((eds) => {
+          const newEdges = eds.filter((edge) => edge.source !== newNode.id && edge.target !== newNode.id);
+          console.log(`New edges after removing connections for copied node:`, newEdges);
+          return newEdges;
+        });
+  
         setContextMenu({ ...contextMenu, visible: false });
       }
     }
   };
+  
+  
+
 
   const handleDeleteNode = () => {
     if (contextMenu.nodeId) {
-      setNodes((nds) => nds.filter((node) => node.id !== contextMenu.nodeId));
+      const nodeIdToDelete = contextMenu.nodeId;
+      // Remove the node
+      setNodes((nds) => nds.filter((node) => node.id !== nodeIdToDelete));
+      // Remove associated edges
+      setEdges((eds) => eds.filter((edge) => edge.source !== nodeIdToDelete && edge.target !== nodeIdToDelete));
       setContextMenu({ ...contextMenu, visible: false });
     }
   };
@@ -113,29 +140,71 @@ function App() {
               .map(edge => nodes.find(n => n.id === edge.source && n.type === 'vectorNode'))
               .filter(Boolean)[0];
   
-            const rotation = connectedRotationNode
-              ? {
-                  x: (connectedRotationNode.data.x % 360) || 0,
-                  y: (connectedRotationNode.data.y % 360) || 0,
-                  z: (connectedRotationNode.data.z % 360) || 0,
+            const connectedMotorNode = edges
+              .filter(edge => edge.target === node.id)
+              .map(edge => nodes.find(n => n.id === edge.source && n.type === 'motorNode'))
+              .filter(Boolean)[0];
+  
+            let position = { x: 0, y: 0, z: 0 };
+            let rotation = { x: 0, y: 0, z: 0 };
+            let scale = { x: 1, y: 1, z: 1 };
+            let color = connectedColorNode ? connectedColorNode.data.color : 0xffffff;
+  
+            if (connectedPositionNode) {
+              position = {
+                x: connectedPositionNode.data.x,
+                y: connectedPositionNode.data.y,
+                z: connectedPositionNode.data.z,
+              };
+            }
+  
+            if (connectedRotationNode) {
+              rotation = {
+                x: connectedRotationNode.data.x,
+                y: connectedRotationNode.data.y,
+                z: connectedRotationNode.data.z,
+              };
+            }
+  
+            if (connectedSizeNode) {
+              scale = {
+                x: connectedSizeNode.data.x,
+                y: connectedSizeNode.data.y,
+                z: connectedSizeNode.data.z,
+              };
+            }
+  
+            if (connectedMotorNode) {
+              const time = Date.now() / 1000;
+              const { xRange, yRange, zRange } = connectedMotorNode.data;
+  
+              // Apply motor influence based on which handle is connected
+              edges.forEach(edge => {
+                if (edge.target === node.id) {
+                  if (edge.targetHandle === 'position') {
+                    position.x = xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min);
+                    position.y = yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min);
+                    position.z = zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min);
+                  } else if (edge.targetHandle === 'rotation') {
+                    rotation.x = xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min);
+                    rotation.y = yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min);
+                    rotation.z = zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min);
+                  } else if (edge.targetHandle === 'size') {
+                    scale.x = xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min);
+                    scale.y = yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min);
+                    scale.z = zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min);
+                  }
                 }
-              : { x: 0, y: 0, z: 0 };
+              });
+            }
   
             shapes.push({
               shape: node.data.shape,
-              operation: operation || 'union', // Use provided operation or default to union
-              position: {
-                x: connectedPositionNode ? parseFloat(connectedPositionNode.data.x) : 0,
-                y: connectedPositionNode ? parseFloat(connectedPositionNode.data.y) : 0,
-                z: connectedPositionNode ? parseFloat(connectedPositionNode.data.z) : 0,
-              },
-              color: connectedColorNode ? connectedColorNode.data.color : 0xffffff,
+              operation: operation || 'union',
+              position: position,
+              color: color,
               rotation: rotation,
-              scale: {
-                x: connectedSizeNode ? connectedSizeNode.data.x : 1,
-                y: connectedSizeNode ? connectedSizeNode.data.y : 1,
-                z: connectedSizeNode ? connectedSizeNode.data.z : 1,
-              }
+              scale: scale,
             });
           } else if (node.type === 'modeNode') {
             const shape1NodeId = edges
@@ -169,13 +238,21 @@ function App() {
           if (shape2NodeId) traverse(shape2NodeId, modeNode.data.mode);
         });
   
-        // Add shapes to the layer corresponding to the render node
         shapes.forEach(shapeData => {
           threeSceneRef.current.addShape(shapeData, layerIndex);
         });
       });
     }
   }, [nodes, edges]);
+  
+  
+  
+  useEffect(() => {
+    const intervalId = setInterval(handleRenderScene, 16); // 16ms for ~60fps updates
+    return () => clearInterval(intervalId); // Cleanup on unmount
+  }, [handleRenderScene]);
+  
+  
   
 
   useEffect(() => {
@@ -201,7 +278,7 @@ function App() {
   const onConnect = useCallback(
     (params) => {
       const { source, sourceHandle, target, targetHandle } = params;
-
+  
       const validConnections = {
         vectorNode: ['position', 'size', 'rotation'],
         colorNode: ['color'],
@@ -210,15 +287,15 @@ function App() {
         boxNode: ['shape1', 'shape2'],
         capsuleNode: ['shape1', 'shape2'],
         modeNode: ['shape1', 'shape2', 'render'],
+        motorNode: ['position', 'size', 'rotation'],
       };
-
+  
       const sourceNode = nodes.find((node) => node.id === source);
       const targetNode = nodes.find((node) => node.id === target);
-
+  
       if (sourceNode && targetNode) {
         const validSourceHandles = validConnections[sourceNode.type];
         if (validSourceHandles && validSourceHandles.includes(targetHandle)) {
-          // Check for existing connections to the same targetHandle
           const existingConnection = edges.find((edge) => edge.target === target && edge.targetHandle === targetHandle);
           if (!existingConnection) {
             setEdges((eds) => addEdge(params, eds));
@@ -233,7 +310,7 @@ function App() {
     },
     [nodes, edges, handleRenderScene]
   );
-
+  
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
     const leftPane = document.getElementById('left-pane');

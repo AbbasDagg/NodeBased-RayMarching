@@ -79,6 +79,17 @@ function NodeEditor({ setNodes, isFullscreen }) {
     setNodeCount(nodeCount + 1);
   };
 
+  const addMotorNode = () => {
+    const newNode = {
+      id: generateUniqueId(),
+      type: 'motorNode',
+      data: { xRange: { min: 0, max: 10, step: 1 }, yRange: { min: 0, max: 10, step: 1 }, zRange: { min: 0, max: 10, step: 1 } },
+      position: { x: Math.random() * 250, y: Math.random() * 250 },
+    };
+    reactFlowInstance.setNodes((nds) => nds.concat(newNode));
+    setNodeCount(nodeCount + 1);
+  };
+
   const toggleShapeMenu = () => {
     setShowShapeMenu(!showShapeMenu);
   };
@@ -113,8 +124,8 @@ function NodeEditor({ setNodes, isFullscreen }) {
 
   return (
     <div className={`node-editor-buttons ${isFullscreen ? 'hidden' : ''}`} style={{ width: '98%', padding: '0px', display: 'flex', justifyContent: 'space-between', position: 'relative' }}>
-      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addVectorNode} style={{ flex: '1 1 19%' }}>Vector</button>
-      <div ref={shapeMenuRef} style={{ position: 'relative', flex: '1 1 19%' }}>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addVectorNode} style={{ flex: '1 1 15%' }}>Vector</button>
+      <div ref={shapeMenuRef} style={{ position: 'relative', flex: '1 1 15%' }}>
         <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={toggleShapeMenu} style={{ width: '100%' }}>Shape</button>
         {showShapeMenu && (
           <div className="shape-menu">
@@ -125,9 +136,10 @@ function NodeEditor({ setNodes, isFullscreen }) {
           </div>
         )}
       </div>
-      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addColorNode} style={{ flex: '1 1 19%' }}>Color</button>
-      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addModeNode} style={{ flex: '1 1 19%' }}>Mode</button>
-      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addRenderNode} style={{ flex: '1 1 19%' }}>Render</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addColorNode} style={{ flex: '1 1 15%' }}>Color</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addModeNode} style={{ flex: '1 1 15%' }}>Mode</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addRenderNode} style={{ flex: '1 1 15%' }}>Render</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addMotorNode} style={{ flex: '1 1 15%' }}>Motor</button>
 
       {/* New button added to the bottom left corner */}
       <div style={{ position: 'fixed', bottom: '10px', left: '50px' }}>

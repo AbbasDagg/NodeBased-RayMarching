@@ -7,15 +7,127 @@ import ThreeScene from './ThreeScene';
 import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode } from './CustomNodes';
 
 const initialNodes = [
-  { id: '1', type: 'vectorNode', position: { x: 0, y: 0 }, data: { x: 0, y: 0, z: 0 } },
-  { id: '2', type: 'sphereNode', position: { x: 100, y: 100 }, data: { shape: 'sphere' } },
-  { id: '3', type: 'renderNode', position: { x: 200, y: 200 }, data: { label: 'Render', layerId: 'layer-1' } },
-  { id: '4', type: 'motorNode', position: { x: 300, y: 300 }, data: { xRange: { min: 0, max: 10, step: 1 }, yRange: { min: 0, max: 10, step: 1 }, zRange: { min: 0, max: 10, step: 1 } } }, // New MotorNode
+  // Color Node for Box (left side)
+  { id: '1', type: 'colorNode', position: { x: 0, y: 0 }, data: { color: '#cc0f0f' } },
+  
+  // Color Node for Capsule (left side)
+  { id: '2', type: 'colorNode', position: { x: 0, y: 3*100 }, data: { color: '#37d42b' } },
+  
+  // Motor Node for Box scale (left side)
+  { id: '3', type: 'motorNode', position: { x: 3*150, y: 0 }, data: { 
+    xRange: { min: 2 * 1.5, max: 1.2, step: 0 }, 
+    yRange: { min: 2 * 1.5, max: 1.2, step: 0 }, 
+    zRange: { min: 2 * 1.5, max: 1.2, step: 0 }
+  }},
+  
+  // Motor Node for Capsule scale (left side)
+  { id: '4', type: 'motorNode', position: { x: 3*150, y: 3*100 }, data: { 
+    xRange: { min: 1.4 * 1.65, max: 1, step: 0 }, 
+    yRange: { min: 1.4 * 1.65, max: 1, step: 0 }, 
+    zRange: { min: 1.4 * 1.65, max: 1, step: 0 }
+  }},
+  
+  // Motor Node for Box rotation (left side)
+  { id: '5', type: 'motorNode', position: { x: 3*150, y: 3*200 }, data: { 
+    xRange: { min: 0, max: 1*180, step: 1 }, 
+    yRange: { min: 0, max: 1*180, step: 1 }, 
+    zRange: { min: 0, max: 0, step: 1 }
+  }},
+
+  // Motor Node for Capsule rotation (Reverse of Box rotation, left side)
+  { id: '6', type: 'motorNode', position: { x: 3*150, y: 3*300 }, data: { 
+    xRange: { min: 180/2, max: 0, step: 1 }, 
+    yRange: { min: 180/2, max: 0, step: 1 }, 
+    zRange: { min: 0, max: 0, step: 1 }
+  }},
+  
+  // Vector Node for Position (left side)
+  { id: '7', type: 'vectorNode', position: { x: 3*300, y: 0 }, data: { x: -2, y: 0, z: 0 } },
+
+  // Box Node (Shape 1, left side)
+  { id: '8', type: 'boxNode', position: { x: 3*450, y: 0 }, data: { shape: 'box' } },
+  
+  // Capsule Node (Shape 2, left side)
+  { id: '9', type: 'capsuleNode', position: { x: 3*450, y: 3*100 }, data: { shape: 'box' } },
+  
+  // Mode Node for operation (Union or Subtraction, left side)
+  { id: '10', type: 'modeNode', position: { x:3* 600, y: 3*50 }, data: { mode: 'subtraction' } },
+  
+  // Render Node (left side)
+  { id: '11', type: 'renderNode', position: { x: 3*750, y: 3*50 }, data: { label: 'Render', layerId: 'layer-1' } },
+
+  // Color Node for Sphere (right side)
+  { id: '12', type: 'colorNode', position: { x: 0, y: 3*400 }, data: { color: '#000000' } },
+
+  // Color Node for Torus (right side)
+  { id: '13', type: 'colorNode', position: { x: 0, y:3* 500 }, data: { color: '#430070' } },
+
+  // Motor Node for Sphere scale (right side)
+  { id: '14', type: 'motorNode', position: { x: 3*150, y: 3*400 }, data: { 
+    xRange: { min: 2 * 1.5, max: 2 * 1, step: 0 }, 
+    yRange: { min: 2 * 1.5, max: 2 * 1, step: 0 }, 
+    zRange: { min: 2 * 1.5, max: 2 * 1, step: 0 }
+  }},
+
+  // Motor Node for Torus scale (right side)
+  { id: '15', type: 'motorNode', position: { x: 3*150, y: 3*500 }, data: { 
+    xRange: { min: 2 * 2, max: 2 * 0, step: 0 }, 
+    yRange: { min: 2 * 1.7, max: 2 * 0.5, step: 0 }, 
+    zRange: { min: 2 * 1.7, max: 2 * 0.5, step: 0 }
+  }},
+
+  // Motor Node for Sphere rotation (right side)
+  { id: '16', type: 'motorNode', position: { x:3* 150, y: 3*600 }, data: { 
+    xRange: { min: 0, max: 360, step: 1 }, 
+    yRange: { min: 0, max: 360, step: 1 }, 
+    zRange: { min: 0, max: 0, step: 1 }
+  }},
+  
+  // Vector Node for Position (right side)
+  { id: '17', type: 'vectorNode', position: { x: 3*300, y: 3*400 }, data: { x: 2, y: 0, z: 0 } },
+
+  // Sphere Node (Shape 3, right side)
+  { id: '18', type: 'sphereNode', position: { x: 3*450, y: 3*400 }, data: { shape: 'sphere' } },
+  
+  // Torus Node (Shape 4, right side)
+  { id: '19', type: 'torusNode', position: { x: 3*450, y: 3*500 }, data: { shape: 'torus' } },
+  
+  // Mode Node for operation (Union or Subtraction, right side)
+  { id: '20', type: 'modeNode', position: { x: 3*600, y: 3*450 }, data: { mode: 'subtraction' } },
+  
+  // Render Node (right side)
+  { id: '21', type: 'renderNode', position: { x: 3*750, y: 3*450 }, data: { label: 'Render', layerId: 'layer-2' } }
 ];
 
 
+const initialEdges = [
+  // Left side connections
+  { id: 'e1', source: '1', target: '8', sourceHandle: 'color', targetHandle: 'color' },
+  { id: 'e2', source: '2', target: '9', sourceHandle: 'color', targetHandle: 'color' },
+  { id: 'e3', source: '3', target: '8', sourceHandle: 'vector', targetHandle: 'size' },
+  { id: 'e4', source: '4', target: '9', sourceHandle: 'vector', targetHandle: 'size' },
+  { id: 'e5', source: '5', target: '8', sourceHandle: 'vector', targetHandle: 'rotation' },
+  { id: 'e6', source: '6', target: '9', sourceHandle: 'vector', targetHandle: 'rotation' },
+  { id: 'e7', source: '7', target: '8', sourceHandle: 'vector', targetHandle: 'position' },
+  { id: 'e8', source: '7', target: '9', sourceHandle: 'vector', targetHandle: 'position' },
+  { id: 'e9', source: '8', target: '10', sourceHandle: 'render', targetHandle: 'shape1' },
+  { id: 'e10', source: '9', target: '10', sourceHandle: 'render', targetHandle: 'shape2' },
+  { id: 'e11', source: '10', target: '11', sourceHandle: 'render', targetHandle: 'render' },
 
-const initialEdges = [];
+  // Right side connections
+  { id: 'e12', source: '12', target: '18', sourceHandle: 'color', targetHandle: 'color' },
+  { id: 'e13', source: '13', target: '19', sourceHandle: 'color', targetHandle: 'color' },
+  { id: 'e14', source: '14', target: '18', sourceHandle: 'vector', targetHandle: 'size' },
+  { id: 'e15', source: '15', target: '19', sourceHandle: 'vector', targetHandle: 'size' },
+  { id: 'e16', source: '16', target: '18', sourceHandle: 'vector', targetHandle: 'rotation' },
+  { id: 'e17', source: '17', target: '18', sourceHandle: 'vector', targetHandle: 'position' },
+  { id: 'e18', source: '17', target: '19', sourceHandle: 'vector', targetHandle: 'position' },
+  { id: 'e19', source: '18', target: '20', sourceHandle: 'render', targetHandle: 'shape1' },
+  { id: 'e20', source: '19', target: '20', sourceHandle: 'render', targetHandle: 'shape2' },
+  { id: 'e21', source: '20', target: '21', sourceHandle: 'render', targetHandle: 'render' }
+];
+
+
 
 const nodeTypes = {
   vectorNode: VectorNode,

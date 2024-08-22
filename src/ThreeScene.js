@@ -7,7 +7,7 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
 import { GUI } from 'lil-gui';
 import Raymarcher from './MyRaymarcher';
 
-const SCALING_FACTOR = 5; // Scale up shapes to fix a small bug in the raymarcher
+const SCALING_FACTOR = 3; // Scale up shapes to fix a small bug in the raymarcher
 
 const ThreeScene = forwardRef((props, ref) => {
   const raymarcherRef = useRef(null); // Use ref to store the raymarcher instance

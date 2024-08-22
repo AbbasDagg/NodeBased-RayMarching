@@ -25,19 +25,19 @@ export function ModeNode({ data }) {
   };
 
   return (
-    <div className="card" style={{ width: '120px', height: 'auto', border: '2px solid #fff' }}>
+    <div className="card" style={{ width: '160px', height: 'auto', border: '2px solid #fff' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Mode</div>
         <select
           value={mode}
           onChange={handleModeChange}
-          style={{ width: '90px', marginBottom: '10px', padding: '5px', borderRadius: '4px', background: '#fff', color: '#000' }}
+          style={{ width: '110px', marginBottom: '10px', padding: '5px', borderRadius: '4px', background: '#fff', color: '#000' }}
         >
           <option value="union">Union</option>
           <option value="subtraction">Subtraction</option>
           <option value="intersection">Intersection</option>
         </select>
-        <Handle type="target" position={Position.Left} id="shape1" style={{ top: '34%', ...handleStyleLeft }} />
+        <Handle type="target" position={Position.Left} id="shape1" style={{ top: '34%', ...handleStyleLeft  }} />
         <Handle type="target" position={Position.Left} id="shape2" style={{ top: '85%', ...handleStyleLeft }} />
         <Handle type="source" position={Position.Right} id="render" style={{ top: '60%', ...handleStyleRight }} />
       </div>
@@ -224,16 +224,16 @@ export function MotorNode({ data, isConnectable }) {
   return (
     <div className="card" style={{ width: '175px', height: '170px', border: '2px solid #fff', padding: '10px' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '15px' , marginTop: '5px'}}>Motor Node</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', width: '42%', marginBottom: '5px', paddingLeft: '35px', paddingRight: '15px', fontSize: '14px' }}>
+        <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '20px', marginTop: '5px' }}>Motor Node</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '57%', marginBottom: '5px', paddingLeft: '18px', paddingRight: '15px', fontSize: '14px' }}>
           <span>From</span>
           <span>To</span>
         </div>
         {['X', 'Y', 'Z'].map(axis => (
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px', marginRight: '10px' }} key={axis}>
-            {axis}:
-            <input type="number" value={eval(`${axis.toLowerCase()}Range`).min} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'min', e.target.value)} className="nodrag" style={{ width: '40%', marginLeft: '0px', right: '5px',  padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
-            <input type="number" value={eval(`${axis.toLowerCase()}Range`).max} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'max', e.target.value)} className="nodrag" style={{ width: '40%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }}/>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px', marginRight: '10px', paddingLeft: ' 0px' }} key={axis}>
+            <span style={{ marginRight: '5px' }}>{axis}:</span> {/* Adjusted margin to move the label left */}
+            <input type="number" value={eval(`${axis.toLowerCase()}Range`).min} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'min', e.target.value)} className="nodrag" style={{ width: '40%', marginLeft: '0px', right: '5px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }} />
+            <input type="number" value={eval(`${axis.toLowerCase()}Range`).max} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'max', e.target.value)} className="nodrag" style={{ width: '40%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #777', background: '#fff', color: '#000' }} />
           </div>
         ))}
         <Handle type="source" position={Position.Right} id="vector" style={handleStyleRight} isConnectable={isConnectable} />
@@ -241,6 +241,7 @@ export function MotorNode({ data, isConnectable }) {
     </div>
   );
 }
+
 
 
 export function SphereNode({ data }) {

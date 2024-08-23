@@ -273,8 +273,8 @@ export function TorusNode({ data }) {
   return (
     <div className="card shapeNode" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
       <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-        <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px' , WebkitTextStroke: `0.1px ${outlineColor}`  }}>Shape: Sphere</div>
-        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '30%' }} />Torus
+        <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px' , WebkitTextStroke: `0.1px ${outlineColor}`  }}>Shape: Torus</div>
+        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '30%' }} />
         <span style={{ position: 'absolute', left: '40px', top: '30%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
         <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%' }} />
         <span style={{ position: 'absolute', left: '40px', top: '50%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>

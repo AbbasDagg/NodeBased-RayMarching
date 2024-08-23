@@ -48,7 +48,7 @@ const initialNodes = [
   { id: '8', type: 'boxNode', position: { x: 3*450, y: 0 }, data: { shape: 'box' } },
   
   // Capsule Node (Shape 2, left side)
-  { id: '9', type: 'capsuleNode', position: { x: 3*450, y: 3*100 }, data: { shape: 'box' } },
+  { id: '9', type: 'boxNode', position: { x: 3*450, y: 3*100 }, data: { shape: 'box' } },
   
   // Mode Node for operation (Union or Subtraction, left side)
   { id: '10', type: 'modeNode', position: { x:3* 600, y: 3*50 }, data: { mode: 'subtraction' } },

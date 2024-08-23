@@ -120,11 +120,11 @@ const ThreeScene = forwardRef((props, ref) => {
 
     const raymarcher = new Raymarcher({
       envMap: environmentMap,
-      resolution: 0.7,
+      resolution: 1,
       blending: 1,
       roughness: 0,
       metalness: 0.7,
-      envMapIntensity: 0.7,
+      envMapIntensity: 1,
       layers: [[]] // Start with a single empty layer
     });
     raymarcherRef.current = raymarcher;

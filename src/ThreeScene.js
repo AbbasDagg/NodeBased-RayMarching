@@ -163,7 +163,7 @@ const ThreeScene = forwardRef((props, ref) => {
 
     loadEnvironment('RoomEnvironment'); // Load a default environment map
 
-    const gui = new GUI({ title: 'three-raymarcher' });
+    const gui = new GUI({ title: 'Settings' });
     gui.close();
     gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
     gui.add(raymarcher.userData, 'blending', 0, 2, 0.01);

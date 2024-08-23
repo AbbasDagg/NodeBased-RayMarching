@@ -199,7 +199,7 @@
     border: none;
     padding: 1rem;
     font-size: 1rem;
-    width: 99%; /* Decreased by 1% */
+    width: 99%;
     border-radius: 1rem;
     color: lightcoral;
     box-shadow: 0 0.4rem #dfd9d9;
@@ -235,7 +235,7 @@
     margin: 0;
     background: transparent;
     width: 100%;
-    z-index: 1; /* Ensure it is above other elements */
+    z-index: 1;
 }
 
 .shape-menu .pshdown2 {
@@ -303,7 +303,7 @@
     width: 100%;
     display: flex;
     flex-wrap: wrap;
-    gap: 10px; /* Add gap between buttons */
+    gap: 10px;
 }
 
 .node-editor-buttons button {
@@ -324,24 +324,58 @@
     top: 0;
     bottom: 0;
     z-index: 10;
-    transition: none; /* Ensure no transition for resizing */
+    transition: none;
+}
+/* General card styles */
+/* General card styles */
+.card {
+    border-radius: 10px;
+    box-shadow: 0px 0px 10px 1px #000000;
+    padding: 10px;
+    background-blend-mode: normal, normal, screen, overlay, normal;
+    transition: background 0.3s ease;
 }
 
-/* Card style */
-.card {
-    width: 200px;
-    height: 250px;
-    border: none;
-    border-radius: 10px;
+/* Motor and Vector Node styles */
+.motorNode {
+    background: linear-gradient(135deg, #f0c75e 0%, #f1a75e 100%);
+    border: 2px solid #fff;
+}
+
+.vectorNode {
+    background: linear-gradient(135deg, #f0c75e 0%, #f1a75e 100%);
+    border: 2px solid #fff;
+}
+
+/* Color Node styles */
+.colorNode {
+    background: linear-gradient(135deg, #c299ff 0%, #d1a1ff 100%);
+    border: 2px solid #fff;
+}
+
+/* Shape Node styles */
+.shapeNode {
     background: radial-gradient(ellipse farthest-side at 76% 77%, rgba(245, 228, 212, 0) 4%, rgba(255, 255, 255, 0) calc(4% + 1px)), 
                 radial-gradient(circle at 76% 40%, #fef6ec00 4%, rgba(255, 255, 255, 0) 4.18%), 
-                linear-gradient(135deg, #020a2d 0%, #010165 100%), 
-                radial-gradient(ellipse at 28% 0%, #010165 0%, rgba(31, 27, 104, 0.5) 100%), 
-                linear-gradient(180deg,  rgba(145, 3, 3, 0.879) 0%, #8b8b8b 100%);
-    background-blend-mode: normal, normal, screen, overlay, normal;
-    box-shadow: 0px 0px 10px 1px #000000;
-}   
+                linear-gradient(135deg, #6fb2ff 0%, #78a7ff 100%), 
+                radial-gradient(ellipse at 28% 0%, #010165 0%, rgba(31, 27, 104, 0.5) 100%);
+    border: 2px solid #fff;
+}
 
+/* Mode Node styles */
+.modeNode {
+    background: linear-gradient(135deg, #ff7676 0%, #ff8484 100%);
+    border: 2px solid #fff;
+}
+
+/* Render Node styles */
+.renderNode {
+    background: linear-gradient(135deg, #a5d66e 0%, #b4d87e 100%);
+    border: 2px solid #fff;
+}
+
+
+/* Context Menu styles */
 .context-menu {
     position: absolute;
     background-color: white;
@@ -349,25 +383,24 @@
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
     z-index: 1000;
     padding: 8px;
-  }
+}
   
-  .context-menu button {
+.context-menu button {
     display: block;
     width: 100%;
     padding: 8px;
-    margin-bottom: 4px; /* Add margin between buttons */
+    margin-bottom: 4px;
     text-align: left;
     border: none;
     background: none;
     cursor: pointer;
-  }
+}
   
-  .context-menu button:hover {
+.context-menu button:hover {
     background-color: #f0f0f0;
-  }
-  
+}
 
-  /* From Uiverse.io by vinodjangid07 */ 
+/* From Uiverse.io by vinodjangid07 */ 
 .button {
     width: 50px;
     height: 50px;
@@ -423,4 +456,3 @@
     transform: translateY(32px);
     transition-duration: .3s;
   }
-  

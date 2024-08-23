@@ -25,7 +25,7 @@ export function ModeNode({ data }) {
   };
 
   return (
-    <div className="card" style={{ width: '160px', height: 'auto', border: '2px solid #fff' }}>
+    <div className="card modeNode" style={{ width: '160px', height: 'auto', border: '2px solid #fff' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Mode</div>
         <select
@@ -108,7 +108,7 @@ export function VectorNode({ data, isConnectable }) {
   }, [reactFlowInstance]);
 
   return (
-    <div className="card" style={{ width: '200px', height: '200px', border: '2px solid #fff' }}>
+    <div className="card vectorNode" style={{ width: '200px', height: '200px', border: '2px solid #fff' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>Vector</div>
         <input
@@ -222,7 +222,7 @@ export function MotorNode({ data, isConnectable }) {
   };
 
   return (
-    <div className="card" style={{ width: '175px', height: '170px', border: '2px solid #fff', padding: '10px' }}>
+    <div className="card motorNode" style={{ width: '175px', height: '170px', border: '2px solid #fff', padding: '10px' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '20px', marginTop: '5px' }}>Motor Node</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '57%', marginBottom: '5px', paddingLeft: '18px', paddingRight: '15px', fontSize: '14px' }}>
@@ -248,7 +248,7 @@ export function SphereNode({ data }) {
   const outlineColor = 'white'; // Default to black
 
   return (
-    <div className="card" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
+    <div className="card shapeNode" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
       <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
         <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px' , WebkitTextStroke: `0.1px ${outlineColor}`  }}>Shape: Sphere</div>
         <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '30%' }} />
@@ -271,7 +271,7 @@ export function TorusNode({ data }) {
   const outlineColor = 'white'; // Default to black
 
   return (
-    <div className="card" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
+    <div className="card shapeNode" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
       <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
         <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px' , WebkitTextStroke: `0.1px ${outlineColor}`  }}>Shape: Sphere</div>
         <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '30%' }} />Torus
@@ -293,7 +293,7 @@ export function BoxNode({ data }) {
   const outlineColor = 'white'; // Default to black
 
   return (
-    <div className="card" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
+    <div className="card shapeNode" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
       <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
         <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px' , WebkitTextStroke: `0.1px ${outlineColor}`  }}>Shape: Box</div>
         <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '30%' }} />
@@ -315,7 +315,7 @@ export function CapsuleNode({ data }) {
   const outlineColor = 'white'; // Default to black
 
   return (
-    <div className="card" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
+    <div className="card shapeNode" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
       <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
         <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px' , WebkitTextStroke: `0.1px ${outlineColor}`  }}>Shape: Capsule</div>
         <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '30%' }} />
@@ -353,7 +353,7 @@ export function ColorNode({ data, isConnectable }) {
   };
 
   return (
-    <div className="card" style={{ width: '120px', height: '90px', border: '2px solid #fff' }}>
+    <div className="card colorNode" style={{ width: '120px', height: '90px', border: '2px solid #fff' }}>
       <div style={{ padding: '12px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '16px' }}>Color Node</div>
         <input type="color" value={color} onChange={handleChange} className="nodrag" style={{ cursor: 'pointer', width: '60%', height: '30px', border: 'none', padding: '0' }} />
@@ -365,7 +365,7 @@ export function ColorNode({ data, isConnectable }) {
 
 export function RenderNode({ data }) {
   return (
-    <div className="card" style={{ width: '120px', height: 'auto', border: '2px solid #fff' }}>
+    <div className="card renderNode" style={{ width: '120px', height: 'auto', border: '2px solid #fff' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Render Node</div>
         <Handle type="target" position={Position.Left} id="render" style={{ ...handleStyleLeft, top: '50%' }} />

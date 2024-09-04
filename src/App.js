@@ -639,7 +639,7 @@ const onReconnectEnd = useCallback((_, edge) => {
             nodeColor={(node) => (node.type === 'vectorNode' ? '#FF0000' : '#0000FF')}
             nodeStrokeColor={(node) => 'black'}
           />
-          <Background variant="cross" gap={40} size={2} />
+          <Background variant="" gap={40} size={2} />
         </ReactFlow>
 
           </div>

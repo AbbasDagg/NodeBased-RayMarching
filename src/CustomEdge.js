@@ -45,7 +45,7 @@ export default function CustomEdge({
         style={{
           ...style,
           stroke: strokeColor, // Easily change color via `data.color`
-          strokeWidth: 5, // Increase stroke width for a thicker line
+          strokeWidth: 3, // Increase stroke width for a thicker line
         }}
       />
       

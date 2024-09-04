@@ -404,7 +404,7 @@
 .button {
     width: 70px; /* Adjusted for box shape */
     height: 40px; /* Adjusted for box shape */
-    border-radius: 10px; /* Make it a box with slightly rounded corners */
+    border-radius: 5px; /* Make it a box with slightly rounded corners */
     background-color: white; /* Start with a white background */
     border: none;
     font-weight: 600;

@@ -568,6 +568,8 @@ function App() {
             >
               <Controls />
               <MiniMap 
+              pannable = {true}
+              zoomable = {true}
               style={{ width: 170, height: 130 , right: -15, bottom: -15, border: '0px solid black', borderRadius: '0px' }}
               offsetScale={10} 
               nodeStrokeWidth={6} 
@@ -597,20 +599,24 @@ function App() {
           transition: 'width 0.5s ease',
         }}
       >
-        <ThreeScene ref={threeSceneRef} />
+
+      {/* Fullscreen buttons */}
+      <ThreeScene ref={threeSceneRef} />
         <div
   className={`fullscreen-button-container ${isLeftFullscreen ? 'hidden' : ''}`} // Hide right fullscreen button when left fullscreen is on
   onClick={toggleFullscreen}
           style={{
             position: 'absolute',
-            bottom: '5px',
-            right: '5px',
+            bottom: '14px',
+            right: '10px',
             zIndex: 1,
           }}
         >
           <input type="checkbox" checked={isFullscreen} onChange={toggleFullscreen} />
-          <img className="expand" src="/svg/expand.svg" alt="expand" />
-          <img className="compress" src="/svg/collapse.svg" alt="compress" />
+          <div style={{ width: '35px', height: '35px', backgroundColor: 'white', borderRadius: '5px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <img className="expand" src="/svg/expand.svg" alt="expand" style={{ width: '25px', height: '25px' }} />
+        <img className="compress" src="/svg/collapse.svg" alt="compress" style={{ width: '25px', height: '25px', display: 'none' }} />
+      </div>
         </div>
       </div>
 
@@ -619,7 +625,7 @@ function App() {
   onClick={toggleLeftFullscreen}
       style={{
         position: 'absolute',
-        bottom: '10px',
+        bottom: '14px',
         left: '110px',
         zIndex: 1,
       }}

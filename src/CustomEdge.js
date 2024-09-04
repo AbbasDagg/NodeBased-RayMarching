@@ -71,20 +71,21 @@ export default function CustomEdge({
 
       {/* Delete button (cross) at the center of the edge */}
       <EdgeLabelRenderer>
-        <div
-          style={{
-            position: 'absolute',
-            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-            pointerEvents: 'all',
-            fontSize: '14px',
-          }}
-          className="nodrag nopan"
-        >
-          <button className="edgebutton" onClick={onEdgeClick}>
-            ×
-          </button>
-        </div>
-      </EdgeLabelRenderer>
+  <div
+    style={{
+      position: 'absolute',
+      transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+      pointerEvents: 'all',
+      fontSize: '18px',
+    }}
+    className="nodrag nopan"
+  >
+    <button className="edgebutton" onClick={onEdgeClick}>
+      ✖
+    </button>
+  </div>
+</EdgeLabelRenderer>
+
     </>
   );
 }

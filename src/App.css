@@ -480,19 +480,25 @@
   
   /* Edge button (cross) styling */
   .edgebutton {
-    background-color: white;
-    border: 1px solid red;
-    border-radius: 50%;
-    padding: 2px 6px;
-    cursor: pointer;
-    font-size: 14px;
+    background-color: white !important;
+    border: 0px solid red !important;
+    border-radius: 50% !important;
+    width: 30px !important; /* Adjust width */
+    height: 30px !important; /* Adjust height */
+    padding: 0px !important;
+    font-size: 20px !important; /* Adjust font size for the 'x' */
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    cursor: pointer !important;
   }
   
   .edgebutton:hover {
-    background-color: red;
-    color: white;
-    box-shadow: 0 0 6px 2px rgba(255, 0, 0, 0.5);
+    background-color: red !important;
+    color: white !important;
+    box-shadow: 0 0 6px 2px rgba(255, 0, 0, 0.5) !important;
   }
+  
 
   @keyframes dash {
     to {

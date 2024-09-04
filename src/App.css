@@ -526,4 +526,6 @@
     background: #ff4d4d; /* Red hover effect */
     box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.08);
   }
-  
+  .react-flow__attribution {
+  display: none;
+}

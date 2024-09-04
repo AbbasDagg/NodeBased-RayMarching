@@ -640,6 +640,8 @@ const onReconnectEnd = useCallback((_, edge) => {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           connectionLineComponent={CustomConnectionLine} // Custom animated connection line
+          attributionPosition={null}  // Hides the React Flow button
+          attributionComponent={null}  // Hides the React Flow button
 
           edgeTypes={edgeTypes} // Add edgeTypes prop here
           onReconnectStart={onReconnectStart}  
@@ -655,10 +657,10 @@ const onReconnectEnd = useCallback((_, edge) => {
   pannable
   zoomable
   style={{ 
-    width: 170, 
-    height: 130, 
-    right: -15, 
-    bottom: -15, 
+    width: 160, 
+    height: 150, 
+    right: -5, 
+    bottom: -5, 
     border: '0px solid black', 
     borderRadius: '0px'
   }}

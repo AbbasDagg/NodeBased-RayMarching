@@ -113,6 +113,9 @@ function NodeEditor({ setNodes, isFullscreen }) {
 
     // Add all IDs back to the available list
     setAvailableIds((prev) => [...prev, ...currentIds]);
+    
+    // Reset edges
+    reactFlowInstance.setEdges([]);
   };
 
   useEffect(() => {

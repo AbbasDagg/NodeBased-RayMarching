@@ -88,3 +88,28 @@ export default function CustomEdge({
     </>
   );
 }
+
+// Custom connection line for animated dragging behavior
+export const CustomConnectionLine = ({ fromX, fromY, toX, toY }) => {
+    const edgePath = getBezierPath({
+      sourceX: fromX,
+      sourceY: fromY,
+      targetX: toX,
+      targetY: toY,
+    })[0];
+  
+    return (
+      <g>
+        <path
+          className="custom-animated-path"
+          d={edgePath}
+          style={{
+            stroke: '#888', 
+            strokeWidth: 5,
+            fill: 'none',
+          }}
+        />
+      </g>
+    );
+  };
+  

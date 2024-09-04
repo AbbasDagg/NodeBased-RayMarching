@@ -6,7 +6,7 @@ import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
 import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode } from './CustomNodes';
 import { reconnectEdge } from 'reactflow';
-import CustomEdge from './CustomEdge'; // Make sure this path points to your CustomEdge file
+import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the custom edge and connection line
 
 
 const initialNodes = [
@@ -620,6 +620,8 @@ const onReconnectEnd = useCallback((_, edge) => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          connectionLineComponent={CustomConnectionLine} // Custom animated connection line
+
           edgeTypes={edgeTypes} // Add edgeTypes prop here
           onReconnectStart={onReconnectStart}  
           onReconnect={onReconnect}            

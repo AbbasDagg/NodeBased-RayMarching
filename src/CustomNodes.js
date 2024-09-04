@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Handle, Position, useReactFlow } from 'reactflow';
 import { SketchPicker } from 'react-color';
 
-const handleStyleRight = { right: '-10px', backgroundColor: 'black' };
-const handleStyleLeft = { left: '-10px', backgroundColor: 'black',};
+const handleStyleRight = { right: '-1.5px', backgroundColor: 'black', margin: 0, padding: 0 };
+const handleStyleLeft = { left: '-1px', backgroundColor: 'black', margin: 0, padding: 0 };
+
 
 export function ModeNode({ data }) {
   const [mode, setMode] = useState(data.mode || 'union');
@@ -248,42 +249,43 @@ export function SphereNode({ data }) {
   const outlineColor = 'white'; // Default to black
 
   return (
-    <div className="card shapeNode" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
-      <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-        <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px' , WebkitTextStroke: `0.1px ${outlineColor}`  }}>Shape: Sphere</div>
-        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '30%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '30%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
-        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '50%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
-        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '70%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '70%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
-        
-        <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '90%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '90%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-        
+    <div className="card shapeNode" style={{ width: '240px', height: '240px', border: '2px solid #fff', padding: 0, margin: 0 }}>
+      <div style={{ padding: '0', top:'20px', bottom:'20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px', WebkitTextStroke: `0.1px ${outlineColor}` }}>
+          Shape: Sphere
+        </div>
+        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '33%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '33%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
+        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '57%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '57%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
+        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '81%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '81%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+        <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '105%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '105%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
         <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%' }} />
       </div>
     </div>
   );
 }
 
+
 export function TorusNode({ data }) {
   const outlineColor = 'white'; // Default to black
 
   return (
-    <div className="card shapeNode" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
-      <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-        <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px' , WebkitTextStroke: `0.1px ${outlineColor}`  }}>Shape: Torus</div>
-        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '30%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '30%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
-        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '50%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
-        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '70%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '70%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
-        
-        <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '90%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '90%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-        
+    <div className="card shapeNode" style={{ width: '240px', height: '240px', border: '2px solid #fff', padding: 0, margin: 0 }}>
+      <div style={{ padding: '0', top:'20px', bottom:'20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px', WebkitTextStroke: `0.1px ${outlineColor}` }}>
+          Shape: Torus
+        </div>
+        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '33%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '33%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
+        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '57%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '57%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
+        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '81%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '81%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+        <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '105%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '105%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
         <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%' }} />
       </div>
     </div>
@@ -293,19 +295,19 @@ export function BoxNode({ data }) {
   const outlineColor = 'white'; // Default to black
 
   return (
-    <div className="card shapeNode" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
-      <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-        <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px' , WebkitTextStroke: `0.1px ${outlineColor}`  }}>Shape: Box</div>
-        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '30%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '30%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
-        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '50%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
-        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '70%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '70%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
-        
-        <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '90%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '90%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-        
+    <div className="card shapeNode" style={{ width: '240px', height: '240px', border: '2px solid #fff', padding: 0, margin: 0 }}>
+      <div style={{ padding: '0', top:'20px', bottom:'20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px', WebkitTextStroke: `0.1px ${outlineColor}` }}>
+          Shape: Box
+        </div>
+        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '33%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '33%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
+        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '57%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '57%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
+        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '81%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '81%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+        <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '105%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '105%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
         <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%' }} />
       </div>
     </div>
@@ -315,19 +317,19 @@ export function CapsuleNode({ data }) {
   const outlineColor = 'white'; // Default to black
 
   return (
-    <div className="card shapeNode" style={{ width: '220px', height: '220px', border: '2px solid #fff' }}>
-      <div style={{ padding: '20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-        <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px' , WebkitTextStroke: `0.1px ${outlineColor}`  }}>Shape: Capsule</div>
-        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '30%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '30%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
-        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '50%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '50%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
-        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '70%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '70%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
-        
-        <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '90%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '90%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-        
+    <div className="card shapeNode" style={{ width: '240px', height: '240px', border: '2px solid #fff', padding: 0, margin: 0 }}>
+      <div style={{ padding: '0', top:'20px', bottom:'20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: 'white', fontSize: '16px', marginBottom: '140px', WebkitTextStroke: `0.1px ${outlineColor}` }}>
+          Shape: Capsule
+        </div>
+        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '33%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '33%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
+        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '57%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '57%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
+        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '81%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '81%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+        <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '105%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '105%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
         <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%' }} />
       </div>
     </div>

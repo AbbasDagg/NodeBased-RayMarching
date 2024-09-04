@@ -54,7 +54,7 @@ export default function CustomEdge({
         cx={sourceX}
         cy={sourceY}
         fill="#fff"
-        r={8} 
+        r={10} 
         stroke={strokeColor}
         strokeWidth={4} 
       />
@@ -64,7 +64,7 @@ export default function CustomEdge({
         cx={targetX}
         cy={targetY}
         fill="#fff"
-        r={8} 
+        r={10} 
         stroke={strokeColor}
         strokeWidth={4} 
       />

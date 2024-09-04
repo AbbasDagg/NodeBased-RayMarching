@@ -5,6 +5,8 @@ import './App.css'; // Import the CSS file
 import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
 import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode } from './CustomNodes';
+import { reconnectEdge } from 'reactflow';
+
 
 const initialNodes = [
   // Color Node for Box (left side)
@@ -147,6 +149,8 @@ function App() {
   const [edges, setEdges] = useState(initialEdges);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLeftFullscreen, setIsLeftFullscreen] = useState(false);
+  const edgeReconnectSuccessful = useRef(true);
+
 
   const [leftPaneWidth, setLeftPaneWidth] = useState(window.innerWidth / 2);
 
@@ -407,6 +411,56 @@ function App() {
   
 
 
+  const onReconnectStart = useCallback(() => {
+  edgeReconnectSuccessful.current = false;
+}, []);
+
+const onReconnect = useCallback((oldEdge, newConnection) => {
+  edgeReconnectSuccessful.current = true;
+
+  const sourceNode = nodes.find((node) => node.id === newConnection.source);
+  const targetNode = nodes.find((node) => node.id === newConnection.target);
+
+  const validConnections = {
+    vectorNode: ['position', 'size', 'rotation'],
+    colorNode: ['color'],
+    sphereNode: ['shape1', 'shape2'],
+    torusNode: ['shape1', 'shape2'],
+    boxNode: ['shape1', 'shape2'],
+    capsuleNode: ['shape1', 'shape2'],
+    modeNode: ['shape1', 'shape2', 'render'],
+    motorNode: ['position', 'size', 'rotation'],
+  };
+
+  // Ensure validation before reconnecting
+  const validSourceHandles = validConnections[sourceNode.type];
+  if (sourceNode && targetNode && validSourceHandles && validSourceHandles.includes(newConnection.targetHandle)) {
+    // Allow multiple outgoing but only one incoming edge
+    const existingIncomingConnection = edges.find(
+      (edge) => edge.target === newConnection.target && edge.targetHandle === newConnection.targetHandle
+    );
+
+    // If an incoming connection already exists, prevent reconnection
+    if (!existingIncomingConnection || oldEdge.id === existingIncomingConnection.id) {
+      setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
+      handleRenderScene(); // Call your existing render function
+    } else {
+      console.warn('Only one connection allowed per target pin');
+    }
+  } else {
+    console.warn('Invalid connection');
+  }
+}, [nodes, edges, handleRenderScene]);
+
+
+const onReconnectEnd = useCallback((_, edge) => {
+  if (!edgeReconnectSuccessful.current) {
+    setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+  }
+  edgeReconnectSuccessful.current = true;
+}, []);
+
+
   const toggleFullscreen = () => {
     if (isLeftFullscreen) {
       setIsLeftFullscreen(false); // Turn off left fullscreen if right is toggled
@@ -555,30 +609,33 @@ function App() {
         >
           <NodeEditor setNodes={setNodes} isFullscreen={isFullscreen} />
           <div style={{ flex: 1 }}>
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              nodeTypes={nodeTypes}
-              fitView
-              onPaneContextMenu={(event) => event.preventDefault()} // Prevents right-click on the empty canvas
-              onNodeContextMenu={(event, node) => handleContextMenu(event, node)} // Right-click on a node
-            >
-              <Controls />
-              <MiniMap 
-              pannable = {true}
-              zoomable = {true}
-              style={{ width: 170, height: 130 , right: -15, bottom: -15, border: '0px solid black', borderRadius: '0px' }}
-              offsetScale={10} 
-              nodeStrokeWidth={6} 
-              nodeColor={(node) => (node.type === 'vectorNode' ? '#FF0000' : '#0000FF')}
-              nodeStrokeColor={(node) => 'black'}
-              />
+          <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onReconnectStart={onReconnectStart}  
+          onReconnect={onReconnect}            
+          onReconnectEnd={onReconnectEnd}      
+          nodeTypes={nodeTypes}
+          fitView
+          onPaneContextMenu={(event) => event.preventDefault()} // Prevents right-click on the empty canvas
+          onNodeContextMenu={(event, node) => handleContextMenu(event, node)} // Right-click on a node
+        >
+          <Controls />
+          <MiniMap 
+            pannable
+            zoomable
+            style={{ width: 170, height: 130, right: -15, bottom: -15, border: '0px solid black', borderRadius: '0px' }}
+            offsetScale={10}
+            nodeStrokeWidth={6}
+            nodeColor={(node) => (node.type === 'vectorNode' ? '#FF0000' : '#0000FF')}
+            nodeStrokeColor={(node) => 'black'}
+          />
+          <Background variant="cross" gap={40} size={2} />
+        </ReactFlow>
 
-              <Background variant="cross" gap={40} size={2} />
-            </ReactFlow>
           </div>
         </div>
         <div

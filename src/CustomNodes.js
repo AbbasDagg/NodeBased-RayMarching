@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Handle, Position, useReactFlow } from 'reactflow';
 import { SketchPicker } from 'react-color';
 
-const handleStyleRight = { right: '5%', backgroundColor: 'black' };
-const handleStyleLeft = { left: '5%', backgroundColor: 'black',};
+const handleStyleRight = { right: '1px', backgroundColor: 'black' };
+const handleStyleLeft = { left: '1px', backgroundColor: 'black',};
 
 export function ModeNode({ data }) {
   const [mode, setMode] = useState(data.mode || 'union');

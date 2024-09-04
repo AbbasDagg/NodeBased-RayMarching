@@ -2,8 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Handle, Position, useReactFlow } from 'reactflow';
 import { SketchPicker } from 'react-color';
 
-const handleStyleRight = { right: '-1.5px', backgroundColor: 'black', margin: 0, padding: 0 };
-const handleStyleLeft = { left: '-1px', backgroundColor: 'black', margin: 0, padding: 0 };
+//const handleStyleRight = { right: '-1.5px', backgroundColor: 'black', margin: 0, padding: 0, width: '10px', height: '10px' };
+//const handleStyleLeft = { left: '-1px', backgroundColor: 'black', margin: 0, padding: 0 , width: '10px', height: '10px' };
+
+const r = '15px'
+const offset = "-5px"
+const handleStyleRight = { right: offset, backgroundColor: 'black', margin: 0, padding: 0, width: r, height: r };
+const handleStyleLeft = { left: offset, backgroundColor: 'black', margin: 0, padding: 0 , width: r, height: r };
+
 
 
 export function ModeNode({ data }) {
@@ -262,7 +268,7 @@ export function SphereNode({ data }) {
         <span style={{ position: 'absolute', left: '40px', top: '81%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
         <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '105%' }} />
         <span style={{ position: 'absolute', left: '40px', top: '105%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%' }} />
+        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '65%' }} />
       </div>
     </div>
   );
@@ -286,7 +292,7 @@ export function TorusNode({ data }) {
         <span style={{ position: 'absolute', left: '40px', top: '81%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
         <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '105%' }} />
         <span style={{ position: 'absolute', left: '40px', top: '105%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%' }} />
+        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '65%' }} />
       </div>
     </div>
   );
@@ -308,7 +314,7 @@ export function BoxNode({ data }) {
         <span style={{ position: 'absolute', left: '40px', top: '81%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
         <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '105%' }} />
         <span style={{ position: 'absolute', left: '40px', top: '105%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%' }} />
+        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '65%' }} />
       </div>
     </div>
   );
@@ -330,7 +336,7 @@ export function CapsuleNode({ data }) {
         <span style={{ position: 'absolute', left: '40px', top: '81%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
         <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '105%' }} />
         <span style={{ position: 'absolute', left: '40px', top: '105%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '50%' }} />
+        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '65%' }} />
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
 import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode } from './CustomNodes';
 import { reconnectEdge } from 'reactflow';
+import CustomEdge from './CustomEdge'; // Make sure this path points to your CustomEdge file
 
 
 const initialNodes = [
@@ -141,6 +142,10 @@ const nodeTypes = {
   renderNode: RenderNode,
   modeNode: ModeNode,
   motorNode: MotorNode,
+};
+
+const edgeTypes = {
+  default: CustomEdge, // Use CustomEdge for default edge
 };
 
 function App() {
@@ -615,6 +620,7 @@ const onReconnectEnd = useCallback((_, edge) => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          edgeTypes={edgeTypes} // Add edgeTypes prop here
           onReconnectStart={onReconnectStart}  
           onReconnect={onReconnect}            
           onReconnectEnd={onReconnectEnd}      

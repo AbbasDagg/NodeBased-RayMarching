@@ -459,3 +459,22 @@
     transition-duration: .3s;
     color: white; /* Change the text to white on hover */
 }
+
+
+.edgebutton {
+    width: 24px; /* Slightly bigger */
+    height: 24px; /* Slightly bigger */
+    background: #eee;
+    border: 1px solid #fff;
+    cursor: pointer;
+    border-radius: 50%;
+    font-size: 14px; /* Slightly bigger */
+    line-height: 1;
+  }
+  
+  .edgebutton:hover {
+    background-color: red; /* Red hover effect */
+    color: white; /* Change text color on hover */
+    box-shadow: 0 0 8px 3px rgba(255, 0, 0, 0.5); /* Red shadow on hover */
+  }
+  

@@ -178,6 +178,8 @@ function App() {
   }, [nodes, printNodePositions]);
 
   
+
+  
   const handleContextMenu = (event, node) => {
     event.preventDefault(); // Prevent the default right-click menu from showing
     if (node) {

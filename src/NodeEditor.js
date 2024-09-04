@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useReactFlow } from 'reactflow';
 import './App.css'; // Import the CSS file
+//import { add } from 'three/webgpu';
+//import { add } from 'three/webgpu';
 
 function NodeEditor({ setNodes, isFullscreen }) {
   const [nodeCount, setNodeCount] = useState(3); // Starts at 3 because of initial nodes
@@ -23,71 +25,66 @@ function NodeEditor({ setNodes, isFullscreen }) {
     return id;
   };
 
-  const addVectorNode = () => {
-    const newNode = {
-      id: generateUniqueId(),
-      type: 'vectorNode',
-      data: { x: 0, y: 0, z: 0 },
-      position: { x: Math.random() * 250, y: Math.random() * 250 },
-    };
-    reactFlowInstance.setNodes((nds) => nds.concat(newNode));
-    setNodeCount(nodeCount + 1);
+
+  const addNodeToCenter = (nodeType, data = {}) => {
+    try {
+      // Get the current viewport transformation (pan and zoom) from the reactFlowInstance
+      const { x: viewportX, y: viewportY, zoom } = reactFlowInstance.getViewport();
+  
+      // Get the width of the left pane (divider) element
+      const leftPane = document.getElementById('left-pane');
+      const leftPaneWidth = leftPane && !isFullscreen ? leftPane.offsetWidth : 0; // Only consider leftPaneWidth if not in fullscreen
+  
+      // Calculate the center position of the visible viewport
+      const centerX = (window.innerWidth - leftPaneWidth) / 2 / zoom - viewportX / zoom;
+      const centerY = (window.innerHeight / 2) / zoom - viewportY / zoom;
+  
+      //console.log(`Adding node at center: (${centerX}, ${centerY}) with viewport offset: (${viewportX}, ${viewportY})`);
+  
+      const newNode = {
+        id: (Math.random() * 1000).toString(), // Generate a unique ID
+        type: nodeType,
+        data: data,
+        position: { x: centerX + (Math.random() * 500 - 350) , y: centerY + (Math.random() * 500 - 350)}, // Position the node at the calculated center
+      };
+  
+      // Add the new node to the flow
+      reactFlowInstance.setNodes((nds) => nds.concat(newNode));
+      setNodeCount((prev) => prev + 1);
+  
+    } catch (error) {
+      console.error("Error in addNodeToCenter:", error);
+    }
   };
+  
+  
+  
+  
+  
+  const addVectorNode = () => {
+    addNodeToCenter('vectorNode', { x: 0, y: 0, z: 0 });
+  };
+  
 
   const addShapeNode = (shapeType) => {
-    const newNode = {
-      id: generateUniqueId(),
-      type: shapeType,
-      data: { shape: shapeType.replace('Node', '').toLowerCase() },
-      position: { x: Math.random() * 250, y: Math.random() * 250 },
-    };
-    reactFlowInstance.setNodes((nds) => nds.concat(newNode));
-    setNodeCount(nodeCount + 1);
+    addNodeToCenter(shapeType, { shape: shapeType.replace('Node', '').toLowerCase() });
     setShowShapeMenu(false); // Close the menu after adding a shape
   };
 
   const addColorNode = () => {
-    const newNode = {
-      id: generateUniqueId(),
-      type: 'colorNode',
-      data: { color: '#ffffff' },
-      position: { x: Math.random() * 250, y: Math.random() * 250 },
-    };
-    reactFlowInstance.setNodes((nds) => nds.concat(newNode));
-    setNodeCount(nodeCount + 1);
+    addNodeToCenter('colorNode', { color: '#ffffff' });
   };
 
   const addRenderNode = () => {
-    const newNode = {
-      id: generateUniqueId(),
-      type: 'renderNode',
-      data: { label: 'Render', layerId: `layer-${nodeCount + 1}` },
-      position: { x: Math.random() * 250, y: Math.random() * 250 },
-    };
-    reactFlowInstance.setNodes((nds) => nds.concat(newNode));
-    setNodeCount(nodeCount + 1);
+    addNodeToCenter('renderNode', { label: 'Render', layerId: `layer-${nodeCount + 1}` });
   };
 
   const addModeNode = () => {
-    const newNode = {
-      id: generateUniqueId(),
-      type: 'modeNode',
-      data: { mode: 'union' },
-      position: { x: Math.random() * 250, y: Math.random() * 250 },
-    };
-    reactFlowInstance.setNodes((nds) => nds.concat(newNode));
-    setNodeCount(nodeCount + 1);
+    addNodeToCenter('modeNode', { mode: 'normal' });
   };
 
   const addMotorNode = () => {
-    const newNode = {
-      id: generateUniqueId(),
-      type: 'motorNode',
-      data: { xRange: { min: 0, max: 10, step: 1 }, yRange: { min: 0, max: 10, step: 1 }, zRange: { min: 0, max: 10, step: 1 } },
-      position: { x: Math.random() * 250, y: Math.random() * 250 },
-    };
-    reactFlowInstance.setNodes((nds) => nds.concat(newNode));
-    setNodeCount(nodeCount + 1);
+    addNodeToCenter('motorNode', { xRange: { min: 0, max: 10, step: 1 }, yRange: { min: 0, max: 10, step: 1 }, zRange: { min: 0, max: 10, step: 1 } });
   };
 
   const toggleShapeMenu = () => {

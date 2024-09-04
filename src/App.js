@@ -518,8 +518,15 @@ function App() {
               onNodeContextMenu={(event, node) => handleContextMenu(event, node)} // Right-click on a node
             >
               <Controls />
-              <MiniMap />
-              <Background variant="dots" gap={12} size={1} />
+              <MiniMap 
+              style={{ width: 170, height: 130 , right: -15, bottom: -15, border: '0px solid black', borderRadius: '0px' }}
+              offsetScale={10} 
+              nodeStrokeWidth={6} 
+              nodeColor={(node) => (node.type === 'vectorNode' ? '#FF0000' : '#0000FF')}
+              nodeStrokeColor={(node) => 'black'}
+              />
+
+              <Background variant="dots" gap={40} size={4} />
             </ReactFlow>
           </div>
         </div>

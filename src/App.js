@@ -11,95 +11,95 @@ import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the c
 
 const initialNodes = [
   // Color Node for Box (left side)
-  { id: '1', type: 'colorNode', position: { x: 0, y: 0 }, data: { color: '#cc0f0f' } },
+  { id: '1', type: 'colorNode', position: { x: 582, y: -144 }, data: { color: '#cc0f0f' } },
   
   // Color Node for Capsule (left side)
-  { id: '2', type: 'colorNode', position: { x: 0, y: 3*100 }, data: { color: '#37d42b' } },
+  { id: '2', type: 'colorNode', position: { x: 582, y: 684 }, data: { color: '#37d42b' } },
   
   // Motor Node for Box scale (left side)
-  { id: '3', type: 'motorNode', position: { x: 3*150, y: 0 }, data: { 
+  { id: '3', type: 'motorNode', position: { x: 578, y: -362 }, data: { 
     xRange: { min: 2 * 1.5, max: 1.2, step: 0 }, 
     yRange: { min: 2 * 1.5, max: 1.2, step: 0 }, 
     zRange: { min: 2 * 1.5, max: 1.2, step: 0 }
   }},
   
   // Motor Node for Capsule scale (left side)
-  { id: '4', type: 'motorNode', position: { x: 3*150, y: 3*100 }, data: { 
+  { id: '4', type: 'motorNode', position: { x: 574, y: 468 }, data: { 
     xRange: { min: 1.4 * 1.65, max: 1, step: 0 }, 
     yRange: { min: 1.4 * 1.65, max: 1, step: 0 }, 
     zRange: { min: 1.4 * 1.65, max: 1, step: 0 }
   }},
   
   // Motor Node for Box rotation (left side)
-  { id: '5', type: 'motorNode', position: { x: 3*150, y: 3*200 }, data: { 
+  { id: '5', type: 'motorNode', position: { x: 584, y: -10 }, data: { 
     xRange: { min: 0, max: 1*180, step: 1 }, 
     yRange: { min: 0, max: 1*180, step: 1 }, 
     zRange: { min: 0, max: 0, step: 1 }
   }},
 
   // Motor Node for Capsule rotation (Reverse of Box rotation, left side)
-  { id: '6', type: 'motorNode', position: { x: 3*150, y: 3*300 }, data: { 
+  { id: '6', type: 'motorNode', position: { x: 576, y: 814 }, data: { 
     xRange: { min: 180/2, max: 0, step: 1 }, 
     yRange: { min: 180/2, max: 0, step: 1 }, 
     zRange: { min: 0, max: 0, step: 1 }
   }},
   
   // Vector Node for Position (left side)
-  { id: '7', type: 'vectorNode', position: { x: 3*300, y: 0 }, data: { x: -2, y: 0, z: 0 } },
+  { id: '7', type: 'vectorNode', position: { x: 934, y: 202 }, data: { x: -2, y: 0, z: 0 } },
 
   // Box Node (Shape 1, left side)
-  { id: '8', type: 'boxNode', position: { x: 3*450, y: 0 }, data: { shape: 'box' } },
+  { id: '8', type: 'boxNode', position: { x: 1392, y: -242 }, data: { shape: 'box' } },
   
   // Capsule Node (Shape 2, left side)
-  { id: '9', type: 'boxNode', position: { x: 3*450, y: 3*100 }, data: { shape: 'box' } },
+  { id: '9', type: 'boxNode', position: { x: 1388, y: 588 }, data: { shape: 'box' } },
   
   // Mode Node for operation (Union or Subtraction, left side)
-  { id: '10', type: 'modeNode', position: { x:3* 600, y: 3*50 }, data: { mode: 'subtraction' } },
+  { id: '10', type: 'modeNode', position: { x:2034, y: 248 }, data: { mode: 'subtraction' } },
   
   // Render Node (left side)
-  { id: '11', type: 'renderNode', position: { x: 3*750, y: 3*50 }, data: { label: 'Render', layerId: 'layer-1' } },
+  { id: '11', type: 'renderNode', position: { x: 2454, y: 272 }, data: { label: 'Render', layerId: 'layer-1' } },
 
   // Color Node for Sphere (right side)
-  { id: '12', type: 'colorNode', position: { x: 0, y: 3*400 }, data: { color: '#000000' } },
+  { id: '12', type: 'colorNode', position: { x: 628, y: 1540 }, data: { color: '#000000' } },
 
   // Color Node for Torus (right side)
-  { id: '13', type: 'colorNode', position: { x: 0, y:3* 500 }, data: { color: '#430070' } },
+  { id: '13', type: 'colorNode', position: { x: 626, y:2288 }, data: { color: '#430070' } },
 
   // Motor Node for Sphere scale (right side)
-  { id: '14', type: 'motorNode', position: { x: 3*150, y: 3*400 }, data: { 
+  { id: '14', type: 'motorNode', position: { x: 626, y: 1310 }, data: { 
     xRange: { min: 2 * 1.5, max: 2 * 1, step: 0 }, 
     yRange: { min: 2 * 1.5, max: 2 * 1, step: 0 }, 
     zRange: { min: 2 * 1.5, max: 2 * 1, step: 0 }
   }},
 
   // Motor Node for Torus scale (right side)
-  { id: '15', type: 'motorNode', position: { x: 3*150, y: 3*500 }, data: { 
+  { id: '15', type: 'motorNode', position: { x: 624, y: 2054 }, data: { 
     xRange: { min: 2 * 2, max: 2 * 0, step: 0 }, 
     yRange: { min: 2 * 1.7, max: 2 * 0.5, step: 0 }, 
     zRange: { min: 2 * 1.7, max: 2 * 0.5, step: 0 }
   }},
 
   // Motor Node for Sphere rotation (right side)
-  { id: '16', type: 'motorNode', position: { x:3* 150, y: 3*600 }, data: { 
+  { id: '16', type: 'motorNode', position: { x:618, y: 1684 }, data: { 
     xRange: { min: 0, max: 360, step: 1 }, 
     yRange: { min: 0, max: 360, step: 1 }, 
     zRange: { min: 0, max: 0, step: 1 }
   }},
   
   // Vector Node for Position (right side)
-  { id: '17', type: 'vectorNode', position: { x: 3*300, y: 3*400 }, data: { x: 2, y: 0, z: 0 } },
+  { id: '17', type: 'vectorNode', position: { x: 966, y: 1834 }, data: { x: 2, y: 0, z: 0 } },
 
   // Sphere Node (Shape 3, right side)
-  { id: '18', type: 'sphereNode', position: { x: 3*450, y: 3*400 }, data: { shape: 'sphere' } },
+  { id: '18', type: 'sphereNode', position: { x: 1446, y: 1448 }, data: { shape: 'sphere' } },
   
   // Torus Node (Shape 4, right side)
-  { id: '19', type: 'torusNode', position: { x: 3*450, y: 3*500 }, data: { shape: 'torus' } },
+  { id: '19', type: 'torusNode', position: { x: 1446, y: 2190 }, data: { shape: 'torus' } },
   
   // Mode Node for operation (Union or Subtraction, right side)
-  { id: '20', type: 'modeNode', position: { x: 3*600, y: 3*450 }, data: { mode: 'subtraction' } },
+  { id: '20', type: 'modeNode', position: { x: 2004, y: 1872 }, data: { mode: 'subtraction' } },
   
   // Render Node (right side)
-  { id: '21', type: 'renderNode', position: { x: 3*750, y: 3*450 }, data: { label: 'Render', layerId: 'layer-2' } }
+  { id: '21', type: 'renderNode', position: { x: 2482, y: 1902 }, data: { label: 'Render', layerId: 'layer-2' } }
 ];
 
 
@@ -161,6 +161,23 @@ function App() {
 
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, nodeId: null });
 
+
+  const printPos = false
+  const printNodePositions = useCallback(() => {
+    if (!printPos)
+      return;
+    console.clear();
+    nodes.forEach(node => {
+      console.log(`Node ${node.id}: (${node.position.x}, ${node.position.y})`);
+    });
+  }, [nodes]);
+
+  // Automatically print node positions on every node update
+  useEffect(() => {
+    printNodePositions();
+  }, [nodes, printNodePositions]);
+
+  
   const handleContextMenu = (event, node) => {
     event.preventDefault(); // Prevent the default right-click menu from showing
     if (node) {

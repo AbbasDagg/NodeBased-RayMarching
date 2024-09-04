@@ -1,5 +1,5 @@
 import React from 'react';
-import { useReactFlow, EdgeLabelRenderer, getBezierPath } from 'reactflow'; // Assuming you're using ReactFlow
+import { useReactFlow, EdgeLabelRenderer, getBezierPath } from 'reactflow'; 
 import './App.css'; // Assuming you have this for styling
 
 export default function CustomEdge({
@@ -32,20 +32,20 @@ export default function CustomEdge({
   };
 
   // Easily customizable stroke color
-  const strokeColor = data?.color || '#ffffff'; // Default to #888 if no color is provided
+  const strokeColor = data?.color || '#888'; 
 
   return (
     <>
       {/* Thicker animated path with customizable stroke color */}
       <path
         id={id}
-        className="custom-edge-path animated" // Add "animated" for animation
+        className="custom-edge-path animated"
         d={edgePath}
         markerEnd={markerEnd}
         style={{
           ...style,
-          stroke: strokeColor, // Easily change color via `data.color`
-          strokeWidth: 3, // Increase stroke width for a thicker line
+          stroke: strokeColor, 
+          strokeWidth: 3, 
         }}
       />
       
@@ -54,9 +54,9 @@ export default function CustomEdge({
         cx={sourceX}
         cy={sourceY}
         fill="#fff"
-        r={8} // Adjust the size of the circle
+        r={8} 
         stroke={strokeColor}
-        strokeWidth={4} // Thicker circle border
+        strokeWidth={4} 
       />
       
       {/* Circle at the end of the edge */}
@@ -64,18 +64,18 @@ export default function CustomEdge({
         cx={targetX}
         cy={targetY}
         fill="#fff"
-        r={8} // Adjust the size of the circle
+        r={8} 
         stroke={strokeColor}
-        strokeWidth={4} // Thicker circle border
+        strokeWidth={4} 
       />
-      
+
       {/* Delete button (cross) at the center of the edge */}
       <EdgeLabelRenderer>
         <div
           style={{
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-            pointerEvents: 'all', // Ensures the button can be clicked
+            pointerEvents: 'all',
             fontSize: '14px',
           }}
           className="nodrag nopan"
@@ -90,26 +90,36 @@ export default function CustomEdge({
 }
 
 // Custom connection line for animated dragging behavior
-export const CustomConnectionLine = ({ fromX, fromY, toX, toY }) => {
-    const edgePath = getBezierPath({
-      sourceX: fromX,
-      sourceY: fromY,
-      targetX: toX,
-      targetY: toY,
-    })[0];
-  
-    return (
-      <g>
-        <path
-          className="custom-animated-path"
-          d={edgePath}
-          style={{
-            stroke: '#888', 
-            strokeWidth: 5,
-            fill: 'none',
-          }}
-        />
-      </g>
-    );
-  };
-  
+export const CustomConnectionLine = ({ fromX, fromY, toX, toY, fromPosition, toPosition }) => {
+  // Use the same Bezier path calculation as in CustomEdge to ensure consistency
+  const [edgePath] = getBezierPath({
+    sourceX: fromX,
+    sourceY: fromY,
+    sourcePosition: fromPosition,
+    targetX: toX,
+    targetY: toY,
+    targetPosition: toPosition,
+  });
+
+  return (
+    <g>
+      <path
+        className="custom-animated-path"
+        d={edgePath}
+        style={{
+          stroke: '#888',
+          strokeWidth: 5,
+          fill: 'none',
+        }}
+      />
+      <circle
+        cx={toX}
+        cy={toY}
+        fill="#fff"
+        r={5}
+        stroke="#888"
+        strokeWidth={3}
+      />
+    </g>
+  );
+};

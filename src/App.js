@@ -652,14 +652,36 @@ const onReconnectEnd = useCallback((_, edge) => {
         >
           <Controls />
           <MiniMap 
-            pannable
-            zoomable
-            style={{ width: 170, height: 130, right: -15, bottom: -15, border: '0px solid black', borderRadius: '0px' }}
-            offsetScale={10}
-            nodeStrokeWidth={6}
-            nodeColor={(node) => (node.type === 'vectorNode' ? '#FF0000' : '#0000FF')}
-            nodeStrokeColor={(node) => 'black'}
-          />
+  pannable
+  zoomable
+  style={{ 
+    width: 170, 
+    height: 130, 
+    right: -15, 
+    bottom: -15, 
+    border: '0px solid black', 
+    borderRadius: '0px'
+  }}
+  offsetScale={10}
+  nodeStrokeWidth={6}
+  nodeColor={(node) => {
+    if (node.type === 'vectorNode' || node.type === 'motorNode') {
+      return '#FFD700'; // Strong Yellow
+    } else if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode'].includes(node.type)) {
+      return '#ADD8E6'; // Light Blue
+    } else if (node.type === 'modeNode') {
+      return '#FFB6C1'; // Light Red
+    } else if (node.type === 'colorNode') {
+      return '#9370DB'; // Strong Purple
+    } else if (node.type === 'renderNode') {
+      return '#90EE90'; // Light Green
+    }
+    return '#000000'; // Default color (black) for other cases
+  }}
+  nodeStrokeColor={'rgba(0, 0, 0, 0.25)'} // Softer stroke color
+  maskColor={'rgba(0, 0, 0, 0.1)'} // Darker gray effect outside the viewport
+ />
+
           <Background variant="" gap={40} size={2} />
         </ReactFlow>
 

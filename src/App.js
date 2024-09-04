@@ -146,6 +146,8 @@ function App() {
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLeftFullscreen, setIsLeftFullscreen] = useState(false);
+
   const [leftPaneWidth, setLeftPaneWidth] = useState(window.innerWidth / 2);
 
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, nodeId: null });
@@ -403,33 +405,80 @@ function App() {
     [nodes, edges, handleRenderScene]
   );
   
+
+
   const toggleFullscreen = () => {
+    if (isLeftFullscreen) {
+      setIsLeftFullscreen(false); // Turn off left fullscreen if right is toggled
+    }
+    
     setIsFullscreen(!isFullscreen);
+  
     const leftPane = document.getElementById('left-pane');
     const threeSceneContainer = document.getElementById('three-scene-container');
     const divider = document.querySelector('.divider');
-
+  
     if (leftPane && threeSceneContainer && divider) {
-      leftPane.style.transition = 'width 0.5s ease'; // Add transition for fullscreen toggle
-      threeSceneContainer.style.transition = 'width 0.5s ease'; // Add transition for fullscreen toggle
-
+      leftPane.style.transition = 'width 0.5s ease';
+      threeSceneContainer.style.transition = 'width 0.5s ease';
+  
       if (!isFullscreen) {
         leftPane.style.width = '0';
         threeSceneContainer.style.width = '100vw';
-        divider.style.display = 'none'; // Hide the divider in fullscreen mode
+        divider.style.display = 'none';
       } else {
         leftPane.style.width = `${leftPaneWidth}px`;
         threeSceneContainer.style.width = `calc(100vw - ${leftPaneWidth}px)`;
-        divider.style.display = 'block'; // Show the divider when exiting fullscreen
+        divider.style.display = 'block';
       }
     }
-
+  
     setTimeout(() => {
       if (threeSceneRef.current) {
         threeSceneRef.current.resizeRenderer(window.innerWidth - (isFullscreen ? leftPaneWidth : 0), window.innerHeight);
       }
-    }, 500); // Match the duration of the transition
+    }, 500);
   };
+  
+  const toggleLeftFullscreen = () => {
+    if (isFullscreen) {
+      setIsFullscreen(false); // Turn off right fullscreen if left is toggled
+    }
+  
+    setIsLeftFullscreen(!isLeftFullscreen);
+  
+    const leftPane = document.getElementById('left-pane');
+    const threeSceneContainer = document.getElementById('three-scene-container');
+    const divider = document.querySelector('.divider');
+  
+    if (leftPane && threeSceneContainer && divider) {
+      leftPane.style.transition = 'width 0.5s ease';
+      threeSceneContainer.style.transition = 'width 0.5s ease';
+  
+      if (!isLeftFullscreen) {
+        leftPane.style.width = '100vw'; // Fullscreen left
+        threeSceneContainer.style.width = '0'; // Collapse right
+        divider.style.display = 'none';
+      } else {
+        leftPane.style.width = `${leftPaneWidth}px`;
+        threeSceneContainer.style.width = `calc(100vw - ${leftPaneWidth}px)`;
+        divider.style.display = 'block';
+      }
+    }
+  
+    setTimeout(() => {
+      if (threeSceneRef.current) {
+        threeSceneRef.current.resizeRenderer(window.innerWidth - (isLeftFullscreen ? leftPaneWidth : 0), window.innerHeight);
+      }
+    }, 500);
+  };
+  
+  
+  
+  
+  
+
+  
 
   const handleWindowResize = () => {
     const leftPane = document.getElementById('left-pane');
@@ -526,7 +575,7 @@ function App() {
               nodeStrokeColor={(node) => 'black'}
               />
 
-              <Background variant="dots" gap={40} size={4} />
+              <Background variant="cross" gap={40} size={2} />
             </ReactFlow>
           </div>
         </div>
@@ -550,8 +599,8 @@ function App() {
       >
         <ThreeScene ref={threeSceneRef} />
         <div
-          className={`fullscreen-button-container`}
-          onClick={toggleFullscreen}
+  className={`fullscreen-button-container ${isLeftFullscreen ? 'hidden' : ''}`} // Hide right fullscreen button when left fullscreen is on
+  onClick={toggleFullscreen}
           style={{
             position: 'absolute',
             bottom: '5px',
@@ -564,6 +613,25 @@ function App() {
           <img className="compress" src="/svg/collapse.svg" alt="compress" />
         </div>
       </div>
+
+      <div
+  className={`fullscreen-button-container ${isFullscreen ? 'hidden' : ''}`} // Hide left fullscreen button when right fullscreen is on
+  onClick={toggleLeftFullscreen}
+      style={{
+        position: 'absolute',
+        bottom: '10px',
+        left: '110px',
+        zIndex: 1,
+      }}
+    >
+      <input type="checkbox" checked={isLeftFullscreen} onChange={toggleLeftFullscreen} />
+      
+      <div style={{ width: '35px', height: '35px', backgroundColor: 'white', borderRadius: '5px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <img className="expand" src="/svg/expand.svg" alt="expand" style={{ width: '25px', height: '25px' }} />
+        <img className="compress" src="/svg/collapse.svg" alt="compress" style={{ width: '25px', height: '25px', display: 'none' }} />
+      </div>
+    </div>
+
 
       {/* Render the context menu */}
       {contextMenu.visible && contextMenu.nodeId && (

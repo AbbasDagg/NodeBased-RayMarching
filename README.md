@@ -31,3 +31,5 @@ the `Node Canvas` includes buttons related to node editing. `Rendering Space` is
 
 * ## Rendering Space
   This side shows the rendering results from the combined nodes in `Node Canvas`
+
+# Contribution and Contact

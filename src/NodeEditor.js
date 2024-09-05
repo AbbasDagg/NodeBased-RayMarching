@@ -123,9 +123,9 @@ function NodeEditor({ setNodes, isFullscreen }) {
   }, []);
 
   return (
-    <div className={`node-editor-buttons ${isFullscreen ? 'hidden' : ''}`} style={{ width: '98%', padding: '0px', display: 'flex', justifyContent: 'space-between', position: 'relative' }}>
-      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addVectorNode} style={{ flex: '1 1 15%' }}>Vector</button>
-      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addMotorNode} style={{ flex: '1 1 15%' }}>Motor</button>
+<div className={`node-editor-buttons ${isFullscreen ? 'hidden' : ''}`} style={{ width: '98%', padding: '0px', display: 'flex', justifyContent: 'flex-start', gap: '0px', position: 'relative' }}>
+<button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addVectorNode} style={{ flex: '1 1 16%' }}>Vector</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addMotorNode} style={{ flex: '1 1 16%' }}>Motor</button>
 
       <div ref={shapeMenuRef} style={{ position: 'relative', flex: '1 1 15%' }}>
         <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={toggleShapeMenu} style={{ width: '100%' }}>Shape</button>
@@ -138,9 +138,9 @@ function NodeEditor({ setNodes, isFullscreen }) {
           </div>
         )}
       </div>
-      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addColorNode} style={{ flex: '1 1 15%' }}>Color</button>
-      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addModeNode} style={{ flex: '1 1 15%' }}>Mode</button>
-      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addRenderNode} style={{ flex: '1 1 15%' }}>Render</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addColorNode} style={{ flex: '1 1 16%' }}>Color</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addModeNode} style={{ flex: '1 1 16%' }}>Mode</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addRenderNode} style={{ flex: '1 1 16%' , marginRight: '4px' }}>Render</button>
 
       <div className={`${isFullscreen ? 'hidden' : ''}`} style={{ position: 'fixed', bottom: '14px', left: '48px' }}>
       <button className="button" style={{ width: '55px', height: '35px' }} onClick={resetAllNodes}>

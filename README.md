@@ -48,4 +48,5 @@ A divider separates the two parts, and you can adjust this for fullscreen modes 
 
 * ## Rendering Space
   This side shows the rendering results from the combined nodes in `Node Canvas`
+  See examples at the top.
 

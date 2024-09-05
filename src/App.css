@@ -201,8 +201,10 @@
     font-size: 1rem;
     width: 99%;
     border-radius: 1rem;
-    color: lightcoral;
-    box-shadow: 0 0.4rem #dfd9d9;
+    /*color: lightcoral;*/
+    color: rgb(148, 40, 215);
+
+    box-shadow: 0 0.4rem #8f8f8f;
     cursor: pointer;
     transition: width 0.5s ease, padding 0.5s ease;
 }
@@ -214,7 +216,7 @@
 }
 
 .pshdown2:hover:not(:disabled) {
-    background: lightcoral;
+    background: rgb(148, 40, 215);
     color: white;
     text-shadow: 0 0.1rem #bcb4b4;
 }

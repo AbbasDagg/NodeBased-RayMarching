@@ -49,5 +49,13 @@ A divider separates the two parts, and you can adjust this for fullscreen modes 
 * ## Rendering Space
 This section shows the rendered results from the combined nodes. Refer to the examples at the top.
 
+Use the settings menu to modify the results
+
+![NVIDIA_Share_XUzd9QKpKu](https://github.com/user-attachments/assets/c1d45b36-7991-4e3f-ab5e-7a9cc79b8866)
+
+![NVIDIA_Share_BNYC8iYVp7](https://github.com/user-attachments/assets/27373f45-a239-4bbf-94c4-f1a3df2dc6d7)
+
+
+
 # Credit
 https://github.com/danielesteban/three-raymarcher

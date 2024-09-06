@@ -50,3 +50,5 @@ A divider separates the two parts, and you can adjust this for fullscreen modes 
 This section shows the rendered results from the combined nodes. Refer to the examples at the top for visual clarity.
 
 
+# Credit
+https://github.com/danielesteban/three-raymarcher

@@ -26,7 +26,7 @@ A divider separates the two parts, and you can adjust this for fullscreen modes 
 ![NVIDIA_Share_1hJN8QB5w1](https://github.com/user-attachments/assets/5bf2adc7-0916-486c-8ec7-587589cd92ca)
 
   
-  Use the pins on each node to connect them, see the example attached.
+  Use the pins on each node to connect them, refer to the example in the engine.
 
   ![NVIDIA_Share_0NNaNbNf7Q](https://github.com/user-attachments/assets/b0d017ae-5250-42c3-b8ca-3476defc2504)
 
@@ -47,8 +47,7 @@ A divider separates the two parts, and you can adjust this for fullscreen modes 
 
 
 * ## Rendering Space
-This section shows the rendered results from the combined nodes. Refer to the examples at the top for visual clarity.
-
+This section shows the rendered results from the combined nodes. Refer to the examples at the top.
 
 # Credit
 https://github.com/danielesteban/three-raymarcher

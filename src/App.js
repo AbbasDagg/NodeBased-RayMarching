@@ -158,6 +158,7 @@ function App() {
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, nodeId: null });
   const [renderSquareSize, setRenderSquareSize] = useState({ width: 300, height: 300 });
   const [isResizing, setIsResizing] = useState(false);
+  const fullscreenTimeoutRef = useRef(null);
 
 
   const printPos = false
@@ -506,12 +507,16 @@ const onReconnectEnd = useCallback((_, edge) => {
       }
       setIsFullscreen(false);
       
-      // Resize renderer after animation
+      // Resize renderer after animation and remove transition
       setTimeout(() => {
         if (threeSceneRef.current) {
           threeSceneRef.current.resizeRenderer(renderSquareSize.width, renderSquareSize.height);
         }
-      }, 300);
+        // Remove transition after animation completes so resizing works normally
+        if (container) {
+          container.style.transition = 'none';
+        }
+      }, 350); // Slightly longer than animation to ensure it completes
     }
   };
 

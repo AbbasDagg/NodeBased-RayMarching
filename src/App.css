@@ -564,3 +564,36 @@
 .divider {
   display: none;
 }
+
+/* Resize handles for rendering square */
+.resize-handle {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.resize-handle:hover {
+  opacity: 1 !important;
+  transform: scale(1.1);
+}
+
+#three-scene-container:hover .resize-handle {
+  opacity: 0.6;
+}
+
+.resize-handle.corner {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.resize-handle.right,
+.resize-handle.bottom {
+  background: linear-gradient(90deg, rgba(0,123,255,0.6) 0%, rgba(0,123,255,0.8) 100%);
+}
+
+/* User select prevention during resize */
+body.resizing {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}

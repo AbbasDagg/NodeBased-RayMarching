@@ -156,6 +156,8 @@ function App() {
   const edgeReconnectSuccessful = useRef(true);
 
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, nodeId: null });
+  const [renderSquareSize, setRenderSquareSize] = useState({ width: 300, height: 300 });
+  const [isResizing, setIsResizing] = useState(false);
 
 
   const printPos = false
@@ -507,7 +509,7 @@ const onReconnectEnd = useCallback((_, edge) => {
       // Resize renderer after animation
       setTimeout(() => {
         if (threeSceneRef.current) {
-          threeSceneRef.current.resizeRenderer(300, 300);
+          threeSceneRef.current.resizeRenderer(renderSquareSize.width, renderSquareSize.height);
         }
       }, 300);
     }
@@ -516,18 +518,62 @@ const onReconnectEnd = useCallback((_, edge) => {
   // Initialize ThreeScene with proper size
   useEffect(() => {
     if (threeSceneRef.current) {
-      const initialWidth = isFullscreen ? window.innerWidth : 300;
-      const initialHeight = isFullscreen ? window.innerHeight : 300;
+      const initialWidth = isFullscreen ? window.innerWidth : renderSquareSize.width;
+      const initialHeight = isFullscreen ? window.innerHeight : renderSquareSize.height;
       threeSceneRef.current.resizeRenderer(initialWidth, initialHeight);
     }
-  }, []);
+  }, [renderSquareSize, isFullscreen]);
   
-  
-  
-  
-  
+  // Resize functionality
+  const handleResizeStart = (e, direction) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    document.body.classList.add('resizing');
+    
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = renderSquareSize.width;
+    const startHeight = renderSquareSize.height;
+    
+    const handleMouseMove = (e) => {
+      const deltaX = startX - e.clientX; // Negative because we're moving from right edge
+      const deltaY = e.clientY - startY;
+      
+      let newWidth = startWidth;
+      let newHeight = startHeight;
+      
+      // Get window dimensions for maximum constraints
+      const maxWidth = window.innerWidth * 0.985; // Max 98.5% of screen width
+      const maxHeight = window.innerHeight * 0.985; // Max 98.5% of screen height
 
-
+      if (direction === 'corner') {
+        newWidth = Math.max(200, Math.min(maxWidth, startWidth + deltaX));
+        newHeight = Math.max(150, Math.min(maxHeight, startHeight + deltaY));
+      } else if (direction === 'left') {
+        newWidth = Math.max(200, Math.min(maxWidth, startWidth + deltaX));
+      } else if (direction === 'bottom') {
+        newHeight = Math.max(150, Math.min(maxHeight, startHeight + deltaY));
+      }
+      
+      setRenderSquareSize({ width: newWidth, height: newHeight });
+      
+      // Update renderer size in real-time
+      if (threeSceneRef.current) {
+        threeSceneRef.current.resizeRenderer(newWidth, newHeight);
+      }
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.classList.remove('resizing');
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }} onClick={closeContextMenu}>
@@ -605,8 +651,8 @@ const onReconnectEnd = useCallback((_, edge) => {
       <div
         id="three-scene-container"
         style={{
-          width: isFullscreen ? '100vw' : '300px',
-          height: isFullscreen ? '100vh' : '300px',
+          width: isFullscreen ? '100vw' : `${renderSquareSize.width}px`,
+          height: isFullscreen ? '100vh' : `${renderSquareSize.height}px`,
           position: 'absolute',
           top: isFullscreen ? 0 : '10px',
           right: isFullscreen ? 0 : '10px',
@@ -616,6 +662,65 @@ const onReconnectEnd = useCallback((_, edge) => {
           overflow: 'hidden',
         }}
       >
+        
+        {/* Resize handles */}
+        {!isFullscreen && (
+          <>
+            {/* Corner resize handle */}
+            <div
+              className="resize-handle corner"
+              style={{
+                position: 'absolute',
+                bottom: '-2px',
+                left: '-2px',
+                width: '15px',
+                height: '15px',
+                cursor: 'ne-resize',
+                backgroundColor: 'rgba(0, 123, 255, 0.7)',
+                border: '1px solid #007bff',
+                borderRadius: '3px',
+                zIndex: 10
+              }}
+              onMouseDown={(e) => handleResizeStart(e, 'corner')}
+            />
+            
+            {/* Left edge resize handle */}
+            <div
+              className="resize-handle left"
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '-4px',
+                width: '8px',
+                height: '30px',
+                cursor: 'w-resize',
+                backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                borderRadius: '4px',
+                transform: 'translateY(-50%)',
+                zIndex: 10
+              }}
+              onMouseDown={(e) => handleResizeStart(e, 'left')}
+            />
+            
+            {/* Bottom edge resize handle */}
+            <div
+              className="resize-handle bottom"
+              style={{
+                position: 'absolute',
+                bottom: '-4px',
+                left: '50%',
+                width: '30px',
+                height: '8px',
+                cursor: 'ns-resize',
+                backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                borderRadius: '4px',
+                transform: 'translateX(-50%)',
+                zIndex: 10
+              }}
+              onMouseDown={(e) => handleResizeStart(e, 'bottom')}
+            />
+          </>
+        )}
 
         {/* ThreeScene Component */}
         <ThreeScene ref={threeSceneRef} />

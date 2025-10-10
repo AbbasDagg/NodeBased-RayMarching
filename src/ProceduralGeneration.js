@@ -27,6 +27,34 @@ function randomColor() {
 }
 
 /**
+ * Gets a random shape type and creates the corresponding node data
+ */
+function getRandomShape() {
+  const shapes = [
+    { type: 'sphereNode', data: { shape: 'sphere' } },
+    { type: 'boxNode', data: { shape: 'box' } },
+    { type: 'torusNode', data: { shape: 'torus' } },
+    { type: 'capsuleNode', data: { shape: 'capsule' } }
+  ];
+  return shapes[Math.floor(Math.random() * shapes.length)];
+}
+
+/**
+ * Gets a random operation mode
+ */
+function getRandomMode() {
+  const modes = ['union', 'subtraction', 'intersection'];
+  return modes[Math.floor(Math.random() * modes.length)];
+}
+
+/**
+ * Decides whether to add a motor (70% chance)
+ */
+function shouldAddMotor() {
+  return Math.random() < 0.7;
+}
+
+/**
  * Generates random motor node data
  */
 function generateRandomMotorData() {
@@ -75,9 +103,229 @@ function generateRandomVectorData() {
 }
 
 /**
- * Generates a simple procedural scene using the exact structure of working nodes
+ * Generates a simple procedural scene with random shapes and optional motors
  */
 export function generateSimpleScene() {
+  let nodeId = 1;
+  const nodes = [];
+  const edges = [];
+
+  // Get two random shapes
+  const shape1 = getRandomShape();
+  const shape2 = getRandomShape();
+
+  // Generate Shape 1 with its components
+  const color1Id = nodeId++;
+  const shape1Id = nodeId++;
+  let position1Id = nodeId++;
+
+  // Color for shape 1
+  nodes.push({
+    id: color1Id.toString(),
+    type: 'colorNode',
+    position: { x: 582, y: -144 },
+    data: { color: randomColor() }
+  });
+
+  // Position vector for shape 1
+  nodes.push({
+    id: position1Id.toString(),
+    type: 'vectorNode',
+    position: { x: 934, y: -144 },
+    data: generateRandomVectorData()
+  });
+
+  // Shape 1 node
+  nodes.push({
+    id: shape1Id.toString(),
+    type: shape1.type,
+    position: { x: 1392, y: -242 },
+    data: shape1.data
+  });
+
+  // Connect color and position to shape 1
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: color1Id.toString(),
+    target: shape1Id.toString(),
+    sourceHandle: 'color',
+    targetHandle: 'color'
+  });
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: position1Id.toString(),
+    target: shape1Id.toString(),
+    sourceHandle: 'vector',
+    targetHandle: 'position'
+  });
+
+  // Optionally add motors for shape 1
+  if (shouldAddMotor()) {
+    const sizeMotorId = nodeId++;
+    nodes.push({
+      id: sizeMotorId.toString(),
+      type: 'motorNode',
+      position: { x: 578, y: -362 },
+      data: generateRandomMotorData()
+    });
+    edges.push({
+      id: `e${edges.length + 1}`,
+      source: sizeMotorId.toString(),
+      target: shape1Id.toString(),
+      sourceHandle: 'vector',
+      targetHandle: 'size'
+    });
+  }
+
+  if (shouldAddMotor()) {
+    const rotationMotorId = nodeId++;
+    nodes.push({
+      id: rotationMotorId.toString(),
+      type: 'motorNode',
+      position: { x: 584, y: -10 },
+      data: generateRandomRotationData()
+    });
+    edges.push({
+      id: `e${edges.length + 1}`,
+      source: rotationMotorId.toString(),
+      target: shape1Id.toString(),
+      sourceHandle: 'vector',
+      targetHandle: 'rotation'
+    });
+  }
+
+  // Generate Shape 2 with its components
+  const color2Id = nodeId++;
+  const shape2Id = nodeId++;
+  const position2Id = nodeId++;
+
+  // Color for shape 2
+  nodes.push({
+    id: color2Id.toString(),
+    type: 'colorNode',
+    position: { x: 582, y: 684 },
+    data: { color: randomColor() }
+  });
+
+  // Position vector for shape 2 (can share position with shape 1 sometimes)
+  const sharePosition = Math.random() < 0.3; // 30% chance to share position
+  if (!sharePosition) {
+    nodes.push({
+      id: position2Id.toString(),
+      type: 'vectorNode',
+      position: { x: 934, y: 684 },
+      data: generateRandomVectorData()
+    });
+  }
+
+  // Shape 2 node
+  nodes.push({
+    id: shape2Id.toString(),
+    type: shape2.type,
+    position: { x: 1388, y: 588 },
+    data: shape2.data
+  });
+
+  // Connect color and position to shape 2
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: color2Id.toString(),
+    target: shape2Id.toString(),
+    sourceHandle: 'color',
+    targetHandle: 'color'
+  });
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: sharePosition ? position1Id.toString() : position2Id.toString(),
+    target: shape2Id.toString(),
+    sourceHandle: 'vector',
+    targetHandle: 'position'
+  });
+
+  // Optionally add motors for shape 2
+  if (shouldAddMotor()) {
+    const sizeMotorId = nodeId++;
+    nodes.push({
+      id: sizeMotorId.toString(),
+      type: 'motorNode',
+      position: { x: 574, y: 468 },
+      data: generateRandomMotorData()
+    });
+    edges.push({
+      id: `e${edges.length + 1}`,
+      source: sizeMotorId.toString(),
+      target: shape2Id.toString(),
+      sourceHandle: 'vector',
+      targetHandle: 'size'
+    });
+  }
+
+  if (shouldAddMotor()) {
+    const rotationMotorId = nodeId++;
+    nodes.push({
+      id: rotationMotorId.toString(),
+      type: 'motorNode',
+      position: { x: 576, y: 814 },
+      data: generateRandomRotationData()
+    });
+    edges.push({
+      id: `e${edges.length + 1}`,
+      source: rotationMotorId.toString(),
+      target: shape2Id.toString(),
+      sourceHandle: 'vector',
+      targetHandle: 'rotation'
+    });
+  }
+
+  // Mode node to combine shapes
+  const modeId = nodeId++;
+  nodes.push({
+    id: modeId.toString(),
+    type: 'modeNode',
+    position: { x: 2034, y: 248 },
+    data: { mode: getRandomMode() }
+  });
+
+  // Render node
+  const renderId = nodeId++;
+  nodes.push({
+    id: renderId.toString(),
+    type: 'renderNode',
+    position: { x: 2454, y: 272 },
+    data: { label: 'Render', layerId: 'procedural-layer' }
+  });
+
+  // Connect shapes to mode and mode to render
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: shape1Id.toString(),
+    target: modeId.toString(),
+    sourceHandle: 'render',
+    targetHandle: 'shape1'
+  });
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: shape2Id.toString(),
+    target: modeId.toString(),
+    sourceHandle: 'render',
+    targetHandle: 'shape2'
+  });
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: modeId.toString(),
+    target: renderId.toString(),
+    sourceHandle: 'render',
+    targetHandle: 'render'
+  });
+
+  console.log(`Generated simple scene: ${nodes.length} nodes, ${edges.length} edges`);
+  return { nodes, edges };
+}
+
+/**
+ * Generates the original simple procedural scene for comparison
+ */
+export function generateOriginalSimpleScene() {
   // Create a very simple scene based on your working initial nodes
   const nodes = [
     // Color Node for Box
@@ -193,12 +441,167 @@ export function generateSimpleScene() {
 }
 
 /**
- * Generates a more complex scene by extending the simple scene
+ * Generates a more complex scene with 3-4 random shapes and varied motors
  */
 export function generateComplexScene() {
-  // Start with the simple scene and add more shapes
-  const { nodes: simpleNodes, edges: simpleEdges } = generateSimpleScene();
+  let nodeId = 1;
+  const nodes = [];
+  const edges = [];
   
+  // Generate 3-4 shapes
+  const numShapes = randomInt(3, 4);
+  const shapes = [];
+  const shapeIds = [];
+  
+  for (let i = 0; i < numShapes; i++) {
+    const shape = getRandomShape();
+    const shapeId = nodeId++;
+    const colorId = nodeId++;
+    const positionId = nodeId++;
+    
+    // Color node
+    nodes.push({
+      id: colorId.toString(),
+      type: 'colorNode',
+      position: { x: 582, y: -144 + (i * 400) },
+      data: { color: randomColor() }
+    });
+    
+    // Position node (sometimes shared)
+    const sharePosition = i > 0 && Math.random() < 0.4; // 40% chance to share position
+    let actualPositionId = positionId;
+    
+    if (!sharePosition) {
+      nodes.push({
+        id: positionId.toString(),
+        type: 'vectorNode',
+        position: { x: 934, y: -144 + (i * 400) },
+        data: generateRandomVectorData()
+      });
+    } else {
+      // Use a previous position node
+      actualPositionId = Math.floor(Math.random() * i) * 3 + 3; // Rough estimate
+    }
+    
+    // Shape node
+    nodes.push({
+      id: shapeId.toString(),
+      type: shape.type,
+      position: { x: 1392, y: -242 + (i * 400) },
+      data: shape.data
+    });
+    
+    // Connect color and position
+    edges.push({
+      id: `e${edges.length + 1}`,
+      source: colorId.toString(),
+      target: shapeId.toString(),
+      sourceHandle: 'color',
+      targetHandle: 'color'
+    });
+    edges.push({
+      id: `e${edges.length + 1}`,
+      source: actualPositionId.toString(),
+      target: shapeId.toString(),
+      sourceHandle: 'vector',
+      targetHandle: 'position'
+    });
+    
+    // Randomly add motors (higher chance for complex scene)
+    if (Math.random() < 0.8) { // 80% chance for size motor
+      const sizeMotorId = nodeId++;
+      nodes.push({
+        id: sizeMotorId.toString(),
+        type: 'motorNode',
+        position: { x: 578, y: -362 + (i * 400) },
+        data: generateRandomMotorData()
+      });
+      edges.push({
+        id: `e${edges.length + 1}`,
+        source: sizeMotorId.toString(),
+        target: shapeId.toString(),
+        sourceHandle: 'vector',
+        targetHandle: 'size'
+      });
+    }
+    
+    if (Math.random() < 0.6) { // 60% chance for rotation motor
+      const rotationMotorId = nodeId++;
+      nodes.push({
+        id: rotationMotorId.toString(),
+        type: 'motorNode',
+        position: { x: 584, y: -10 + (i * 400) },
+        data: generateRandomRotationData()
+      });
+      edges.push({
+        id: `e${edges.length + 1}`,
+        source: rotationMotorId.toString(),
+        target: shapeId.toString(),
+        sourceHandle: 'vector',
+        targetHandle: 'rotation'
+      });
+    }
+    
+    shapes.push(shape);
+    shapeIds.push(shapeId);
+  }
+  
+  // Create mode nodes to combine shapes progressively
+  let currentOutputId = shapeIds[0];
+  
+  for (let i = 1; i < numShapes; i++) {
+    const modeId = nodeId++;
+    nodes.push({
+      id: modeId.toString(),
+      type: 'modeNode',
+      position: { x: 2034, y: 248 + ((i-1) * 200) },
+      data: { mode: getRandomMode() }
+    });
+    
+    // Connect current result and next shape to mode
+    edges.push({
+      id: `e${edges.length + 1}`,
+      source: currentOutputId.toString(),
+      target: modeId.toString(),
+      sourceHandle: 'render',
+      targetHandle: 'shape1'
+    });
+    edges.push({
+      id: `e${edges.length + 1}`,
+      source: shapeIds[i].toString(),
+      target: modeId.toString(),
+      sourceHandle: 'render',
+      targetHandle: 'shape2'
+    });
+    
+    currentOutputId = modeId;
+  }
+  
+  // Final render node
+  const renderId = nodeId++;
+  nodes.push({
+    id: renderId.toString(),
+    type: 'renderNode',
+    position: { x: 2454, y: 272 + ((numShapes-2) * 100) },
+    data: { label: 'Render', layerId: 'procedural-complex-layer' }
+  });
+  
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: currentOutputId.toString(),
+    target: renderId.toString(),
+    sourceHandle: 'render',
+    targetHandle: 'render'
+  });
+  
+  console.log(`Generated complex scene: ${nodes.length} nodes, ${edges.length} edges, ${numShapes} shapes`);
+  return { nodes, edges };
+}
+
+/**
+ * Generates the original complex scene for comparison
+ */
+export function generateOriginalComplexScene() {
   // Add additional shapes to make it more complex
   const additionalNodes = [
     // Color Node for Torus
@@ -280,7 +683,132 @@ export function generateComplexScene() {
 }
 
 /**
- * Generates random variations of existing scene
+ * Generates a single random shape with optional motors - great for quick testing
+ */
+export function generateRandomSingleShape() {
+  let nodeId = 1;
+  const nodes = [];
+  const edges = [];
+
+  const shape = getRandomShape();
+  const shapeId = nodeId++;
+  const colorId = nodeId++;
+  const positionId = nodeId++;
+
+  // Color node
+  nodes.push({
+    id: colorId.toString(),
+    type: 'colorNode',
+    position: { x: 582, y: 200 },
+    data: { color: randomColor() }
+  });
+
+  // Position node
+  nodes.push({
+    id: positionId.toString(),
+    type: 'vectorNode',
+    position: { x: 934, y: 200 },
+    data: generateRandomVectorData()
+  });
+
+  // Shape node
+  nodes.push({
+    id: shapeId.toString(),
+    type: shape.type,
+    position: { x: 1392, y: 200 },
+    data: shape.data
+  });
+
+  // Basic connections
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: colorId.toString(),
+    target: shapeId.toString(),
+    sourceHandle: 'color',
+    targetHandle: 'color'
+  });
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: positionId.toString(),
+    target: shapeId.toString(),
+    sourceHandle: 'vector',
+    targetHandle: 'position'
+  });
+
+  // Always add at least one motor for single shapes to make them interesting
+  const sizeMotorId = nodeId++;
+  nodes.push({
+    id: sizeMotorId.toString(),
+    type: 'motorNode',
+    position: { x: 578, y: 50 },
+    data: generateRandomMotorData()
+  });
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: sizeMotorId.toString(),
+    target: shapeId.toString(),
+    sourceHandle: 'vector',
+    targetHandle: 'size'
+  });
+
+  // 70% chance for rotation motor too
+  if (Math.random() < 0.7) {
+    const rotationMotorId = nodeId++;
+    nodes.push({
+      id: rotationMotorId.toString(),
+      type: 'motorNode',
+      position: { x: 584, y: 350 },
+      data: generateRandomRotationData()
+    });
+    edges.push({
+      id: `e${edges.length + 1}`,
+      source: rotationMotorId.toString(),
+      target: shapeId.toString(),
+      sourceHandle: 'vector',
+      targetHandle: 'rotation'
+    });
+  }
+
+  // Mode node (union for single shape - some renderers require this)
+  const modeId = nodeId++;
+  nodes.push({
+    id: modeId.toString(),
+    type: 'modeNode',
+    position: { x: 1600, y: 200 },
+    data: { mode: 'union' }
+  });
+
+  // Render node
+  const renderId = nodeId++;
+  nodes.push({
+    id: renderId.toString(),
+    type: 'renderNode',
+    position: { x: 1900, y: 200 },
+    data: { label: 'Render', layerId: 'single-shape-layer' }
+  });
+
+  // Connect shape to mode, then mode to render
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: shapeId.toString(),
+    target: modeId.toString(),
+    sourceHandle: 'render',
+    targetHandle: 'shape1'
+  });
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: modeId.toString(),
+    target: renderId.toString(),
+    sourceHandle: 'render',
+    targetHandle: 'render'
+  });
+
+  console.log(`Generated single ${shape.type}: ${nodes.length} nodes, ${edges.length} edges`);
+  return { nodes, edges };
+}
+
+/**
+ * Generates random variations of existing scene with shape changes
  */
 export function generateVariations(existingNodes) {
   const variations = [];
@@ -301,6 +829,28 @@ export function generateVariations(existingNodes) {
         ...node,
         data: generateRandomVectorData()
       });
+    } else if (['sphereNode', 'boxNode', 'torusNode', 'capsuleNode'].includes(node.type)) {
+      // Sometimes change the shape type entirely
+      if (Math.random() < 0.3) { // 30% chance to change shape
+        const newShape = getRandomShape();
+        variations.push({
+          ...node,
+          type: newShape.type,
+          data: newShape.data
+        });
+      } else {
+        variations.push(node);
+      }
+    } else if (node.type === 'modeNode') {
+      // Sometimes change the operation mode
+      if (Math.random() < 0.4) { // 40% chance to change mode
+        variations.push({
+          ...node,
+          data: { ...node.data, mode: getRandomMode() }
+        });
+      } else {
+        variations.push(node);
+      }
     } else {
       variations.push(node);
     }

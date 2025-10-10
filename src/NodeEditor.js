@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useReactFlow } from 'reactflow';
 import './App.css'; // Import the CSS file
-import { generateSimpleScene, generateComplexScene, generateVariations } from './ProceduralGeneration';
+import { generateSimpleScene, generateComplexScene, generateVariations, generateRandomSingleShape } from './ProceduralGeneration';
 //import { add } from 'three/webgpu';
 //import { add } from 'three/webgpu';
 
@@ -194,6 +194,23 @@ function NodeEditor({ setNodes, isFullscreen }) {
     }
   };
 
+  const generateSingleShapeScene = () => {
+    try {
+      saveToHistory(); // Save current state before generating
+      console.log('Generating single random shape...');
+      const { nodes, edges } = generateRandomSingleShape();
+      console.log('Single shape generated, setting nodes and edges...');
+      console.log('Nodes:', nodes);
+      console.log('Edges:', edges);
+      reactFlowInstance.setNodes(nodes);
+      reactFlowInstance.setEdges(edges);
+      setNodeCount(nodes.length);
+      console.log('Single shape applied successfully');
+    } catch (error) {
+      console.error('Error in generateSingleShapeScene:', error);
+    }
+  };
+
   const generateVariationsFromCurrent = () => {
     const currentNodes = reactFlowInstance.getNodes();
     const currentEdges = reactFlowInstance.getEdges();
@@ -244,23 +261,30 @@ function NodeEditor({ setNodes, isFullscreen }) {
         <button 
           className={`glowing ${isFullscreen ? 'hidden' : ''}`} 
           onClick={generateSimpleProceduralScene} 
-          style={{ flex: '1 1 23%', fontSize: '12px', padding: '8px 4px' }}
+          style={{ flex: '1 1 18%', fontSize: '12px', padding: '8px 4px' }}
         >
           Generate Simple
         </button>
         <button 
           className={`glowing ${isFullscreen ? 'hidden' : ''}`} 
           onClick={generateComplexProceduralScene} 
-          style={{ flex: '1 1 23%', fontSize: '12px', padding: '8px 4px' }}
+          style={{ flex: '1 1 18%', fontSize: '12px', padding: '8px 4px' }}
         >
           Generate Complex
         </button>
         <button 
           className={`glowing ${isFullscreen ? 'hidden' : ''}`} 
           onClick={generateVariationsFromCurrent} 
-          style={{ flex: '1 1 23%', fontSize: '12px', padding: '8px 4px' }}
+          style={{ flex: '1 1 18%', fontSize: '12px', padding: '8px 4px' }}
         >
           Generate Variations
+        </button>
+        <button 
+          className={`glowing ${isFullscreen ? 'hidden' : ''}`} 
+          onClick={generateSingleShapeScene} 
+          style={{ flex: '1 1 18%', fontSize: '12px', padding: '8px 4px' }}
+        >
+          Random Shape
         </button>
         <button 
           className={`delete ${isFullscreen ? 'hidden' : ''}`} 

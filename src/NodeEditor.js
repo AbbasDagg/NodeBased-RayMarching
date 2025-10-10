@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useReactFlow } from 'reactflow';
 import './App.css'; // Import the CSS file
+import { generateSimpleScene, generateComplexScene, generateVariations } from './ProceduralGeneration';
 //import { add } from 'three/webgpu';
 //import { add } from 'three/webgpu';
 
@@ -98,7 +99,50 @@ function NodeEditor({ setNodes, isFullscreen }) {
     }
   };
 
+  // History management for undo functionality
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Initialize history with current state
+  useEffect(() => {
+    if (history.length === 0) {
+      const initialState = {
+        nodes: reactFlowInstance.getNodes(),
+        edges: reactFlowInstance.getEdges()
+      };
+      setHistory([initialState]);
+      setHistoryIndex(0);
+    }
+  }, [reactFlowInstance]);
+
+  // Save current state to history
+  const saveToHistory = () => {
+    const currentState = {
+      nodes: reactFlowInstance.getNodes(),
+      edges: reactFlowInstance.getEdges()
+    };
+    
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(currentState);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  // Undo function
+  const undoLastAction = () => {
+    if (historyIndex > 0) {
+      const previousState = history[historyIndex - 1];
+      reactFlowInstance.setNodes(previousState.nodes);
+      reactFlowInstance.setEdges(previousState.edges);
+      setHistoryIndex(historyIndex - 1);
+      setNodeCount(previousState.nodes.length);
+    }
+  };
+
   const resetAllNodes = () => {
+    // Save current state before reset
+    saveToHistory();
+    
     // Get IDs of existing nodes
     const currentIds = reactFlowInstance.getNodes().map(node => node.id);
 
@@ -115,6 +159,57 @@ function NodeEditor({ setNodes, isFullscreen }) {
     reactFlowInstance.setEdges([]);
   };
 
+  // Procedural Generation Functions
+  const generateSimpleProceduralScene = () => {
+    try {
+      saveToHistory(); // Save current state before generating
+      console.log('Generating simple scene...');
+      const { nodes, edges } = generateSimpleScene();
+      console.log('Simple scene generated, setting nodes and edges...');
+      console.log('Nodes:', nodes);
+      console.log('Edges:', edges);
+      reactFlowInstance.setNodes(nodes);
+      reactFlowInstance.setEdges(edges);
+      setNodeCount(nodes.length);
+      console.log('Simple scene applied successfully');
+    } catch (error) {
+      console.error('Error in generateSimpleProceduralScene:', error);
+    }
+  };
+
+  const generateComplexProceduralScene = () => {
+    try {
+      saveToHistory(); // Save current state before generating
+      console.log('Generating complex scene...');
+      const { nodes, edges } = generateComplexScene();
+      console.log('Complex scene generated, setting nodes and edges...');
+      console.log('Nodes:', nodes);
+      console.log('Edges:', edges);
+      reactFlowInstance.setNodes(nodes);
+      reactFlowInstance.setEdges(edges);
+      setNodeCount(nodes.length);
+      console.log('Complex scene applied successfully');
+    } catch (error) {
+      console.error('Error in generateComplexProceduralScene:', error);
+    }
+  };
+
+  const generateVariationsFromCurrent = () => {
+    const currentNodes = reactFlowInstance.getNodes();
+    const currentEdges = reactFlowInstance.getEdges();
+    
+    if (currentNodes.length === 0) {
+      alert('No existing scene to generate variations from. Create a scene first!');
+      return;
+    }
+    
+    saveToHistory(); // Save current state before generating variations
+    const variatedNodes = generateVariations(currentNodes);
+    reactFlowInstance.setNodes(variatedNodes);
+    // Keep the same edges
+    reactFlowInstance.setEdges(currentEdges);
+  };
+
   useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
@@ -123,7 +218,8 @@ function NodeEditor({ setNodes, isFullscreen }) {
   }, []);
 
   return (
-<div className={`node-editor-buttons ${isFullscreen ? 'hidden' : ''}`} style={{ width: '98%', padding: '0px', display: 'flex', justifyContent: 'flex-start', gap: '0px', position: 'relative' }}>
+    <div style={{ width: '100%' }}>
+      <div className={`node-editor-buttons ${isFullscreen ? 'hidden' : ''}`} style={{ width: 'calc(100% - 320px)', padding: '0px', display: 'flex', justifyContent: 'flex-start', gap: '5px', position: 'relative' }}>
 <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addVectorNode} style={{ flex: '1 1 16%' }}>Vector</button>
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addMotorNode} style={{ flex: '1 1 16%' }}>Motor</button>
 
@@ -140,12 +236,60 @@ function NodeEditor({ setNodes, isFullscreen }) {
       </div>
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addColorNode} style={{ flex: '1 1 16%' }}>Color</button>
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addModeNode} style={{ flex: '1 1 16%' }}>Mode</button>
-      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addRenderNode} style={{ flex: '1 1 16%' , marginRight: '4px' }}>Render</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addRenderNode} style={{ flex: '1 1 16%', marginRight: '4px' }}>Render</button>
+      </div>
 
-      <div className={`${isFullscreen ? 'hidden' : ''}`} style={{ position: 'fixed', bottom: '14px', left: '48px' }}>
-      <button className="button" style={{ width: '55px', height: '35px' }} onClick={resetAllNodes}>
-        <svg className="svgIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '70px' }}>
-          <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
+      {/* Procedural Generation Buttons */}
+      <div className={`node-editor-buttons ${isFullscreen ? 'hidden' : ''}`} style={{ width: 'calc(100% - 320px)', padding: '0px', display: 'flex', justifyContent: 'flex-start', gap: '5px', position: 'relative', marginTop: '10px' }}>
+        <button 
+          className={`glowing ${isFullscreen ? 'hidden' : ''}`} 
+          onClick={generateSimpleProceduralScene} 
+          style={{ flex: '1 1 23%', fontSize: '12px', padding: '8px 4px' }}
+        >
+          Generate Simple
+        </button>
+        <button 
+          className={`glowing ${isFullscreen ? 'hidden' : ''}`} 
+          onClick={generateComplexProceduralScene} 
+          style={{ flex: '1 1 23%', fontSize: '12px', padding: '8px 4px' }}
+        >
+          Generate Complex
+        </button>
+        <button 
+          className={`glowing ${isFullscreen ? 'hidden' : ''}`} 
+          onClick={generateVariationsFromCurrent} 
+          style={{ flex: '1 1 23%', fontSize: '12px', padding: '8px 4px' }}
+        >
+          Generate Variations
+        </button>
+        <button 
+          className={`delete ${isFullscreen ? 'hidden' : ''}`} 
+          onClick={resetAllNodes} 
+          style={{ flex: '1 1 23%', fontSize: '12px', padding: '8px 4px', width: 'auto', height: 'auto', borderRadius: '10px' }}
+        >
+          <svg className="svgIcon white-icon" viewBox="0 0 448 512" style={{ fill: '#ffffff !important', color: '#ffffff !important' }}>
+            <path d="M135.2 17.7C140.6 6.8 151.7 0 163.8 0H284.2c12.1 0 23.2 6.8 28.6 17.7L320 32h96c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 96 0 81.7 0 64S14.3 32 32 32h96l7.2-14.3zM32 128H416L394.8 467c-1.6 25.3-22.6 45-47.9 45H101.1c-25.3 0-46.3-19.7-47.9-45L32 128z" fill="#ffffff"></path>
+          </svg>
+        </button>
+      </div>
+
+      {/* Undo button in bottom corner */}
+      <div className={`${isFullscreen ? 'hidden' : ''}`} style={{ position: 'fixed', bottom: '14px', left: '50px', zIndex: 1000 }}>
+        <button 
+          className="button" 
+          style={{ 
+            width: '55px', 
+            height: '35px', 
+            zIndex: 1001, 
+            opacity: historyIndex > 0 ? 1 : 0.5,
+            cursor: historyIndex > 0 ? 'pointer' : 'not-allowed'
+          }} 
+          onClick={undoLastAction}
+          disabled={historyIndex <= 0}
+          title="Undo"
+        >
+          <svg className="svgIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style={{ width: '20px', height: '20px' }}>
+            <path d="M142.9 142.9c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8H463.5c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L405.8 95.8C317.2 12.2 174.5 8.3 82.7 85.1c-87.5 87.5-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3z"></path>
           </svg>
         </button>
       </div>

@@ -153,11 +153,7 @@ function App() {
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isLeftFullscreen, setIsLeftFullscreen] = useState(false);
   const edgeReconnectSuccessful = useRef(true);
-
-
-  const [leftPaneWidth, setLeftPaneWidth] = useState(window.innerWidth / 2);
 
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, nodeId: null });
 
@@ -486,265 +482,174 @@ const onReconnectEnd = useCallback((_, edge) => {
 
 
   const toggleFullscreen = () => {
-    if (isLeftFullscreen) {
-      setIsLeftFullscreen(false); // Turn off left fullscreen if right is toggled
-    }
+    const container = document.getElementById('three-scene-container');
     
-    setIsFullscreen(!isFullscreen);
-  
-    const leftPane = document.getElementById('left-pane');
-    const threeSceneContainer = document.getElementById('three-scene-container');
-    const divider = document.querySelector('.divider');
-  
-    if (leftPane && threeSceneContainer && divider) {
-      leftPane.style.transition = 'width 0.5s ease';
-      threeSceneContainer.style.transition = 'width 0.5s ease';
-  
-      if (!isFullscreen) {
-        leftPane.style.width = '0';
-        threeSceneContainer.style.width = '100vw';
-        divider.style.display = 'none';
-      } else {
-        leftPane.style.width = `${leftPaneWidth}px`;
-        threeSceneContainer.style.width = `calc(100vw - ${leftPaneWidth}px)`;
-        divider.style.display = 'block';
+    if (!isFullscreen) {
+      // Going TO fullscreen - remove transition for instant change
+      if (container) {
+        container.style.transition = 'none';
       }
+      setIsFullscreen(true);
+      
+      // Resize renderer immediately
+      setTimeout(() => {
+        if (threeSceneRef.current) {
+          threeSceneRef.current.resizeRenderer(window.innerWidth, window.innerHeight);
+        }
+      }, 10);
+    } else {
+      // Going OUT of fullscreen - add transition for smooth animation
+      if (container) {
+        container.style.transition = 'all 0.3s ease';
+      }
+      setIsFullscreen(false);
+      
+      // Resize renderer after animation
+      setTimeout(() => {
+        if (threeSceneRef.current) {
+          threeSceneRef.current.resizeRenderer(300, 300);
+        }
+      }, 300);
     }
-  
-    setTimeout(() => {
-      if (threeSceneRef.current) {
-        threeSceneRef.current.resizeRenderer(window.innerWidth - (isFullscreen ? leftPaneWidth : 0), window.innerHeight);
-      }
-    }, 500);
   };
-  
-  const toggleLeftFullscreen = () => {
-    if (isFullscreen) {
-      setIsFullscreen(false); // Turn off right fullscreen if left is toggled
-    }
-  
-    setIsLeftFullscreen(!isLeftFullscreen);
-  
-    const leftPane = document.getElementById('left-pane');
-    const threeSceneContainer = document.getElementById('three-scene-container');
-    const divider = document.querySelector('.divider');
-  
-    if (leftPane && threeSceneContainer && divider) {
-      leftPane.style.transition = 'width 0.5s ease';
-      threeSceneContainer.style.transition = 'width 0.5s ease';
-  
-      if (!isLeftFullscreen) {
-        leftPane.style.width = '100vw'; // Fullscreen left
-        threeSceneContainer.style.width = '0'; // Collapse right
-        divider.style.display = 'none';
-      } else {
-        leftPane.style.width = `${leftPaneWidth}px`;
-        threeSceneContainer.style.width = `calc(100vw - ${leftPaneWidth}px)`;
-        divider.style.display = 'block';
-      }
-    }
-  
-    setTimeout(() => {
-      if (threeSceneRef.current) {
-        threeSceneRef.current.resizeRenderer(window.innerWidth - (isLeftFullscreen ? leftPaneWidth : 0), window.innerHeight);
-      }
-    }, 500);
-  };
-  
-  
-  
-  
-  
 
-  
-
-  const handleWindowResize = () => {
-    const leftPane = document.getElementById('left-pane');
-    const threeSceneContainer = document.getElementById('three-scene-container');
-    const newLeftPaneWidth = Math.min(Math.max(leftPaneWidth, window.innerWidth * 0.2), window.innerWidth * 0.8);
-    setLeftPaneWidth(newLeftPaneWidth);
-
-    if (leftPane && threeSceneContainer) {
-      leftPane.style.width = isFullscreen ? '0' : `${newLeftPaneWidth}px`;
-      threeSceneContainer.style.width = isFullscreen ? '100vw' : `calc(100vw - ${newLeftPaneWidth}px)`;
-    }
-
+  // Initialize ThreeScene with proper size
+  useEffect(() => {
     if (threeSceneRef.current) {
-      threeSceneRef.current.resizeRenderer(window.innerWidth - (isFullscreen ? 0 : newLeftPaneWidth), window.innerHeight);
+      const initialWidth = isFullscreen ? window.innerWidth : 300;
+      const initialHeight = isFullscreen ? window.innerHeight : 300;
+      threeSceneRef.current.resizeRenderer(initialWidth, initialHeight);
     }
-  };
+  }, []);
+  
+  
+  
+  
+  
 
-  useEffect(() => {
-    window.addEventListener('resize', handleWindowResize);
-    return () => {
-      window.removeEventListener('resize', handleWindowResize);
-    };
-  }, [isFullscreen, leftPaneWidth]);
 
-  useEffect(() => {
-    handleWindowResize();
-  }, [isFullscreen]);
-
-  const startResizing = (e) => {
-    document.addEventListener('mousemove', resize);
-    document.addEventListener('mouseup', stopResizing);
-  };
-
-  const resize = (e) => {
-    const minLeftPaneWidth = window.innerWidth * 0.2; // 20% of the window width
-    const maxLeftPaneWidth = window.innerWidth * 0.8; // 80% of the window width
-    const newWidth = Math.max(Math.min(e.clientX, maxLeftPaneWidth), minLeftPaneWidth);
-    setLeftPaneWidth(newWidth);
-    const leftPane = document.getElementById('left-pane');
-    const threeSceneContainer = document.getElementById('three-scene-container');
-    if (leftPane && threeSceneContainer) {
-      leftPane.style.transition = 'none'; // Remove transition for instant resizing
-      threeSceneContainer.style.transition = 'none'; // Remove transition for instant resizing
-      leftPane.style.width = `${newWidth}px`;
-      threeSceneContainer.style.width = `calc(100vw - ${newWidth}px)`;
-      threeSceneRef.current.resizeRenderer(window.innerWidth - newWidth, window.innerHeight);
-    }
-  };
-
-  const stopResizing = () => {
-    document.removeEventListener('mousemove', resize);
-    document.removeEventListener('mouseup', stopResizing);
-    const leftPane = document.getElementById('left-pane');
-    const threeSceneContainer = document.getElementById('three-scene-container');
-    if (leftPane && threeSceneContainer) {
-      leftPane.style.transition = 'width 0.5s ease'; // Restore transition for other operations
-      threeSceneContainer.style.transition = 'width 0.5s ease'; // Restore transition for other operations
-    }
-  };
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }} onClick={closeContextMenu}>
+    <div style={{ width: '100vw', height: '100vh', position: 'relative' }} onClick={closeContextMenu}>
       <ReactFlowProvider>
+        {/* Main Node Editor Area - Full Screen */}
         <div
-          id="left-pane"
+          id="node-editor-area"
           style={{
-            width: isFullscreen ? '0' : `${leftPaneWidth}px`,
+            width: '100vw',
             height: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            transition: 'width 0.5s ease',
-          }}
-          className={isFullscreen ? 'hidden' : ''}
-        >
-          <NodeEditor setNodes={setNodes} isFullscreen={isFullscreen} />
-          <div style={{ flex: 1 }}>
-          <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          connectionLineComponent={CustomConnectionLine} // Custom animated connection line
-          attributionPosition={null}  // Hides the React Flow button
-          attributionComponent={null}  // Hides the React Flow button
-
-          edgeTypes={edgeTypes} // Add edgeTypes prop here
-          onReconnectStart={onReconnectStart}  
-          onReconnect={onReconnect}            
-          onReconnectEnd={onReconnectEnd}      
-          nodeTypes={nodeTypes}
-          fitView
-          onPaneContextMenu={(event) => event.preventDefault()} // Prevents right-click on the empty canvas
-          onNodeContextMenu={(event, node) => handleContextMenu(event, node)} // Right-click on a node
-        >
-          <Controls />
-          <MiniMap 
-  pannable
-  zoomable
-  style={{ 
-    width: 160, 
-    height: 150, 
-    right: -5, 
-    bottom: -5, 
-    border: '0px solid black', 
-    borderRadius: '0px'
-  }}
-  offsetScale={10}
-  nodeStrokeWidth={6}
-  nodeColor={(node) => {
-    if (node.type === 'vectorNode' || node.type === 'motorNode') {
-      return '#FFD700'; // Strong Yellow
-    } else if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode'].includes(node.type)) {
-      return '#ADD8E6'; // Light Blue
-    } else if (node.type === 'modeNode') {
-      return '#FFB6C1'; // Light Red
-    } else if (node.type === 'colorNode') {
-      return '#9370DB'; // Strong Purple
-    } else if (node.type === 'renderNode') {
-      return '#90EE90'; // Light Green
-    }
-    return '#000000'; // Default color (black) for other cases
-  }}
-  nodeStrokeColor={'rgba(0, 0, 0, 0.25)'} // Softer stroke color
-  maskColor={'rgba(0, 0, 0, 0.1)'} // Darker gray effect outside the viewport
- />
-
-          <Background variant="" gap={40} size={2} />
-        </ReactFlow>
-
-          </div>
-        </div>
-        <div
-          className="divider"
-          onMouseDown={startResizing}
-          style={{
-            left: `${leftPaneWidth}px`,
-            display: isFullscreen ? 'none' : 'block',
-          }}
-        />
-      </ReactFlowProvider>
-      <div
-        id="three-scene-container"
-        style={{
-          width: isFullscreen ? '100vw' : `calc(100vw - ${leftPaneWidth}px)`,
-          height: '100%',
-          position: 'relative',
-          transition: 'width 0.5s ease',
-        }}
-      >
-
-      {/* Fullscreen buttons */}
-      <ThreeScene ref={threeSceneRef} />
-        <div
-  className={`fullscreen-button-container ${isLeftFullscreen ? 'hidden' : ''}`} // Hide right fullscreen button when left fullscreen is on
-  onClick={toggleFullscreen}
-          style={{
             position: 'absolute',
-            bottom: '14px',
-            right: '10px',
+            top: 0,
+            left: 0,
             zIndex: 1,
           }}
         >
-          <input type="checkbox" checked={isFullscreen} onChange={toggleFullscreen} />
-          <div style={{ width: '35px', height: '35px', backgroundColor: 'white', borderRadius: '5px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <img className="expand" src="/svg/expand.svg" alt="expand" style={{ width: '25px', height: '25px' }} />
-        <img className="compress" src="/svg/collapse.svg" alt="compress" style={{ width: '25px', height: '25px', display: 'none' }} />
-      </div>
+          <NodeEditor setNodes={setNodes} isFullscreen={isFullscreen} />
+          <div style={{ width: '100%', height: '100%' }}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              connectionLineComponent={CustomConnectionLine}
+              attributionPosition={null}
+              attributionComponent={null}
+              edgeTypes={edgeTypes}
+              onReconnectStart={onReconnectStart}  
+              onReconnect={onReconnect}            
+              onReconnectEnd={onReconnectEnd}      
+              nodeTypes={nodeTypes}
+              fitView
+              onPaneContextMenu={(event) => event.preventDefault()}
+              onNodeContextMenu={(event, node) => handleContextMenu(event, node)}
+            >
+              <Controls style={{ bottom: 100 }} />
+              <MiniMap 
+                pannable
+                zoomable
+                style={{ 
+                  width: 200, 
+                  height: 180, 
+                  right: 10, 
+                  bottom: 100, 
+                  border: '0px solid black', 
+                  borderRadius: '0px'
+                }}
+                offsetScale={10}
+                nodeStrokeWidth={6}
+                nodeColor={(node) => {
+                  if (node.type === 'vectorNode' || node.type === 'motorNode') {
+                    return '#FFD700';
+                  } else if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode'].includes(node.type)) {
+                    return '#ADD8E6';
+                  } else if (node.type === 'modeNode') {
+                    return '#FFB6C1';
+                  } else if (node.type === 'colorNode') {
+                    return '#9370DB';
+                  } else if (node.type === 'renderNode') {
+                    return '#90EE90';
+                  }
+                  return '#000000';
+                }}
+                nodeStrokeColor={'rgba(0, 0, 0, 0.25)'}
+                maskColor={'rgba(0, 0, 0, 0.1)'}
+              />
+              <Background variant="" gap={40} size={2} />
+            </ReactFlow>
+          </div>
+        </div>
+      </ReactFlowProvider>
+      
+      {/* Rendering Area - Top Right Square */}
+      <div
+        id="three-scene-container"
+        style={{
+          width: isFullscreen ? '100vw' : '300px',
+          height: isFullscreen ? '100vh' : '300px',
+          position: 'absolute',
+          top: isFullscreen ? 0 : '10px',
+          right: isFullscreen ? 0 : '10px',
+          zIndex: isFullscreen ? 50 : 5,
+          border: isFullscreen ? 'none' : '2px solid #333',
+          borderRadius: isFullscreen ? '0' : '8px',
+          overflow: 'hidden',
+        }}
+      >
+
+        {/* ThreeScene Component */}
+        <ThreeScene ref={threeSceneRef} />
+        
+        {/* Fullscreen Toggle Button for Rendering Area */}
+        <div
+          onClick={toggleFullscreen}
+          style={{
+            position: 'absolute',
+            bottom: '10px',
+            right: '10px',
+            zIndex: 20,
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ 
+            width: '35px', 
+            height: '35px', 
+            backgroundColor: 'white', 
+            borderRadius: '8px', 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+            transition: 'all 0.3s ease',
+          }}>
+            <img 
+              src={isFullscreen ? "/svg/collapse.svg" : "/svg/expand.svg"}
+              alt={isFullscreen ? "minimize" : "expand"}
+              style={{ width: '20px', height: '20px' }}
+            />
+          </div>
         </div>
       </div>
-
-      <div
-  className={`fullscreen-button-container ${isFullscreen ? 'hidden' : ''}`} // Hide left fullscreen button when right fullscreen is on
-  onClick={toggleLeftFullscreen}
-      style={{
-        position: 'absolute',
-        bottom: '14px',
-        left: '110px',
-        zIndex: 1,
-      }}
-    >
-      <input type="checkbox" checked={isLeftFullscreen} onChange={toggleLeftFullscreen} />
-      
-      <div style={{ width: '35px', height: '35px', backgroundColor: 'white', borderRadius: '5px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <img className="expand" src="/svg/expand.svg" alt="expand" style={{ width: '25px', height: '25px' }} />
-        <img className="compress" src="/svg/collapse.svg" alt="compress" style={{ width: '25px', height: '25px', display: 'none' }} />
-      </div>
-    </div>
 
 
       {/* Render the context menu */}

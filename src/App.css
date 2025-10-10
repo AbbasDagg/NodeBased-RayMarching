@@ -94,17 +94,20 @@
 }
 
 .delete:hover {
-    width: 140px;
     border-radius: 50px;
     transition-duration: 0.3s;
     background-color: rgb(255, 69, 69);
-    align-items: center;
 }
 
 .delete:hover .svgIcon {
-    width: 50px;
     transition-duration: 0.3s;
-    transform: translateY(60%);
+    opacity: 0.2;
+}
+
+.delete .svgIcon,
+.delete .svgIcon path {
+    fill: white !important;
+    color: white !important;
 }
 
 .delete::before {
@@ -431,25 +434,20 @@
 }
 
 .button:hover {
-    width: 140px; /* Expand on hover */
-    height: 50px; /* Adjust height on hover */
     border-radius: 50px; /* Change to an oval shape on hover */
     transition-duration: .3s;
     background-color: rgb(255, 69, 69); /* Change to red background on hover */
-    align-items: center;
 }
 
 .button:hover .svgIcon {
-    width: 50px;
     transition-duration: .3s;
-    transform: translateY(60%);
-    fill: white; /* Change the icon color to white on hover */
+    opacity: 0.2;
 }
 
 .button::before {
     position: absolute;
     top: -20px;
-    content: "Reset";
+    content: "Undo";
     color: black; /* Start with black text */
     transition-duration: .3s;
     font-size: 2px;
@@ -530,5 +528,39 @@
     box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.08);
   }
   .react-flow__attribution {
+  display: none;
+}
+
+/* New Layout Styles */
+.rendering-area {
+  transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.rendering-area.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 1000;
+  border-radius: 0 !important;
+}
+
+.fullscreen-button-container {
+  transition: all 0.3s ease;
+}
+
+.fullscreen-button-container:hover div {
+  transform: scale(1.1);
+  background-color: rgba(255,255,255,1) !important;
+}
+
+/* Smooth layout transitions */
+#left-pane {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hide divider in new layout */
+.divider {
   display: none;
 }

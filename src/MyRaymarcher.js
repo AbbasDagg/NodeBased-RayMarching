@@ -250,7 +250,7 @@ class Raymarcher extends Mesh {
     envMapIntensity = 1,
     metalness = 0,
     layers = [],
-    resolution = 1,
+    resolution = 0.6,
     roughness = 1,
   } = {}) {
     const plane = new PlaneGeometry(2, 2, 1, 1);

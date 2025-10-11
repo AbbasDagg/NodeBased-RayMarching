@@ -270,10 +270,10 @@ function App() {
           const node = nodes.find(n => n.id === nodeId);
   
           if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode', 'terrainNode'].includes(node.type)) {
-            let position = { x: 0, y: 0, z: 0 };
-            let rotation = { x: 0, y: 0, z: 0 };
-            let scale = { x: 1, y: 1, z: 1 };
-            let color = 0xffffff;
+            let position = node.data.position || { x: 0, y: 0, z: 0 };
+            let rotation = node.data.rotation || { x: 0, y: 0, z: 0 };
+            let scale = node.data.scale || { x: 1, y: 1, z: 1 };
+            let color = node.data.color || 0xffffff;
   
             // Find all connected edges for position, rotation, and size
             edges.forEach(edge => {

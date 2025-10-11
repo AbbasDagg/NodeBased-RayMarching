@@ -43,9 +43,21 @@ const ThreeScene = forwardRef((props, ref) => {
           raymarcherRef.current.userData.layers[layerId] = [];
         }
 
+        // Convert color to THREE.Color format
+        let colorValue;
+        if (typeof shapeData.color === 'string') {
+          // Expecting hex like '#rrggbb'
+          colorValue = parseInt(shapeData.color.replace('#', ''), 16);
+        } else if (typeof shapeData.color === 'object' && shapeData.color && shapeData.color.r !== undefined) {
+          // Color is in {r, g, b} format - convert to hex
+          colorValue = (shapeData.color.r << 16) | (shapeData.color.g << 8) | shapeData.color.b;
+        } else {
+          colorValue = shapeData.color || 0xffffff;
+        }
+        
         // Add the shape to the specified layer
         raymarcherRef.current.userData.layers[layerId].push({
-          color: new THREE.Color(shapeData.color || 0xffffff),
+          color: new THREE.Color(colorValue),
           operation: operationMap[shapeData.operation] || Raymarcher.operations.union, // Default to union if undefined
           position: new THREE.Vector3(shapeData.position.x * SCALING_FACTOR, shapeData.position.y * SCALING_FACTOR, shapeData.position.z * SCALING_FACTOR),
           rotation: quaternion, // Apply the quaternion for rotation
@@ -122,8 +134,8 @@ const ThreeScene = forwardRef((props, ref) => {
       envMap: environmentMap,
       resolution: 0.6,
       blending: 1,
-      roughness: 0,
-      metalness: 0.7,
+      roughness: 1,
+      metalness: 0.82,
       envMapIntensity: 1,
       layers: [[]] // Start with a single empty layer
     });

@@ -82,54 +82,57 @@ float sdTorus(const in vec3 p, const in vec2 t) {
   return length(q) - t.y;
 }
 
-// Simple Perlin-like noise function for terrain displacement
+// Stable hash (fixed constants) to avoid precision artifacts; seed will be applied via coordinate offset
 float hash21(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
 float simpleNoise(vec2 p, float seed) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  
-  // Add seed to make noise different each time
-  float a = hash21(i + seed);
-  float b = hash21(i + vec2(1.0, 0.0) + seed);
-  float c = hash21(i + vec2(0.0, 1.0) + seed);
-  float d = hash21(i + vec2(1.0, 1.0) + seed);
-  
+  // Derive a small, stable offset from the seed to sample a different region without huge coordinates
+  float sx = fract(sin(seed * 12.9898) * 43758.5453);
+  float sy = fract(sin(seed * 78.2330) * 12345.6789);
+  vec2 seedOffset = vec2(sx, sy) * 64.0; // shift up to 64 grid cells; small enough to keep precision
+
+  vec2 pp = p + seedOffset;
+  vec2 i = floor(pp);
+  vec2 f = fract(pp);
+
+  float a = hash21(i);
+  float b = hash21(i + vec2(1.0, 0.0));
+  float c = hash21(i + vec2(0.0, 1.0));
+  float d = hash21(i + vec2(1.0, 1.0));
+
   vec2 u = f * f * (3.0 - 2.0 * f);
   return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
 }
 
 SDF sdTerrainWithColor(const in vec3 p, const in vec3 scale, const in vec3 entityPos, const in vec3 entityColor) {
-  // Moderate seed variation that won't break the terrain
-  float seed = entityColor.r * 100.0 + entityColor.g * 50.0 + entityColor.b * 25.0;
+  // entityColor is 0..1 vec3 from hex; unpack to a stable integer-ish seed
+  float terrainSeed = floor(entityColor.r * 255.0) + floor(entityColor.g * 255.0) * 256.0 + floor(entityColor.b * 255.0) * 65536.0;
   
-  // Create rolling hills with proper SDF approach - OFFSET BY SEED FOR DIFFERENT TERRAIN
-  vec2 seedOffset = vec2(seed * 0.01, seed * 0.013); // Moderate offset for different terrain
-  vec2 noiseCoord = (p.xz + seedOffset) * 0.05; // Balanced feature size + seed offset
+  vec2 noiseCoord = p.xz * 0.025; // Slightly lower frequency for smoother features
   
-  // Multi-octave noise for varied terrain with LOTS of water
-  float height = -3.0; // Start below sea level to create more water
-  height += simpleNoise(noiseCoord, seed) * 10.0;        // Large mountains
-  height += simpleNoise(noiseCoord * 2.0, seed) * 5.0;   // Hills  
-  height += simpleNoise(noiseCoord * 4.0, seed) * 2.5;   // Medium features
-  height += simpleNoise(noiseCoord * 8.0, seed) * 1.2;   // Surface details
+  // Multi-octave noise with the SAME terrainSeed - creates completely different noise maps
+  float height = -3.0; // Base water level
+  height += simpleNoise(noiseCoord, terrainSeed) * 8.0;                     // Base terrain (slightly reduced)
+  height += simpleNoise(noiseCoord * 2.0, terrainSeed + 123.0) * 4.0;       // Hills  
+  height += simpleNoise(noiseCoord * 4.0, terrainSeed + 456.0) * 2.0;       // Medium features
+  height += simpleNoise(noiseCoord * 8.0, terrainSeed + 789.0) * 1.0;       // Surface details
   
   // Allow more water by extending negative range
-  height = clamp(height, -8.0, 15.0); // Much more water, high mountains
+  height = clamp(height, -10.0, 18.0); // Even more water range
   
-  // Height-based coloring - LOTS OF WATER
+  // Height-based coloring - MAXIMUM WATER  
   vec3 color;
-  if (height < -6.0) {
-    color = vec3(0.0, 0.2, 0.6); // Very deep water (dark blue)
-  } else if (height < -3.0) {
-    color = vec3(0.1, 0.3, 0.8); // Deep water (blue)
-  } else if (height < -0.5) {
-    color = vec3(0.2, 0.5, 0.9); // Shallow water (light blue)
-  } else if (height < 0.5) {
+  if (height < -5.0) {
+    color = vec3(0.0, 0.1, 0.4); // Very deep water (dark blue)
+  } else if (height < -2.0) {
+    color = vec3(0.0, 0.3, 0.7); // Deep water (blue)
+  } else if (height < 1.0) {
+    color = vec3(0.2, 0.5, 0.9); // Shallow water (light blue) - EXPANDED
+  } else if (height < 2.5) {
     color = vec3(0.8, 0.7, 0.5); // Beach/sand (tan)
-  } else if (height < 3.0) {
+  } else if (height < 5.0) {
     color = vec3(0.2, 0.8, 0.2); // Grass (green)
   } else if (height < 7.0) {
     color = vec3(0.4, 0.6, 0.2); // Hills (olive)
@@ -147,6 +150,13 @@ SDF sdTerrainWithColor(const in vec3 p, const in vec3 scale, const in vec3 entit
 
 SDF sdEntity(in vec3 p, const in Entity e) {
   float distance;
+  
+  // Special case for terrain - DON'T apply transformations, use world coordinates
+  if (e.shape == 4) {
+    return sdTerrainWithColor(p, e.scale, e.position, e.color); // Pass original world p
+  }
+  
+  // For all other shapes, apply normal transformations
   p = applyQuaternion(p - e.position, normalize(e.rotation));
   switch (e.shape) {
     default:
@@ -162,8 +172,6 @@ SDF sdEntity(in vec3 p, const in Entity e) {
     case 3:
       distance = sdTorus(p, e.scale.xy * 0.5);
       break;
-    case 4:
-      return sdTerrainWithColor(p, e.scale, e.position, e.color); // Pass color as seed
   }
   return SDF(distance, e.color);
 }
@@ -345,7 +353,7 @@ class Raymarcher extends Mesh {
         MAX_DISTANCE: '1000.0',
         MAX_ITERATIONS: 200,
         MIN_COVERAGE: '0.02',
-        MIN_DISTANCE: '0.05',
+        MIN_DISTANCE: '0.02',
       },
       uniforms: {
         blending: { value: blending },

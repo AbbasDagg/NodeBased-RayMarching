@@ -843,12 +843,24 @@ export function generateRandomSingleShape() {
  * Generates a procedural terrain using SDF displacement function
  */
 export function generateProceduralTerrain() {
-  let nodeId = 1;
+  let nodeId = Date.now(); // Use timestamp for unique IDs
   const nodes = [];
   const edges = [];
   
-  // Generate terrain parameters
-  const seed = Math.random() * 10000;
+  // Generate a RANDOM SEED for terrain generation - like Minecraft world seeds
+  const terrainSeed = Math.floor(Math.random() * 999999999); // Random seed 0-999999999
+  
+  console.log(`� TERRAIN SEED: ${terrainSeed} - This creates a unique Perlin noise map!`);
+  
+  const posX = terrainSeed % 10000;
+  const posZ = (terrainSeed * 7) % 10000;
+  const colorR = terrainSeed % 255;
+  const colorG = Math.floor(terrainSeed / 256) % 255;
+  const colorB = Math.floor(terrainSeed / 65536) % 255;
+  
+  console.log(`📍 Position: x=${posX}, z=${posZ}`);
+  console.log(`🎨 Color RGB: (${colorR}, ${colorG}, ${colorB})`);
+  console.log(`🔢 Shader seed will be: ${posX + posZ + colorR * 1000.0 + colorG * 500.0 + colorB * 250.0}`);
   
   // Create a "Terrain Displacement" node that would contain the combined SDF function
   // This represents: plane_SDF(p) + perlin_noise(p.xz) * displacement_amount
@@ -876,12 +888,13 @@ export function generateProceduralTerrain() {
     data: { x: 0, y: -1, z: 0 } // terrain center position
   });
   
-  // Terrain color (procedural - could vary based on height)
+  // Terrain color (encode terrainSeed as hex so shader receives a different seed via color each click)
+  const seedHex = '#' + (terrainSeed % 0xFFFFFF).toString(16).padStart(6, '0');
   nodes.push({
     id: terrainColorId.toString(),
     type: 'colorNode',
     position: { x: 400, y: 350 },
-    data: { color: '#228b22' } // Base green, but the SDF function would handle height-based coloring
+    data: { color: seedHex }
   });
   
   // The "magic" terrain node - combines base plane SDF + Perlin noise displacement
@@ -891,10 +904,12 @@ export function generateProceduralTerrain() {
     position: { x: 800, y: 200 },
     data: { 
       shape: 'terrain',
-      position: { x: 0, y: -5, z: 0 },  // Position it below the base plane
+      position: { x: 0, y: -5, z: 0 }, // Keep centered; world seed comes via color
       rotation: { x: 0, y: 0, z: 0 },
-      scale: { x: 15, y: 3, z: 15 },     // Make it larger and more visible
-      color: 0x228B22  // Forest green color for terrain
+      scale: { x: 20, y: 4, z: 20 },
+      // Also carry the seed on the terrain node itself as hex for passthrough
+      color: seedHex,
+      terrainSeed: terrainSeed  // Also pass it directly
     }
   });
   
@@ -959,7 +974,7 @@ export function generateProceduralTerrain() {
   });
   
   console.log(`Generated SDF terrain displacement: ${nodes.length} nodes, ${edges.length} edges`);
-  console.log(`Terrain seed: ${seed}`);
+  console.log(`Terrain seed: ${terrainSeed}`);
   return { nodes, edges };
 }
 

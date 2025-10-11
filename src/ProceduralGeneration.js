@@ -855,20 +855,20 @@ export function generateProceduralTerrain() {
   
   // Base plane components - positioned above the shape grid
   
-  // Base plane size (20x1x20 - much thinner)
+  // Base plane size (20x2x20 - thicker by 1)
   nodes.push({
     id: basePlaneSizeId.toString(),
     type: 'vectorNode',
     position: { x: 700, y: -600 },
-    data: { x: 20, y: 1, z: 20 }
+    data: { x: 20, y: 2, z: 20 }
   });
   
-  // Base plane position
+  // Base plane position (moved down by 1)
   nodes.push({
     id: basePlaneVectorId.toString(),
     type: 'vectorNode',
     position: { x: 950, y: -600 },
-    data: { x: 0, y: 0, z: 0 }
+    data: { x: 0, y: -1, z: 0 }
   });
   
   // Base plane color (green ground)

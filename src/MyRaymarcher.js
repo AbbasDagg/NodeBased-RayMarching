@@ -83,10 +83,13 @@ float sdTorus(const in vec3 p, const in vec2 t) {
 }
 
 // Stable hash (fixed constants) to avoid precision artifacts; seed will be applied via coordinate offset
+// hash21: classic value-noise hash (not gradient/Perlin). We keep constants fixed for continuity
 float hash21(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
+// simpleNoise: 2D value noise with bilinear interpolation
+// We derive a small, stable seed-based offset to pick a different part of the noise field per world
 float simpleNoise(vec2 p, float seed) {
   // Derive a small, stable offset from the seed to sample a different region without huge coordinates
   float sx = fract(sin(seed * 12.9898) * 43758.5453);
@@ -106,18 +109,22 @@ float simpleNoise(vec2 p, float seed) {
   return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
 }
 
+// sdTerrainWithColor: heightfield terrain SDF (distance = y - height)
+// entityColor encodes the world seed (via hex -> vec3 0..1). Same seed -> same terrain
 SDF sdTerrainWithColor(const in vec3 p, const in vec3 scale, const in vec3 entityPos, const in vec3 entityColor) {
   // entityColor is 0..1 vec3 from hex; unpack to a stable integer-ish seed
   float terrainSeed = floor(entityColor.r * 255.0) + floor(entityColor.g * 255.0) * 256.0 + floor(entityColor.b * 255.0) * 65536.0;
   
-  vec2 noiseCoord = p.xz * 0.025; // Slightly lower frequency for smoother features
+  // Increase feature frequency a bit for more variety while keeping smoothness
+  vec2 noiseCoord = p.xz * 0.03;
   
-  // Multi-octave noise with the SAME terrainSeed - creates completely different noise maps
+  // Multi-octave value noise (fBm-like). Same seed yields same terrain; different seed offsets the sampling region
   float height = -3.0; // Base water level
-  height += simpleNoise(noiseCoord, terrainSeed) * 8.0;                     // Base terrain (slightly reduced)
+  height += simpleNoise(noiseCoord, terrainSeed) * 8.0;                     // Base terrain
   height += simpleNoise(noiseCoord * 2.0, terrainSeed + 123.0) * 4.0;       // Hills  
   height += simpleNoise(noiseCoord * 4.0, terrainSeed + 456.0) * 2.0;       // Medium features
   height += simpleNoise(noiseCoord * 8.0, terrainSeed + 789.0) * 1.0;       // Surface details
+  height += simpleNoise(noiseCoord * 16.0, terrainSeed + 1337.0) * 0.5;     // Fine details (subtle)
   
   // Allow more water by extending negative range
   height = clamp(height, -10.0, 18.0); // Even more water range

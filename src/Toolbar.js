@@ -42,7 +42,7 @@ const clearButtonStyle = {
   transition: 'background-color 0.3s ease',
 };
 
-function Toolbar({ onGenerateSimple, onGenerateComplex, onGenerateVariations, onClearScene }) {
+function Toolbar({ onGenerateSimple, onGenerateComplex, onGenerateVariations, onGenerateTerrain, onClearScene }) {
   const onDragStart = (event, nodeType) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
     event.dataTransfer.effectAllowed = 'move';
@@ -89,6 +89,15 @@ function Toolbar({ onGenerateSimple, onGenerateComplex, onGenerateVariations, on
         onMouseLeave={(e) => e.target.style.backgroundColor = '#2a9d8f'}
       >
         Generate Variations
+      </button>
+      
+      <button 
+        style={{...proceduralButtonStyle, background: '#4a9eff'}}
+        onClick={onGenerateTerrain}
+        onMouseEnter={(e) => e.target.style.backgroundColor = '#3a8eef'}
+        onMouseLeave={(e) => e.target.style.backgroundColor = '#4a9eff'}
+      >
+        Generate Procedural Terrain
       </button>
       
       <button 

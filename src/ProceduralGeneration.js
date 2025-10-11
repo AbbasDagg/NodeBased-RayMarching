@@ -840,257 +840,126 @@ export function generateRandomSingleShape() {
 }
 
 /**
- * Generates a procedural terrain using Perlin noise
+ * Generates a procedural terrain using SDF displacement function
  */
 export function generateProceduralTerrain() {
   let nodeId = 1;
   const nodes = [];
   const edges = [];
   
-  // Base plane (20x8x20, brown ground - 2x bigger on all axes)
-  const basePlaneId = nodeId++;
-  const basePlaneColorId = nodeId++;
-  const basePlaneVectorId = nodeId++;
-  const basePlaneSizeId = nodeId++;
+  // Generate terrain parameters
+  const seed = Math.random() * 10000;
   
-  // Base plane components - positioned above the shape grid
+  // Create a "Terrain Displacement" node that would contain the combined SDF function
+  // This represents: plane_SDF(p) + perlin_noise(p.xz) * displacement_amount
+  const terrainDisplacementId = nodeId++;
+  const terrainColorId = nodeId++;
+  const terrainPositionId = nodeId++;
+  const terrainSizeId = nodeId++;
   
-  // Base plane size (20x2x20 - thicker by 1)
+  // Terrain parameters - using vector nodes to control the displacement
   nodes.push({
-    id: basePlaneSizeId.toString(),
-    type: 'vectorNode',
-    position: { x: 700, y: -600 },
-    data: { x: 20, y: 2, z: 20 }
+    id: terrainSizeId.toString(),
+    type: 'vectorNode', 
+    position: { x: 400, y: 50 },
+    data: { 
+      x: 20,  // terrain width
+      y: 2,   // base thickness  
+      z: 20   // terrain depth
+    }
   });
   
-  // Base plane position (moved down by 1)
   nodes.push({
-    id: basePlaneVectorId.toString(),
+    id: terrainPositionId.toString(),
     type: 'vectorNode',
-    position: { x: 950, y: -600 },
-    data: { x: 0, y: -1, z: 0 }
+    position: { x: 400, y: 200 },
+    data: { x: 0, y: -1, z: 0 } // terrain center position
   });
   
-  // Base plane color (green ground)
+  // Terrain color (procedural - could vary based on height)
   nodes.push({
-    id: basePlaneColorId.toString(),
+    id: terrainColorId.toString(),
     type: 'colorNode',
-    position: { x: 1200, y: -600 },
-    data: { color: '#228b22' } // Forest green
+    position: { x: 400, y: 350 },
+    data: { color: '#228b22' } // Base green, but the SDF function would handle height-based coloring
   });
   
-  // Base plane (box) - positioned to connect easily
+  // The "magic" terrain node - combines base plane SDF + Perlin noise displacement
   nodes.push({
-    id: basePlaneId.toString(),
-    type: 'boxNode',
-    position: { x: 1450, y: -600 },
-    data: { shape: 'box' }
+    id: terrainDisplacementId.toString(),
+    type: 'terrainNode',
+    position: { x: 800, y: 200 },
+    data: { 
+      shape: 'terrain',
+      position: { x: 0, y: -5, z: 0 },  // Position it below the base plane
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: { x: 15, y: 3, z: 15 },     // Make it larger and more visible
+      color: 0x228B22  // Forest green color for terrain
+    }
   });
   
-  // Connect base plane components
+  // Connect parameters to terrain
   edges.push({
     id: `e${edges.length + 1}`,
-    source: basePlaneColorId.toString(),
-    target: basePlaneId.toString(),
-    sourceHandle: 'color',
-    targetHandle: 'color'
-  });
-  edges.push({
-    id: `e${edges.length + 1}`,
-    source: basePlaneVectorId.toString(),
-    target: basePlaneId.toString(),
-    sourceHandle: 'vector',
-    targetHandle: 'position'
-  });
-  edges.push({
-    id: `e${edges.length + 1}`,
-    source: basePlaneSizeId.toString(),
-    target: basePlaneId.toString(),
+    source: terrainSizeId.toString(),
+    target: terrainDisplacementId.toString(),
     sourceHandle: 'vector',
     targetHandle: 'size'
   });
   
-  // Generate 9 shapes in 3x3 grid with Perlin noise heights
-  const gridSize = 3;
-  const spacing = 8; // Distance between shapes (adjusted for 20x20 plane)
-  const maxHeight = 1; // Small bumps: max 1 unit above/below surface
-  const seed = Math.random() * 10000;
-  
-  const aboveGroundShapes = [];
-  const belowGroundShapes = [];
-  
-  for (let x = 0; x < gridSize; x++) {
-    for (let z = 0; z < gridSize; z++) {
-      const worldX = (x - 1) * spacing; // Center around 0, fits within -8 to +8 (20 wide)
-      const worldZ = (z - 1) * spacing; // Center around 0, fits within -8 to +8 (20 deep)
-      
-      // Get noise height - small bumps only
-      const noiseHeight = simpleNoise(worldX, worldZ, seed);
-      const clampedHeight = Math.max(-maxHeight, Math.min(maxHeight, noiseHeight * 1.5));
-      
-      const isAboveGround = clampedHeight > 0;
-      const shapeType = getRandomShape();
-      
-      // Create shape components
-      const shapeId = nodeId++;
-      const colorId = nodeId++;
-      const positionId = nodeId++;
-      const sizeId = nodeId++;
-      
-      // Color based on terrain
-      const terrainColor = getTerrainColor(clampedHeight, isAboveGround);
-      
-      // Organize each shape group in a clean 2x2 grid layout
-      const baseX = 700 + x * 600; // 600px horizontal spacing between shape groups
-      const baseY = 50 + z * 550;  // 550px vertical spacing between rows
-      
-      // Size vector (top-left) - 1x1x1 cubes
-      nodes.push({
-        id: sizeId.toString(),
-        type: 'vectorNode',
-        position: { x: baseX, y: baseY },
-        data: { x: 1, y: 1, z: 1 } // Small 1x1x1 bumps
-      });
-      
-      // Color node (bottom-left) 
-      nodes.push({
-        id: colorId.toString(),
-        type: 'colorNode',
-        position: { x: baseX, y: baseY + 230 },
-        data: { color: terrainColor }
-      });
-      
-      // Position vector (top-right)
-      nodes.push({
-        id: positionId.toString(),
-        type: 'vectorNode',
-        position: { x: baseX + 250, y: baseY },
-        data: { x: worldX, y: clampedHeight, z: worldZ }
-      });
-      
-      // Shape node (bottom-right, larger)
-      nodes.push({
-        id: shapeId.toString(),
-        type: shapeType.type,
-        position: { x: baseX + 250, y: baseY + 140 },
-        data: shapeType.data
-      });
-      
-      // Connect shape components
-      edges.push({
-        id: `e${edges.length + 1}`,
-        source: colorId.toString(),
-        target: shapeId.toString(),
-        sourceHandle: 'color',
-        targetHandle: 'color'
-      });
-      edges.push({
-        id: `e${edges.length + 1}`,
-        source: positionId.toString(),
-        target: shapeId.toString(),
-        sourceHandle: 'vector',
-        targetHandle: 'position'
-      });
-      edges.push({
-        id: `e${edges.length + 1}`,
-        source: sizeId.toString(),
-        target: shapeId.toString(),
-        sourceHandle: 'vector',
-        targetHandle: 'size'
-      });
-      
-      // Categorize shapes
-      if (isAboveGround) {
-        aboveGroundShapes.push(shapeId);
-      } else {
-        belowGroundShapes.push(shapeId);
-      }
-    }
-  }
-  
-  // Create subtraction mode node for below-ground shapes
-  const subtractionModeId = nodeId++;
-  nodes.push({
-    id: subtractionModeId.toString(),
-    type: 'modeNode',
-    position: { x: 2600, y: 300 },
-    data: { mode: 'subtraction' }
-  });
-  
-  // Connect base plane to subtraction mode (Base handle)
   edges.push({
     id: `e${edges.length + 1}`,
-    source: basePlaneId.toString(),
-    target: subtractionModeId.toString(),
-    sourceHandle: 'render',
-    targetHandle: 'shape1'
+    source: terrainPositionId.toString(),
+    target: terrainDisplacementId.toString(),
+    sourceHandle: 'vector', 
+    targetHandle: 'position'
   });
   
-  // Connect below-ground shapes to subtraction mode (Operations handle)
-  belowGroundShapes.forEach(shapeId => {
-    edges.push({
-      id: `e${edges.length + 1}`,
-      source: shapeId.toString(),
-      target: subtractionModeId.toString(),
-      sourceHandle: 'render',
-      targetHandle: 'shapes'
-    });
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: terrainColorId.toString(),
+    target: terrainDisplacementId.toString(),
+    sourceHandle: 'color',
+    targetHandle: 'color'
   });
   
-  // Create union mode node for above-ground shapes (chained after subtraction)
-  let finalOutputId = subtractionModeId;
+  // Add mode node for visibility (even single shapes need this for proper rendering)
+  const modeId = nodeId++;
+  nodes.push({
+    id: modeId.toString(),
+    type: 'modeNode',
+    position: { x: 1150, y: 200 },
+    data: { mode: 'union' }
+  });
   
-  if (aboveGroundShapes.length > 0) {
-    const unionModeId = nodeId++;
-    nodes.push({
-      id: unionModeId.toString(),
-      type: 'modeNode',
-      position: { x: 2850, y: 300 },
-      data: { mode: 'union' }
-    });
-    
-    // Connect subtraction result to union mode (Base handle)
-    edges.push({
-      id: `e${edges.length + 1}`,
-      source: subtractionModeId.toString(),
-      target: unionModeId.toString(),
-      sourceHandle: 'render',
-      targetHandle: 'shape1'
-    });
-    
-    // Connect above-ground shapes to union mode (Operations handle)
-    aboveGroundShapes.forEach(shapeId => {
-      edges.push({
-        id: `e${edges.length + 1}`,
-        source: shapeId.toString(),
-        target: unionModeId.toString(),
-        sourceHandle: 'render',
-        targetHandle: 'shapes'
-      });
-    });
-    
-    finalOutputId = unionModeId;
-  }
-  
-  // Final render node
+  // Render node
   const renderId = nodeId++;
   nodes.push({
     id: renderId.toString(),
     type: 'renderNode',
-    position: { x: 3100, y: 300 },
-    data: { label: 'Render', layerId: 'terrain-layer' }
+    position: { x: 1400, y: 200 },
+    data: { label: 'Render', layerId: 'terrain-sdf-layer' }
+  });
+  
+  // Connect terrain -> mode -> render
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: terrainDisplacementId.toString(),
+    target: modeId.toString(),
+    sourceHandle: 'render',
+    targetHandle: 'shape1'
   });
   
   edges.push({
     id: `e${edges.length + 1}`,
-    source: finalOutputId.toString(),
+    source: modeId.toString(),
     target: renderId.toString(),
     sourceHandle: 'render',
     targetHandle: 'render'
   });
   
-  console.log(`Generated procedural terrain: ${nodes.length} nodes, ${edges.length} edges`);
-  console.log(`Above ground shapes: ${aboveGroundShapes.length}, Below ground: ${belowGroundShapes.length}`);
+  console.log(`Generated SDF terrain displacement: ${nodes.length} nodes, ${edges.length} edges`);
+  console.log(`Terrain seed: ${seed}`);
   return { nodes, edges };
 }
 

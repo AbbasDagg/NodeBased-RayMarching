@@ -358,6 +358,40 @@ export function CapsuleNode({ data }) {
     </div>
   );
 }
+
+export function TerrainNode({ data }) {
+  const outlineColor = 'white';
+
+  return (
+    <div className="card shapeNode" style={{ width: '280px', height: '280px', border: '2px solid #4a9eff', padding: 0, margin: 0 }}>
+      <div style={{ padding: '0', top:'20px', bottom:'20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: '#4a9eff', fontSize: '16px', marginBottom: '10px', WebkitTextStroke: `0.1px ${outlineColor}` }}>
+          Procedural Terrain
+        </div>
+        <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '120px', textAlign: 'center' }}>
+          SDF + Perlin Noise
+        </div>
+        
+        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '25%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '25%', color: 'white', fontSize: '14px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
+        
+        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '40%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '40%', color: 'white', fontSize: '14px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
+        
+        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '55%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '14px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+        
+        <Handle type="target" position={Position.Left} id="noise" style={{ ...handleStyleLeft, top: '70%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '70%', color: '#4a9eff', fontSize: '14px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Noise</span>
+        
+        <Handle type="target" position={Position.Left} id="displacement" style={{ ...handleStyleLeft, top: '85%' }} />
+        <span style={{ position: 'absolute', left: '40px', top: '85%', color: '#4a9eff', fontSize: '14px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Displacement</span>
+        
+        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '55%' }} />
+      </div>
+    </div>
+  );
+}
 export function ColorNode({ data, isConnectable }) {
   const [color, setColor] = useState(data.color || '#ffffff');
   const reactFlowInstance = useReactFlow();

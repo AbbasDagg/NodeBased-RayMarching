@@ -82,6 +82,69 @@ float sdTorus(const in vec3 p, const in vec2 t) {
   return length(q) - t.y;
 }
 
+// Simple Perlin-like noise function for terrain displacement
+float hash21(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float simpleNoise(vec2 p, float seed) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  
+  // Add seed to make noise different each time
+  float a = hash21(i + seed);
+  float b = hash21(i + vec2(1.0, 0.0) + seed);
+  float c = hash21(i + vec2(0.0, 1.0) + seed);
+  float d = hash21(i + vec2(1.0, 1.0) + seed);
+  
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+SDF sdTerrainWithColor(const in vec3 p, const in vec3 scale, const in vec3 entityPos, const in vec3 entityColor) {
+  // Moderate seed variation that won't break the terrain
+  float seed = entityColor.r * 100.0 + entityColor.g * 50.0 + entityColor.b * 25.0;
+  
+  // Create rolling hills with proper SDF approach - OFFSET BY SEED FOR DIFFERENT TERRAIN
+  vec2 seedOffset = vec2(seed * 0.01, seed * 0.013); // Moderate offset for different terrain
+  vec2 noiseCoord = (p.xz + seedOffset) * 0.05; // Balanced feature size + seed offset
+  
+  // Multi-octave noise for varied terrain with LOTS of water
+  float height = -3.0; // Start below sea level to create more water
+  height += simpleNoise(noiseCoord, seed) * 10.0;        // Large mountains
+  height += simpleNoise(noiseCoord * 2.0, seed) * 5.0;   // Hills  
+  height += simpleNoise(noiseCoord * 4.0, seed) * 2.5;   // Medium features
+  height += simpleNoise(noiseCoord * 8.0, seed) * 1.2;   // Surface details
+  
+  // Allow more water by extending negative range
+  height = clamp(height, -8.0, 15.0); // Much more water, high mountains
+  
+  // Height-based coloring - LOTS OF WATER
+  vec3 color;
+  if (height < -6.0) {
+    color = vec3(0.0, 0.2, 0.6); // Very deep water (dark blue)
+  } else if (height < -3.0) {
+    color = vec3(0.1, 0.3, 0.8); // Deep water (blue)
+  } else if (height < -0.5) {
+    color = vec3(0.2, 0.5, 0.9); // Shallow water (light blue)
+  } else if (height < 0.5) {
+    color = vec3(0.8, 0.7, 0.5); // Beach/sand (tan)
+  } else if (height < 3.0) {
+    color = vec3(0.2, 0.8, 0.2); // Grass (green)
+  } else if (height < 7.0) {
+    color = vec3(0.4, 0.6, 0.2); // Hills (olive)
+  } else if (height < 12.0) {
+    color = vec3(0.6, 0.4, 0.2); // Mountains (brown)
+  } else {
+    color = vec3(0.9, 0.9, 0.9); // Snow peaks (white)
+  }
+  
+  // Create terrain as heightfield: distance to surface is (y - height)  
+  float distance = p.y - height; // Proper heightfield SDF
+  
+  return SDF(distance, color);
+}
+
 SDF sdEntity(in vec3 p, const in Entity e) {
   float distance;
   p = applyQuaternion(p - e.position, normalize(e.rotation));
@@ -99,6 +162,8 @@ SDF sdEntity(in vec3 p, const in Entity e) {
     case 3:
       distance = sdTorus(p, e.scale.xy * 0.5);
       break;
+    case 4:
+      return sdTerrainWithColor(p, e.scale, e.position, e.color); // Pass color as seed
   }
   return SDF(distance, e.color);
 }
@@ -228,10 +293,11 @@ var screenVertex = "out vec2 uv;\nin vec3 position;\n\nvoid main() {\n  gl_Posit
 
 const _bounds = [];
 const _colliders = [
-  new BoxGeometry(1, 1, 1),
-  new CylinderGeometry(0.5, 0.5, 1),
-  new IcosahedronGeometry(0.5, 2),
-  new CylinderGeometry(0.5, 0.5, 1),
+  new BoxGeometry(1, 1, 1),          // 0: box
+  new CylinderGeometry(0.5, 0.5, 1), // 1: capsule
+  new IcosahedronGeometry(0.5, 2),   // 2: sphere
+  new CylinderGeometry(0.5, 0.5, 1), // 3: torus
+  new BoxGeometry(10, 0.1, 10),      // 4: terrain (flat wide box)
 ].map((geometry) => {
   geometry.computeBoundingSphere();
   return new Mesh(geometry);
@@ -551,6 +617,7 @@ Raymarcher.shapes = {
   capsule: 1,
   sphere: 2,
   torus: 3,
+  terrain: 4,
 };
 
 export { Raymarcher as default };

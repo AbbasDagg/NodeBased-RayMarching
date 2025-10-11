@@ -4,7 +4,7 @@ import 'reactflow/dist/style.css';
 import './App.css'; // Import the CSS file
 import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
-import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode } from './CustomNodes';
+import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode, TerrainNode } from './CustomNodes';
 import { reconnectEdge } from 'reactflow';
 import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the custom edge and connection line
 
@@ -142,6 +142,7 @@ const nodeTypes = {
   renderNode: RenderNode,
   modeNode: ModeNode,
   motorNode: MotorNode,
+  terrainNode: TerrainNode,
 };
 
 const edgeTypes = {
@@ -268,7 +269,7 @@ function App() {
         const traverse = (nodeId, operation) => {
           const node = nodes.find(n => n.id === nodeId);
   
-          if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode'].includes(node.type)) {
+          if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode', 'terrainNode'].includes(node.type)) {
             let position = { x: 0, y: 0, z: 0 };
             let rotation = { x: 0, y: 0, z: 0 };
             let scale = { x: 1, y: 1, z: 1 };

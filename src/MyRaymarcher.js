@@ -119,15 +119,19 @@ SDF sdTerrainWithColor(const in vec3 p, const in vec3 scale, const in vec3 entit
   vec2 noiseCoord = p.xz * 0.03;
   
   // Multi-octave value noise (fBm-like). Same seed yields same terrain; different seed offsets the sampling region
-  float height = -3.0; // Base water level
-  height += simpleNoise(noiseCoord, terrainSeed) * 8.0;                     // Base terrain
-  height += simpleNoise(noiseCoord * 2.0, terrainSeed + 123.0) * 4.0;       // Hills  
-  height += simpleNoise(noiseCoord * 4.0, terrainSeed + 456.0) * 2.0;       // Medium features
-  height += simpleNoise(noiseCoord * 8.0, terrainSeed + 789.0) * 1.0;       // Surface details
-  height += simpleNoise(noiseCoord * 16.0, terrainSeed + 1337.0) * 0.5;     // Fine details (subtle)
+  // Separate base water and noiseSum so we can scale vertical range cleanly
+  float baseLevel = -3.0;                     // Water level baseline
+  float heightScale = 1.35;                   // Increase vertical range slightly (tweakable)
+  float noiseSum = 0.0;
+  noiseSum += simpleNoise(noiseCoord, terrainSeed) * 8.0;                    // Base terrain
+  noiseSum += simpleNoise(noiseCoord * 2.0, terrainSeed + 123.0) * 4.0;      // Hills  
+  noiseSum += simpleNoise(noiseCoord * 4.0, terrainSeed + 456.0) * 2.0;      // Medium features
+  noiseSum += simpleNoise(noiseCoord * 8.0, terrainSeed + 789.0) * 1.0;      // Surface details
+  noiseSum += simpleNoise(noiseCoord * 16.0, terrainSeed + 1337.0) * 0.5;    // Fine details (subtle)
+  float height = baseLevel + noiseSum * heightScale;
   
-  // Allow more water by extending negative range
-  height = clamp(height, -10.0, 18.0); // Even more water range
+  // Allow more range so peaks can reach snow more often
+  height = clamp(height, -12.0, 24.0);
   
   // Height-based coloring - MAXIMUM WATER  
   vec3 color;
@@ -143,7 +147,7 @@ SDF sdTerrainWithColor(const in vec3 p, const in vec3 scale, const in vec3 entit
     color = vec3(0.2, 0.8, 0.2); // Grass (green)
   } else if (height < 7.0) {
     color = vec3(0.4, 0.6, 0.2); // Hills (olive)
-  } else if (height < 12.0) {
+  } else if (height < 11.0) {
     color = vec3(0.6, 0.4, 0.2); // Mountains (brown)
   } else {
     color = vec3(0.9, 0.9, 0.9); // Snow peaks (white)

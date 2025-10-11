@@ -10,6 +10,11 @@ const offset = "-5px"
 const handleStyleRight = { right: offset, backgroundColor: 'black', margin: 0, padding: 0, width: r, height: r };
 const handleStyleLeft = { left: offset, backgroundColor: 'black', margin: 0, padding: 0 , width: r, height: r };
 
+// Mode node specific handle styles with more offset
+const modeHandleOffset = "-14px"
+const modeHandleStyleRight = { right: modeHandleOffset, backgroundColor: 'black', margin: 0, padding: 0, width: r, height: r };
+const modeHandleStyleLeft = { left: modeHandleOffset, backgroundColor: 'black', margin: 0, padding: 0 , width: r, height: r };
+
 
 
 export function ModeNode({ data }) {
@@ -32,21 +37,33 @@ export function ModeNode({ data }) {
   };
 
   return (
-    <div className="card modeNode" style={{ width: '160px', height: 'auto', border: '2px solid #fff' }}>
-      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>Mode</div>
+    <div className="card modeNode" style={{ width: '160px', height: '120px', border: '2px solid #fff' }}>
+      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', height: '100%' }}>
+        <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px' }}>Mode</div>
         <select
           value={mode}
           onChange={handleModeChange}
-          style={{ width: '110px', marginBottom: '10px', padding: '5px', borderRadius: '4px', background: '#fff', color: '#000' }}
+          style={{ width: '110px', marginBottom: '8px', padding: '5px', borderRadius: '4px', background: '#fff', color: '#000' }}
         >
           <option value="union">Union</option>
           <option value="subtraction">Subtraction</option>
           <option value="intersection">Intersection</option>
         </select>
-        <Handle type="target" position={Position.Left} id="shape1" style={{ top: '34%', ...handleStyleLeft  }} />
-        <Handle type="target" position={Position.Left} id="shape2" style={{ top: '85%', ...handleStyleLeft }} />
-        <Handle type="source" position={Position.Right} id="render" style={{ top: '60%', ...handleStyleRight }} />
+        
+        {/* Top input - for base shape/mode */}
+        <div style={{ position: 'absolute', left: '8px', top: '20px', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>
+          Base
+        </div>
+        <Handle type="target" position={Position.Left} id="shape1" style={{ top: '30%', ...modeHandleStyleLeft  }} />
+        
+        {/* Bottom input - for operations on the base */}
+        <div style={{ position: 'absolute', left: '8px', bottom: '25px', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>
+          Operations
+        </div>
+        <Handle type="target" position={Position.Left} id="shapes" style={{ top: '80%', ...modeHandleStyleLeft }} />
+        
+        {/* Output */}
+        <Handle type="source" position={Position.Right} id="render" style={{ top: '50%', ...modeHandleStyleRight }} />
       </div>
     </div>
   );

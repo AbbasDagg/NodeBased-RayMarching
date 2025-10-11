@@ -54,6 +54,7 @@ export default function CustomEdge({
   
         {/* Circle at the start of the edge */}
         <circle
+          className="custom-edge-circle"
           cx={sourceX + offset} // Adjusted with offset
           cy={sourceY}
           fill="#fff"
@@ -64,6 +65,7 @@ export default function CustomEdge({
   
         {/* Circle at the end of the edge */}
         <circle
+          className="custom-edge-circle"
           cx={targetX - offset} // Adjusted with offset
           cy={targetY}
           fill="#fff"

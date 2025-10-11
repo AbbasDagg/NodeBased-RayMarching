@@ -114,7 +114,7 @@ const initialEdges = [
   { id: 'e7', source: '7', target: '8', sourceHandle: 'vector', targetHandle: 'position' },
   { id: 'e8', source: '7', target: '9', sourceHandle: 'vector', targetHandle: 'position' },
   { id: 'e9', source: '8', target: '10', sourceHandle: 'render', targetHandle: 'shape1' },
-  { id: 'e10', source: '9', target: '10', sourceHandle: 'render', targetHandle: 'shape2' },
+  { id: 'e10', source: '9', target: '10', sourceHandle: 'render', targetHandle: 'shapes' },
   { id: 'e11', source: '10', target: '11', sourceHandle: 'render', targetHandle: 'render' },
 
   // Right side connections
@@ -126,7 +126,7 @@ const initialEdges = [
   { id: 'e17', source: '17', target: '18', sourceHandle: 'vector', targetHandle: 'position' },
   { id: 'e18', source: '17', target: '19', sourceHandle: 'vector', targetHandle: 'position' },
   { id: 'e19', source: '18', target: '20', sourceHandle: 'render', targetHandle: 'shape1' },
-  { id: 'e20', source: '19', target: '20', sourceHandle: 'render', targetHandle: 'shape2' },
+  { id: 'e20', source: '19', target: '20', sourceHandle: 'render', targetHandle: 'shapes' },
   { id: 'e21', source: '20', target: '21', sourceHandle: 'render', targetHandle: 'render' }
 ];
 
@@ -209,25 +209,33 @@ function App() {
         console.log(`Copying node ID: ${nodeToCopy.id}`);
         console.log(`Generated new ID: ${newId}`);
   
+        // Create a completely new node object with deep copied data
         const newNode = {
-          ...nodeToCopy,
           id: newId,
-          position: { x: nodeToCopy.position.x + 20, y: nodeToCopy.position.y + 20 },
-          data: { ...nodeToCopy.data }, // Copy node data without connections
+          type: nodeToCopy.type,
+          position: { 
+            x: nodeToCopy.position.x + 20, 
+            y: nodeToCopy.position.y + 20 
+          },
+          data: JSON.parse(JSON.stringify(nodeToCopy.data)), // Deep copy to avoid any reference issues
+          selected: false, // Ensure it's not selected
+          dragging: false, // Ensure it's not dragging
         };
   
         console.log(`New node created with ID: ${newNode.id}, position: (${newNode.position.x}, ${newNode.position.y})`);
   
-        // Add the new node to the list of nodes
-        setNodes((nds) => nds.concat(newNode));
-        
-        // Do not copy any edges, the new node should have no connections
-        // Remove any existing connections for the new node, just in case
+        // First, ensure no edges exist for this ID (clean up any potential stale references)
         setEdges((eds) => {
-          const newEdges = eds.filter((edge) => edge.source !== newNode.id && edge.target !== newNode.id);
-          console.log(`New edges after removing connections for copied node:`, newEdges);
-          return newEdges;
+          const cleanedEdges = eds.filter((edge) => edge.source !== newId && edge.target !== newId);
+          console.log(`Cleaned edges before adding copied node:`, cleanedEdges);
+          return cleanedEdges;
         });
+        
+        // Add the new node to the list of nodes after a small delay to ensure edge cleanup completes
+        setTimeout(() => {
+          setNodes((nds) => [...nds, newNode]);
+          console.log(`Added copied node with ID: ${newId}`);
+        }, 10);
   
         setContextMenu({ ...contextMenu, visible: false });
       }
@@ -333,12 +341,14 @@ function App() {
               .filter(edge => edge.target === node.id && edge.targetHandle === 'shape1')
               .map(edge => edge.source)[0];
   
-            const shape2NodeId = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'shape2')
-              .map(edge => edge.source)[0];
-  
+            const shapesNodeIds = edges
+              .filter(edge => edge.target === node.id && edge.targetHandle === 'shapes')
+              .map(edge => edge.source);
+
             if (shape1NodeId) traverse(shape1NodeId, node.data.mode);
-            if (shape2NodeId) traverse(shape2NodeId, node.data.mode);
+            shapesNodeIds.forEach(shapeNodeId => {
+              if (shapeNodeId) traverse(shapeNodeId, node.data.mode);
+            });
           }
         };
   
@@ -351,16 +361,18 @@ function App() {
           const shape1NodeId = edges
             .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'shape1')
             .map(edge => edge.source)[0];
-  
-          const shape2NodeId = edges
-            .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'shape2')
-            .map(edge => edge.source)[0];
-  
+
+          const shapesNodeIds = edges
+            .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'shapes')
+            .map(edge => edge.source);
+
           if (shape1NodeId) traverse(shape1NodeId, modeNode.data.mode);
-          if (shape2NodeId) traverse(shape2NodeId, modeNode.data.mode);
-        });
-  
-        shapes.forEach(shapeData => {
+          
+          // Process all shapes connected to the "shapes" handle
+          shapesNodeIds.forEach(shapeNodeId => {
+            if (shapeNodeId) traverse(shapeNodeId, modeNode.data.mode);
+          });
+        });        shapes.forEach(shapeData => {
           threeSceneRef.current.addShape(shapeData, layerIndex);
         });
       });
@@ -403,11 +415,11 @@ function App() {
       const validConnections = {
         vectorNode: ['position', 'size', 'rotation'],
         colorNode: ['color'],
-        sphereNode: ['shape1', 'shape2'],
-        torusNode: ['shape1', 'shape2'],
-        boxNode: ['shape1', 'shape2'],
-        capsuleNode: ['shape1', 'shape2'],
-        modeNode: ['shape1', 'shape2', 'render'],
+        sphereNode: ['shape1', 'shapes'],
+        torusNode: ['shape1', 'shapes'],
+        boxNode: ['shape1', 'shapes'],
+        capsuleNode: ['shape1', 'shapes'],
+        modeNode: ['shape1', 'shapes', 'render'],
         motorNode: ['position', 'size', 'rotation'],
       };
   
@@ -417,8 +429,12 @@ function App() {
       if (sourceNode && targetNode) {
         const validSourceHandles = validConnections[sourceNode.type];
         if (validSourceHandles && validSourceHandles.includes(targetHandle)) {
+          // Check if multiple connections are allowed for this specific handle
+          const allowMultipleConnections = targetNode.type === 'modeNode' && targetHandle === 'shapes';
+          
           const existingConnection = edges.find((edge) => edge.target === target && edge.targetHandle === targetHandle);
-          if (!existingConnection) {
+          
+          if (!existingConnection || allowMultipleConnections) {
             setEdges((eds) => addEdge(params, eds));
             handleRenderScene();
           } else {
@@ -447,11 +463,11 @@ const onReconnect = useCallback((oldEdge, newConnection) => {
   const validConnections = {
     vectorNode: ['position', 'size', 'rotation'],
     colorNode: ['color'],
-    sphereNode: ['shape1', 'shape2'],
-    torusNode: ['shape1', 'shape2'],
-    boxNode: ['shape1', 'shape2'],
-    capsuleNode: ['shape1', 'shape2'],
-    modeNode: ['shape1', 'shape2', 'render'],
+    sphereNode: ['shape1', 'shapes'],
+    torusNode: ['shape1', 'shapes'],
+    boxNode: ['shape1', 'shapes'],
+    capsuleNode: ['shape1', 'shapes'],
+    modeNode: ['shape1', 'shapes', 'render'],
     motorNode: ['position', 'size', 'rotation'],
   };
 

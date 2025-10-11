@@ -308,7 +308,7 @@ export function generateSimpleScene() {
     source: shape2Id.toString(),
     target: modeId.toString(),
     sourceHandle: 'render',
-    targetHandle: 'shape2'
+    targetHandle: 'shapes'
   });
   edges.push({
     id: `e${edges.length + 1}`,
@@ -432,7 +432,7 @@ export function generateOriginalSimpleScene() {
     
     // Mode and render connections
     { id: 'e9', source: '8', target: '10', sourceHandle: 'render', targetHandle: 'shape1' },
-    { id: 'e10', source: '9', target: '10', sourceHandle: 'render', targetHandle: 'shape2' },
+    { id: 'e10', source: '9', target: '10', sourceHandle: 'render', targetHandle: 'shapes' },
     { id: 'e11', source: '10', target: '11', sourceHandle: 'render', targetHandle: 'render' }
   ];
   
@@ -571,7 +571,7 @@ export function generateComplexScene() {
       source: shapeIds[i].toString(),
       target: modeId.toString(),
       sourceHandle: 'render',
-      targetHandle: 'shape2'
+      targetHandle: 'shapes'
     });
     
     currentOutputId = modeId;
@@ -670,7 +670,7 @@ export function generateOriginalComplexScene() {
     
     // Connect first mode result and torus to second mode
     { id: 'e16', source: '10', target: '17', sourceHandle: 'render', targetHandle: 'shape1' },
-    { id: 'e17', source: '16', target: '17', sourceHandle: 'render', targetHandle: 'shape2' },
+    { id: 'e17', source: '16', target: '17', sourceHandle: 'render', targetHandle: 'shapes' },
     { id: 'e18', source: '17', target: '18', sourceHandle: 'render', targetHandle: 'render' }
   ];
   
@@ -831,7 +831,7 @@ export function generateVariations(existingNodes) {
       });
     } else if (['sphereNode', 'boxNode', 'torusNode', 'capsuleNode'].includes(node.type)) {
       // Sometimes change the shape type entirely
-      if (Math.random() < 0.3) { // 30% chance to change shape
+      if (Math.random() < 0.4) { // 40% chance to change shape
         const newShape = getRandomShape();
         variations.push({
           ...node,

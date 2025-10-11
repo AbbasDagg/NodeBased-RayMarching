@@ -478,6 +478,14 @@
       stroke-dashoffset: -12;
     }
   }
+
+  /* Edge reconnection circles */
+  .custom-edge-circle {
+    fill: #fff !important;
+    stroke-width: 4px !important;
+    opacity: 1 !important;
+    pointer-events: all !important;
+  }
   
   /* Edge button (cross) styling */
   .edgebutton {

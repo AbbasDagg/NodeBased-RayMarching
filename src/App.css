@@ -126,6 +126,24 @@
     transition-duration: 0.3s;
 }
 
+/* Terrain button styles */
+.terrain-btn {
+    background: linear-gradient(135deg, #8b4513 0%, #d2691e 100%);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3);
+}
+
+.terrain-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(139, 69, 19, 0.6);
+    background: linear-gradient(135deg, #d2691e 0%, #8b4513 100%);
+}
+
 /* Button style 3 */
 .pshdown1 {
     border: none;

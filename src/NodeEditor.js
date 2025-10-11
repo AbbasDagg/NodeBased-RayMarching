@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useReactFlow } from 'reactflow';
 import './App.css'; // Import the CSS file
-import { generateSimpleScene, generateComplexScene, generateVariations, generateRandomSingleShape } from './ProceduralGeneration';
+import { generateSimpleScene, generateComplexScene, generateVariations, generateRandomSingleShape, generateProceduralTerrain } from './ProceduralGeneration';
 //import { add } from 'three/webgpu';
 //import { add } from 'three/webgpu';
 
@@ -211,6 +211,23 @@ function NodeEditor({ setNodes, isFullscreen }) {
     }
   };
 
+  const handleGenerateTerrain = () => {
+    try {
+      saveToHistory(); // Save current state before generating
+      console.log('Generating procedural terrain...');
+      const { nodes, edges } = generateProceduralTerrain();
+      console.log('Terrain generated, setting nodes and edges...');
+      console.log('Nodes:', nodes);
+      console.log('Edges:', edges);
+      reactFlowInstance.setNodes(nodes);
+      reactFlowInstance.setEdges(edges);
+      setNodeCount(nodes.length);
+      console.log('Procedural terrain applied successfully');
+    } catch (error) {
+      console.error('Error in handleGenerateTerrain:', error);
+    }
+  };
+
   const generateVariationsFromCurrent = () => {
     const currentNodes = reactFlowInstance.getNodes();
     const currentEdges = reactFlowInstance.getEdges();
@@ -282,9 +299,16 @@ function NodeEditor({ setNodes, isFullscreen }) {
         <button 
           className={`glowing ${isFullscreen ? 'hidden' : ''}`} 
           onClick={generateSingleShapeScene} 
-          style={{ flex: '1 1 18%', fontSize: '12px', padding: '8px 4px' }}
+          style={{ flex: '1 1 15%', fontSize: '12px', padding: '8px 4px' }}
         >
           Random Shape
+        </button>
+        <button 
+          className={`terrain-btn ${isFullscreen ? 'hidden' : ''}`} 
+          onClick={handleGenerateTerrain} 
+          style={{ flex: '1 1 18%', fontSize: '12px', padding: '8px 4px' }}
+        >
+          Generate Terrain
         </button>
         <button 
           className={`delete ${isFullscreen ? 'hidden' : ''}`} 

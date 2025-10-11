@@ -55,6 +55,38 @@ function shouldAddMotor() {
 }
 
 /**
+ * Simple Perlin-like noise function for terrain generation
+ */
+function simpleNoise(x, z, seed = 12345) {
+  // Simple pseudo-random noise based on coordinates
+  let value = Math.sin(x * 0.1 + seed) * Math.cos(z * 0.1 + seed * 2);
+  value += Math.sin(x * 0.05 + seed * 3) * Math.cos(z * 0.05 + seed * 4) * 0.5;
+  value += Math.sin(x * 0.2 + seed * 5) * Math.cos(z * 0.2 + seed * 6) * 0.25;
+  return value;
+}
+
+/**
+ * Get color based on height (terrain-like coloring)
+ */
+function getTerrainColor(height, isAboveGround) {
+  if (isAboveGround) {
+    // Above ground - white/snow-like for bumps going up
+    if (height > 0.5) {
+      return '#f0f8ff'; // Alice blue (subtle snow-like)
+    } else {
+      return '#e6f3ff'; // Very light blue-white (light snow)
+    }
+  } else {
+    // Below ground - blue tones for areas going down
+    if (height < -0.5) {
+      return '#4169e1'; // Royal blue for deeper areas
+    } else {
+      return '#6495ed'; // Cornflower blue for shallow areas
+    }
+  }
+}
+
+/**
  * Generates random motor node data
  */
 function generateRandomMotorData() {
@@ -804,6 +836,261 @@ export function generateRandomSingleShape() {
   });
 
   console.log(`Generated single ${shape.type}: ${nodes.length} nodes, ${edges.length} edges`);
+  return { nodes, edges };
+}
+
+/**
+ * Generates a procedural terrain using Perlin noise
+ */
+export function generateProceduralTerrain() {
+  let nodeId = 1;
+  const nodes = [];
+  const edges = [];
+  
+  // Base plane (20x8x20, brown ground - 2x bigger on all axes)
+  const basePlaneId = nodeId++;
+  const basePlaneColorId = nodeId++;
+  const basePlaneVectorId = nodeId++;
+  const basePlaneSizeId = nodeId++;
+  
+  // Base plane components - positioned above the shape grid
+  
+  // Base plane size (20x1x20 - much thinner)
+  nodes.push({
+    id: basePlaneSizeId.toString(),
+    type: 'vectorNode',
+    position: { x: 700, y: -600 },
+    data: { x: 20, y: 1, z: 20 }
+  });
+  
+  // Base plane position
+  nodes.push({
+    id: basePlaneVectorId.toString(),
+    type: 'vectorNode',
+    position: { x: 950, y: -600 },
+    data: { x: 0, y: 0, z: 0 }
+  });
+  
+  // Base plane color (green ground)
+  nodes.push({
+    id: basePlaneColorId.toString(),
+    type: 'colorNode',
+    position: { x: 1200, y: -600 },
+    data: { color: '#228b22' } // Forest green
+  });
+  
+  // Base plane (box) - positioned to connect easily
+  nodes.push({
+    id: basePlaneId.toString(),
+    type: 'boxNode',
+    position: { x: 1450, y: -600 },
+    data: { shape: 'box' }
+  });
+  
+  // Connect base plane components
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: basePlaneColorId.toString(),
+    target: basePlaneId.toString(),
+    sourceHandle: 'color',
+    targetHandle: 'color'
+  });
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: basePlaneVectorId.toString(),
+    target: basePlaneId.toString(),
+    sourceHandle: 'vector',
+    targetHandle: 'position'
+  });
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: basePlaneSizeId.toString(),
+    target: basePlaneId.toString(),
+    sourceHandle: 'vector',
+    targetHandle: 'size'
+  });
+  
+  // Generate 9 shapes in 3x3 grid with Perlin noise heights
+  const gridSize = 3;
+  const spacing = 8; // Distance between shapes (adjusted for 20x20 plane)
+  const maxHeight = 1; // Small bumps: max 1 unit above/below surface
+  const seed = Math.random() * 10000;
+  
+  const aboveGroundShapes = [];
+  const belowGroundShapes = [];
+  
+  for (let x = 0; x < gridSize; x++) {
+    for (let z = 0; z < gridSize; z++) {
+      const worldX = (x - 1) * spacing; // Center around 0, fits within -8 to +8 (20 wide)
+      const worldZ = (z - 1) * spacing; // Center around 0, fits within -8 to +8 (20 deep)
+      
+      // Get noise height - small bumps only
+      const noiseHeight = simpleNoise(worldX, worldZ, seed);
+      const clampedHeight = Math.max(-maxHeight, Math.min(maxHeight, noiseHeight * 1.5));
+      
+      const isAboveGround = clampedHeight > 0;
+      const shapeType = getRandomShape();
+      
+      // Create shape components
+      const shapeId = nodeId++;
+      const colorId = nodeId++;
+      const positionId = nodeId++;
+      const sizeId = nodeId++;
+      
+      // Color based on terrain
+      const terrainColor = getTerrainColor(clampedHeight, isAboveGround);
+      
+      // Organize each shape group in a clean 2x2 grid layout
+      const baseX = 700 + x * 600; // 600px horizontal spacing between shape groups
+      const baseY = 50 + z * 550;  // 550px vertical spacing between rows
+      
+      // Size vector (top-left) - 1x1x1 cubes
+      nodes.push({
+        id: sizeId.toString(),
+        type: 'vectorNode',
+        position: { x: baseX, y: baseY },
+        data: { x: 1, y: 1, z: 1 } // Small 1x1x1 bumps
+      });
+      
+      // Color node (bottom-left) 
+      nodes.push({
+        id: colorId.toString(),
+        type: 'colorNode',
+        position: { x: baseX, y: baseY + 230 },
+        data: { color: terrainColor }
+      });
+      
+      // Position vector (top-right)
+      nodes.push({
+        id: positionId.toString(),
+        type: 'vectorNode',
+        position: { x: baseX + 250, y: baseY },
+        data: { x: worldX, y: clampedHeight, z: worldZ }
+      });
+      
+      // Shape node (bottom-right, larger)
+      nodes.push({
+        id: shapeId.toString(),
+        type: shapeType.type,
+        position: { x: baseX + 250, y: baseY + 140 },
+        data: shapeType.data
+      });
+      
+      // Connect shape components
+      edges.push({
+        id: `e${edges.length + 1}`,
+        source: colorId.toString(),
+        target: shapeId.toString(),
+        sourceHandle: 'color',
+        targetHandle: 'color'
+      });
+      edges.push({
+        id: `e${edges.length + 1}`,
+        source: positionId.toString(),
+        target: shapeId.toString(),
+        sourceHandle: 'vector',
+        targetHandle: 'position'
+      });
+      edges.push({
+        id: `e${edges.length + 1}`,
+        source: sizeId.toString(),
+        target: shapeId.toString(),
+        sourceHandle: 'vector',
+        targetHandle: 'size'
+      });
+      
+      // Categorize shapes
+      if (isAboveGround) {
+        aboveGroundShapes.push(shapeId);
+      } else {
+        belowGroundShapes.push(shapeId);
+      }
+    }
+  }
+  
+  // Create subtraction mode node for below-ground shapes
+  const subtractionModeId = nodeId++;
+  nodes.push({
+    id: subtractionModeId.toString(),
+    type: 'modeNode',
+    position: { x: 2600, y: 300 },
+    data: { mode: 'subtraction' }
+  });
+  
+  // Connect base plane to subtraction mode (Base handle)
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: basePlaneId.toString(),
+    target: subtractionModeId.toString(),
+    sourceHandle: 'render',
+    targetHandle: 'shape1'
+  });
+  
+  // Connect below-ground shapes to subtraction mode (Operations handle)
+  belowGroundShapes.forEach(shapeId => {
+    edges.push({
+      id: `e${edges.length + 1}`,
+      source: shapeId.toString(),
+      target: subtractionModeId.toString(),
+      sourceHandle: 'render',
+      targetHandle: 'shapes'
+    });
+  });
+  
+  // Create union mode node for above-ground shapes (chained after subtraction)
+  let finalOutputId = subtractionModeId;
+  
+  if (aboveGroundShapes.length > 0) {
+    const unionModeId = nodeId++;
+    nodes.push({
+      id: unionModeId.toString(),
+      type: 'modeNode',
+      position: { x: 2850, y: 300 },
+      data: { mode: 'union' }
+    });
+    
+    // Connect subtraction result to union mode (Base handle)
+    edges.push({
+      id: `e${edges.length + 1}`,
+      source: subtractionModeId.toString(),
+      target: unionModeId.toString(),
+      sourceHandle: 'render',
+      targetHandle: 'shape1'
+    });
+    
+    // Connect above-ground shapes to union mode (Operations handle)
+    aboveGroundShapes.forEach(shapeId => {
+      edges.push({
+        id: `e${edges.length + 1}`,
+        source: shapeId.toString(),
+        target: unionModeId.toString(),
+        sourceHandle: 'render',
+        targetHandle: 'shapes'
+      });
+    });
+    
+    finalOutputId = unionModeId;
+  }
+  
+  // Final render node
+  const renderId = nodeId++;
+  nodes.push({
+    id: renderId.toString(),
+    type: 'renderNode',
+    position: { x: 3100, y: 300 },
+    data: { label: 'Render', layerId: 'terrain-layer' }
+  });
+  
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: finalOutputId.toString(),
+    target: renderId.toString(),
+    sourceHandle: 'render',
+    targetHandle: 'render'
+  });
+  
+  console.log(`Generated procedural terrain: ${nodes.length} nodes, ${edges.length} edges`);
+  console.log(`Above ground shapes: ${aboveGroundShapes.length}, Below ground: ${belowGroundShapes.length}`);
   return { nodes, edges };
 }
 

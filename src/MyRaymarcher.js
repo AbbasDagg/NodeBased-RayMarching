@@ -4,9 +4,6 @@ var lighting = "#ifdef ENVMAP_TYPE_CUBE_UV\n\n#define PI 3.141592653589793\n#def
 
 
 // Change SDFs here
-var raymarcherFragment = "precision highp float;\nprecision highp int;\n\nstruct Bounds {\n  vec3 center;\n  float radius;\n};\n\nstruct Entity {\n  vec3 color;\n  int operation;\n  vec3 position;\n  vec4 rotation;\n  vec3 scale;\n  int shape;\n};\n\nstruct SDF {\n  float distance;\n  vec3 color;\n};\n\nout vec4 fragColor;\nin vec3 ray;\nuniform float blending;\nuniform Bounds bounds;\nuniform vec3 cameraDirection;\nuniform float cameraFar;\nuniform float cameraFov;\nuniform float cameraNear;\nuniform vec3 cameraPosition;\nuniform Entity entities[MAX_ENTITIES];\nuniform sampler2D envMap;\nuniform float envMapIntensity;\nuniform float metalness;\nuniform int numEntities;\nuniform vec2 resolution;\nuniform float roughness;\n\n#define saturate(a) clamp(a, 0.0, 1.0)\n#define texture2D texture\n#include <cube_uv_reflection_fragment>\n#include <encodings_pars_fragment>\n#include <lighting>\n\nvec3 applyQuaternion(const in vec3 p, const in vec4 q) {\n  return p + 2.0 * cross(-q.xyz, cross(-q.xyz, p) + q.w * p);\n}\n\nfloat sdBox(const in vec3 p, const in vec3 r) {\n  vec3 q = abs(p)-r;\n  return length(max(q,0.0))+min(max(q.x,max(q.y,q.z)),0.0);\n}\n\nfloat sdCapsule(in vec3 p, const in vec3 r) {\n  p.y -= clamp(p.y,-r.y+r.x,r.y-r.x);\n  return length(p)-r.x;\n}\n\nfloat sdEllipsoid(const in vec3 p, const in vec3 r) {\n  float k0 = length(p/r);\n  float k1 = length(p/(r*r));\n  return k0*(k0-1.0)/k1;\n}\n\nfloat sdSphere(const in vec3 p, const in float r) {\n  return length(p)-r;\n}\n\nSDF sdEntity(in vec3 p, const in Entity e) {\n  float distance;\n  p = applyQuaternion(p - e.position, normalize(e.rotation));\n  switch (e.shape) {\n    default:\n    case 0:\n      distance = sdBox(p, e.scale * 0.5 - vec3(0.1)) - 0.1;\n      break;\n    case 1:\n      distance = sdCapsule(p, e.scale * 0.5);\n      break;\n    case 2:\n      distance = sdEllipsoid(p, e.scale * 0.5);\n      break;\n  }\n  return SDF(distance, e.color);\n}\n\nSDF opSmoothUnion(const in SDF a, const in SDF b, const in float k) {\n  float h = saturate(0.5 + 0.5 * (b.distance - a.distance) / k);\n  return SDF(\n    mix(b.distance, a.distance, h) - k*h*(1.0-h),\n    mix(b.color, a.color, h)\n  );\n}\n\nSDF opSmoothSubtraction(const in SDF a, const in SDF b, const in float k) {\n  float h = saturate(0.5 - 0.5 * (a.distance + b.distance) / k);\n  return SDF(\n    mix(a.distance, -b.distance, h) + k*h*(1.0-h),\n    mix(a.color, b.color, h)\n  );\n}\n\nSDF opSmoothIntersection(const in SDF a, const in SDF b, const in float k) {\n  float h = saturate(0.5 + 0.5 * (b.distance - a.distance) / k);\n  return SDF(\n    mix(a.distance, b.distance, h) + k*h*(1.0-h),\n    mix(a.color, b.color, h)\n  );\n}\n\nSDF map(const in vec3 p) {\n  SDF scene = sdEntity(p, entities[0]);\n  for (int i = 1, l = min(numEntities, MAX_ENTITIES); i < l; i++) {\n    switch (entities[i].operation) {\n      default:\n      case 0:\n        scene = opSmoothUnion(scene, sdEntity(p, entities[i]), blending);\n        break;\n      case 1:\n        scene = opSmoothSubtraction(scene, sdEntity(p, entities[i]), blending);\n        break;\n      case 2:\n        scene = opSmoothIntersection(scene, sdEntity(p, entities[i]), blending);\n        break;\n    }\n  }\n  return scene;\n}\n\nvec3 getNormal(const in vec3 p, const in float d) {\n  const vec2 o = vec2(0.001, 0);\n  return normalize(\n    d - vec3(\n      map(p - o.xyy).distance,\n      map(p - o.yxy).distance,\n      map(p - o.yyx).distance\n    )\n  );\n}\n\n#ifdef CONETRACING\nvoid march(inout vec4 color, inout float distance) {\n  float closest = MAX_DISTANCE;\n  float coverage = 1.0;\n  float coneRadius = (2.0 * tan(cameraFov / 2.0)) / resolution.y;\n  for (int i = 0; i < MAX_ITERATIONS && distance < MAX_DISTANCE; i++) {\n    vec3 position = cameraPosition + ray * distance;\n    float distanceToBounds = sdSphere(position - bounds.center, bounds.radius);\n    if (distanceToBounds > 0.1) {\n      distance += distanceToBounds;\n    } else {\n      SDF step = map(position);\n      float cone = coneRadius * distance;\n      if (step.distance < cone) {\n        if (closest > distance) {\n          closest = distance;\n        }\n        float alpha = smoothstep(cone, -cone, step.distance);\n        vec3 pixel = getLight(position, getNormal(position, step.distance), step.color);\n        color.rgb += coverage * (alpha * pixel);\n        coverage *= (1.0 - alpha);\n        if (coverage <= MIN_COVERAGE) {\n          break;\n        }\n      }\n      distance += max(abs(step.distance), MIN_DISTANCE);\n    }\n  }\n  distance = closest;\n  color.a = 1.0 - (max(coverage - MIN_COVERAGE, 0.0) / (1.0 - MIN_COVERAGE));\n}\n#else\nvoid march(inout vec4 color, inout float distance) {\n  for (int i = 0; i < MAX_ITERATIONS && distance < MAX_DISTANCE; i++) {\n    vec3 position = cameraPosition + ray * distance;\n    float distanceToBounds = sdSphere(position - bounds.center, bounds.radius);\n    if (distanceToBounds > 0.1) {\n      distance += distanceToBounds;\n    } else {\n      SDF step = map(position);\n      if (step.distance <= MIN_DISTANCE) {\n        color = vec4(getLight(position, getNormal(position, step.distance), step.color), 1.0);\n        break;\n      }\n      distance += step.distance;\n    }\n  }\n}\n#endif\n\nvoid main() {\n  vec4 color = vec4(0.0);\n  float distance = cameraNear;\n  march(color, distance);\n  fragColor = saturate(LinearTosRGB(color));\n  float z = (distance >= MAX_DISTANCE) ? cameraFar : (distance * dot(cameraDirection, ray));\n  float ndcDepth = -((cameraFar + cameraNear) / (cameraNear - cameraFar)) + ((2.0 * cameraFar * cameraNear) / (cameraNear - cameraFar)) / z;\n  gl_FragDepth = ((gl_DepthRange.diff * ndcDepth) + gl_DepthRange.near + gl_DepthRange.far) / 2.0;\n}\n";
-
-// Change SDFs here
 var raymarcherFragment = `
 precision highp float;
 precision highp int;
@@ -23,6 +20,28 @@ struct Entity {
   vec4 rotation;
   vec3 scale;
   int shape;
+  // Terrain parameters
+  float octaves;
+  float amplitude;
+  float clampYMin;
+  float clampYMax;
+  float offsetX;
+  float offsetZ;
+  float seed;
+  // Displacement clamp (applies to shape-surface displacement)
+  float dispClampMin;
+  float dispClampMax;
+  // Shaping controls
+  float peakGain;   // >1 magnifies positive (mountain) displacement
+  float valleyGain; // >1 magnifies negative (sea) displacement
+  // Color ramp toggle
+  float useColorRamp;
+  // User smoothing strength [0..1]
+  float smoothingStrength;
+  // Apply displacement only within this local Y range (with feather)
+  float dispApplyMinY;
+  float dispApplyMaxY;
+  float dispFeather;
 };
 
 struct SDF {
@@ -109,38 +128,107 @@ float simpleNoise(vec2 p, float seed) {
   return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
 }
 
+// ===== Perlin2D (gradient-based noise) =====
+// More continuous derivatives than value noise; smoother, more natural look
+
+// random2: deterministic hash from 2D grid coordinate
+vec2 random2(vec2 p) {
+  return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453);
+}
+
+// grad2: compute gradient vector at corner p for Perlin noise
+vec2 grad2(vec2 p) {
+  vec2 h = random2(p);
+  return normalize(h * 2.0 - 1.0); // Map [0,1] to [-1,1] and normalize
+}
+
+// fade2: smoothstep-like fade function (Perlin's improved polynomial)
+vec2 fade2(vec2 t) {
+  return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+}
+
+// perlin2: single octave of 2D Perlin noise
+float perlin2(vec2 p, float seed) {
+  // Apply seed offset to sample different region
+  float sx = fract(sin(seed * 12.9898) * 43758.5453);
+  float sy = fract(sin(seed * 78.2330) * 12345.6789);
+  vec2 seedOffset = vec2(sx, sy) * 64.0;
+  
+  vec2 pp = p + seedOffset;
+  vec2 i = floor(pp);
+  vec2 f = fract(pp);
+  
+  // Get gradients at corners
+  vec2 g00 = grad2(i + vec2(0.0, 0.0));
+  vec2 g10 = grad2(i + vec2(1.0, 0.0));
+  vec2 g01 = grad2(i + vec2(0.0, 1.0));
+  vec2 g11 = grad2(i + vec2(1.0, 1.0));
+  
+  // Compute dot products
+  float n00 = dot(g00, f - vec2(0.0, 0.0));
+  float n10 = dot(g10, f - vec2(1.0, 0.0));
+  float n01 = dot(g01, f - vec2(0.0, 1.0));
+  float n11 = dot(g11, f - vec2(1.0, 1.0));
+  
+  // Interpolate
+  vec2 u = fade2(f);
+  float nx0 = mix(n00, n10, u.x);
+  float nx1 = mix(n01, n11, u.x);
+  return mix(nx0, nx1, u.y);
+}
+
+// fbm2: Fractional Brownian Motion using Perlin noise
+float fbm2(vec2 p, float seed, int octaves, float amplitude) {
+  float sum = 0.0;
+  float amp = amplitude;
+  float freq = 1.0;
+  
+  for (int i = 0; i < 8; i++) {
+    if (i >= octaves) break;
+    sum += perlin2(p * freq, seed + float(i) * 12345.0) * amp;
+    freq *= 2.0;
+    amp *= 0.5;
+  }
+  
+  return sum;
+}
+
 // sdTerrainWithColor: heightfield terrain SDF (distance = y - height)
-// entityColor encodes the world seed (via hex -> vec3 0..1). Same seed -> same terrain
-SDF sdTerrainWithColor(const in vec3 p, const in vec3 scale, const in vec3 entityPos, const in vec3 entityColor) {
-  // entityColor is 0..1 vec3 from hex; unpack to a stable integer-ish seed
-  float terrainSeed = floor(entityColor.r * 255.0) + floor(entityColor.g * 255.0) * 256.0 + floor(entityColor.b * 255.0) * 65536.0;
+// Now uses entity parameters for full control via UI nodes
+// p = world coordinates (for heightfield distance), plocal = local coordinates (for noise sampling)
+SDF sdTerrainWithColor(const in vec3 p, const in vec3 plocal, const in Entity e) {
+  // Extract terrain seed from entity color
+  float terrainSeed = floor(e.color.r * 255.0) + floor(e.color.g * 255.0) * 256.0 + floor(e.color.b * 255.0) * 65536.0;
   
-  // Increase feature frequency a bit for more variety while keeping smoothness
-  vec2 noiseCoord = p.xz * 0.03;
+  // Apply scroll offsets in local space (offsetX/Z control panning through noise field)
+  // Use LOCAL coordinates for noise sampling so pattern stays fixed to shape
+  vec2 scrolledCoord = plocal.xz + vec2(e.offsetX, e.offsetZ);
   
-  // Multi-octave value noise (fBm-like). Same seed yields same terrain; different seed offsets the sampling region
-  // Separate base water and noiseSum so we can scale vertical range cleanly
-  float baseLevel = -3.0;                     // Water level baseline
-  float heightScale = 1.35;                   // Increase vertical range slightly (tweakable)
-  float noiseSum = 0.0;
-  noiseSum += simpleNoise(noiseCoord, terrainSeed) * 8.0;                    // Base terrain
-  noiseSum += simpleNoise(noiseCoord * 2.0, terrainSeed + 123.0) * 4.0;      // Hills  
-  noiseSum += simpleNoise(noiseCoord * 4.0, terrainSeed + 456.0) * 2.0;      // Medium features
-  noiseSum += simpleNoise(noiseCoord * 8.0, terrainSeed + 789.0) * 1.0;      // Surface details
-  noiseSum += simpleNoise(noiseCoord * 16.0, terrainSeed + 1337.0) * 0.5;    // Fine details (subtle)
-  float height = baseLevel + noiseSum * heightScale;
+  // Base noise frequency
+  vec2 noiseCoord = scrolledCoord * 0.03;
   
-  // Allow more range so peaks can reach snow more often
-  height = clamp(height, -12.0, 24.0);
+  // Use Perlin fBm with entity-controlled octaves and amplitude
+  int octaves = int(e.octaves);
+  float amplitude = e.amplitude;
   
-  // Height-based coloring - MAXIMUM WATER  
+  // Generate terrain height using Perlin fBm
+  float baseLevel = -3.0;
+  float heightScale = 8.0; // Base scale for first octave
+  float noiseSum = fbm2(noiseCoord, terrainSeed, octaves, heightScale * amplitude);
+  
+  float height = baseLevel + noiseSum;
+  
+  // Clamp height using entity parameters
+  height = clamp(height, e.clampYMin, e.clampYMax);
+  
+  // Height-based coloring
   vec3 color;
   if (height < -5.0) {
     color = vec3(0.0, 0.1, 0.4); // Very deep water (dark blue)
   } else if (height < -2.0) {
     color = vec3(0.0, 0.3, 0.7); // Deep water (blue)
   } else if (height < 1.0) {
-    color = vec3(0.2, 0.5, 0.9); // Shallow water (light blue) - EXPANDED
+    color = vec3(0.2, 0.5, 0.9); // Shallow water (light blue)
   } else if (height < 2.5) {
     color = vec3(0.8, 0.7, 0.5); // Beach/sand (tan)
   } else if (height < 5.0) {
@@ -153,22 +241,65 @@ SDF sdTerrainWithColor(const in vec3 p, const in vec3 scale, const in vec3 entit
     color = vec3(0.9, 0.9, 0.9); // Snow peaks (white)
   }
   
-  // Create terrain as heightfield: distance to surface is (y - height)  
-  float distance = p.y - height; // Proper heightfield SDF
+  // Create terrain as heightfield: distance to surface is (y - height)
+  // Use WORLD coordinates for distance calculation (p.y not plocal.y)
+  float distance = p.y - height;
   
   return SDF(distance, color);
 }
 
+// Apply terrain displacement to any shape's surface
+// Compute terrain displacement amount and its application weight (local-space sampling)
+// Returns vec2(displacementAfterWeight, weight)
+vec2 terrainDisplacementAndWeight(const in vec3 plocal, const in Entity e) {
+  // Use the seed directly from the entity
+  float terrainSeed = e.seed;
+  
+  // Apply scroll offsets in local space
+  vec2 scrolledCoord = plocal.xz + vec2(e.offsetX, e.offsetZ);
+  
+  // Sample noise in local coordinates
+  vec2 noiseCoord = scrolledCoord * 0.05;
+  
+  // Octaves are provided by entity (from node or debug override)
+  int octaves = int(e.octaves + 0.5);
+  float amplitude = e.amplitude;
+  
+  // Generate displacement amount using Perlin fBm
+  float displacementScale = 1.5; // balanced default scale
+  float displacement = fbm2(noiseCoord, terrainSeed, octaves, displacementScale * amplitude);
+  
+  // Shape mountains vs seas (linear gain only)
+  displacement = (displacement >= 0.0)
+    ? (displacement * e.peakGain)
+    : (displacement * e.valleyGain);
+  // Clamp the displacement to requested range (independent from height clamps)
+  displacement = clamp(displacement, e.dispClampMin, e.dispClampMax);
+
+  // Compute apply weight within a specified local-Y band with optional feathering
+  float weight = 1.0;
+  if (e.dispApplyMaxY > e.dispApplyMinY) {
+    float f = max(e.dispFeather, 0.0001);
+    float wLow = smoothstep(e.dispApplyMinY, e.dispApplyMinY + f, plocal.y);
+    float wHigh = 1.0 - smoothstep(e.dispApplyMaxY - f, e.dispApplyMaxY, plocal.y);
+    weight = clamp(wLow * wHigh, 0.0, 1.0);
+  }
+  return vec2(displacement * weight, weight);
+}
+
 SDF sdEntity(in vec3 p, const in Entity e) {
   float distance;
+  vec3 outColor = e.color;
   
-  // Special case for terrain - DON'T apply transformations, use world coordinates
+  // Special case for dedicated terrain heightfield (shape == 4)
   if (e.shape == 4) {
-    return sdTerrainWithColor(p, e.scale, e.position, e.color); // Pass original world p
+    vec3 plocal = applyQuaternion(p - e.position, normalize(e.rotation));
+    return sdTerrainWithColor(p, plocal, e); // Pass both world and local coordinates
   }
   
   // For all other shapes, apply normal transformations
   p = applyQuaternion(p - e.position, normalize(e.rotation));
+  
   switch (e.shape) {
     default:
     case 0:
@@ -184,7 +315,68 @@ SDF sdEntity(in vec3 p, const in Entity e) {
       distance = sdTorus(p, e.scale.xy * 0.5);
       break;
   }
-  return SDF(distance, e.color);
+  
+  // Apply displacement only when octaves > 0 (i.e., TerrainParams connected or debug override)
+  int ocount = int(e.octaves + 0.5);
+  if (ocount > 0) {
+    // Compute displacement and weight; optionally smooth when shaping breaks smoothness
+    vec2 dw0 = terrainDisplacementAndWeight(p, e);
+    float disp = dw0.x;
+    float weight = dw0.y;
+    // Adaptive smoothing based on user smoothingStrength (0..1); cheap 3-tap for low levels, 5-tap for high
+    float smLevel = saturate(e.smoothingStrength);
+    if (smLevel > 0.01) {
+      float sigma = mix(0.2, 1.2, smLevel);
+      if (smLevel < 0.34) {
+        // 3-tap (center + X + Z)
+        vec2 dpx = terrainDisplacementAndWeight(p + vec3( sigma, 0.0,  0.0), e);
+        vec2 dpz = terrainDisplacementAndWeight(p + vec3( 0.0,  0.0,  sigma), e);
+        disp = 0.6 * disp + 0.2 * (dpx.x + dpz.x);
+      } else {
+        // 5-tap cross
+        vec2 dpx = terrainDisplacementAndWeight(p + vec3( sigma, 0.0,  0.0), e);
+        vec2 dnx = terrainDisplacementAndWeight(p + vec3(-sigma, 0.0,  0.0), e);
+        vec2 dpz = terrainDisplacementAndWeight(p + vec3( 0.0,  0.0,  sigma), e);
+        vec2 dnz = terrainDisplacementAndWeight(p + vec3( 0.0,  0.0, -sigma), e);
+        disp = 0.4 * disp + 0.15 * (dpx.x + dnx.x + dpz.x + dnz.x);
+      }
+    }
+    // Displace strictly along local Y by re-evaluating the base SDF at y-offset point
+    vec3 p2 = p; p2.y -= disp;
+    float distanceY;
+    switch (e.shape) {
+      default:
+      case 0: distanceY = sdBox(p2, e.scale * 0.5 - vec3(0.1)) - 0.1; break;
+      case 1: distanceY = sdCapsule(p2, e.scale * 0.5); break;
+      case 2: distanceY = sdEllipsoid(p2, e.scale * 0.5); break;
+      case 3: distanceY = sdTorus(p2, e.scale.xy * 0.5); break;
+    }
+    distance = distanceY;
+    // Optional color mapping toggle: blend ramp with base color using apply weight
+    float denom = max(e.dispClampMax - e.dispClampMin, 0.0001);
+    float t = saturate((disp - e.dispClampMin) / denom);
+    if (e.useColorRamp > 0.5) {
+      vec3 rampColor;
+      if (t < 0.2) {
+        rampColor = vec3(0.0, 0.1, 0.4);
+      } else if (t < 0.35) {
+        rampColor = vec3(0.0, 0.3, 0.7);
+      } else if (t < 0.5) {
+        rampColor = vec3(0.8, 0.7, 0.5);
+      } else if (t < 0.65) {
+        rampColor = vec3(0.2, 0.8, 0.2);
+      } else if (t < 0.8) {
+        rampColor = vec3(0.4, 0.6, 0.2);
+      } else if (t < 0.95) {
+        rampColor = vec3(0.6, 0.4, 0.2);
+      } else {
+        rampColor = vec3(0.9, 0.9, 0.9);
+      }
+      outColor = mix(e.color, rampColor, weight);
+    }
+  }
+  
+  return SDF(distance, outColor);
 }
 
 SDF opSmoothUnion(const in SDF a, const in SDF b, const in float k) {
@@ -231,7 +423,9 @@ SDF map(const in vec3 p) {
 }
 
 vec3 getNormal(const in vec3 p, const in float d) {
-  const vec2 o = vec2(0.001, 0);
+  // Scale epsilon with distance to stabilize normals under strong displacement
+  float e = max(0.001, 0.5 * abs(d));
+  vec2 o = vec2(e, 0.0);
   return normalize(
     d - vec3(
       map(p - o.xyy).distance,
@@ -266,7 +460,7 @@ void march(inout vec4 color, inout float distance) {
           break;
         }
       }
-      distance += max(abs(step.distance), MIN_DISTANCE);
+      distance += max(abs(step.distance) * SAFETY_STEP, MIN_DISTANCE);
     }
   }
   distance = closest;
@@ -285,7 +479,7 @@ void march(inout vec4 color, inout float distance) {
         color = vec4(getLight(position, getNormal(position, step.distance), step.color), 1.0);
         break;
       }
-      distance += step.distance;
+      distance += max(abs(step.distance) * SAFETY_STEP, MIN_DISTANCE);
     }
   }
 }
@@ -365,6 +559,7 @@ class Raymarcher extends Mesh {
         MAX_ITERATIONS: 200,
         MIN_COVERAGE: '0.02',
         MIN_DISTANCE: '0.02',
+        SAFETY_STEP: '0.8',
       },
       uniforms: {
         blending: { value: blending },
@@ -388,6 +583,22 @@ class Raymarcher extends Mesh {
             rotation: {},
             scale: {},
             shape: {},
+            octaves: {},
+            amplitude: {},
+            clampYMin: {},
+            clampYMax: {},
+            offsetX: {},
+            offsetZ: {},
+            seed: {},
+            dispClampMin: {},
+            dispClampMax: {},
+            peakGain: {},
+            valleyGain: {},
+            useColorRamp: {},
+            smoothingStrength: {},
+            dispApplyMinY: {},
+            dispApplyMaxY: {},
+            dispFeather: {},
           },
         },
       },
@@ -493,6 +704,7 @@ class Raymarcher extends Mesh {
 
   onBeforeRender(renderer, scene, camera) {
     const { userData: { layers, resolution, raymarcher, target } } = this;
+    const debugForce = !!this.userData.debugForceTerrain;
     const { material: { defines, uniforms } } = raymarcher;
 
     camera.getWorldDirection(uniforms.cameraDirection.value);
@@ -510,6 +722,10 @@ class Raymarcher extends Mesh {
           defines.MAX_ENTITIES = entities.length;
           uniforms.entities.value = entities.map(Raymarcher.cloneEntity);
           raymarcher.material.needsUpdate = true;
+          if (!this.__loggedMaxEntitiesOnce) {
+            console.log('[Raymarcher] Updated MAX_ENTITIES to', defines.MAX_ENTITIES, 'and rebuilt uniforms.entities');
+            this.__loggedMaxEntitiesOnce = true;
+          }
         }
         const bounds = Raymarcher.getLayerBounds(layer);
         entities.forEach((entity) => {
@@ -558,7 +774,7 @@ class Raymarcher extends Mesh {
       uniforms.bounds.value.center.copy(bounds.center);
       uniforms.bounds.value.radius = bounds.radius;
       uniforms.numEntities.value = entities.length;
-      entities.forEach(({ color, operation, position, rotation, scale, shape }, i) => {
+  entities.forEach(({ color, operation, position, rotation, scale, shape, octaves, amplitude, clampYMin, clampYMax, offsetX, offsetZ, seed, dispClampMin, dispClampMax, peakGain, valleyGain, useColorRamp, smoothingStrength, dispApplyMinY, dispApplyMaxY, dispFeather }, i) => {
         const uniform = uniforms.entities.value[i];
         uniform.color.copy(color);
         uniform.operation = operation;
@@ -566,7 +782,44 @@ class Raymarcher extends Mesh {
         uniform.rotation.copy(rotation);
         uniform.scale.copy(scale);
         uniform.shape = shape;
+        // If debugForce is on, override terrain uniforms to strong values
+        if (debugForce) {
+          uniform.octaves = 6.0;
+          uniform.amplitude = 2.2;
+          uniform.clampYMin = -12.0;
+          uniform.clampYMax = 24.0;
+          uniform.offsetX = 0.0;
+          uniform.offsetZ = 0.0;
+          uniform.seed = 777.0;
+          uniform.dispClampMin = -9999.0;
+          uniform.dispClampMax = 9999.0;
+          uniform.peakGain = 1.5;
+          uniform.valleyGain = 1.5;
+          uniform.useColorRamp = 1.0;
+          uniform.smoothingStrength = 0.4;
+          uniform.dispApplyMinY = -9999.0;
+          uniform.dispApplyMaxY = 9999.0;
+          uniform.dispFeather = 0.5;
+        } else {
+          uniform.octaves = octaves;
+          uniform.amplitude = amplitude;
+          uniform.clampYMin = clampYMin;
+          uniform.clampYMax = clampYMax;
+          uniform.offsetX = offsetX;
+          uniform.offsetZ = offsetZ;
+          uniform.seed = seed;
+          uniform.dispClampMin = dispClampMin;
+          uniform.dispClampMax = dispClampMax;
+          uniform.peakGain = peakGain;
+          uniform.valleyGain = valleyGain;
+          uniform.useColorRamp = useColorRamp;
+          uniform.smoothingStrength = (smoothingStrength !== undefined ? smoothingStrength : 0.0);
+          uniform.dispApplyMinY = (dispApplyMinY !== undefined ? dispApplyMinY : -9999.0);
+          uniform.dispApplyMaxY = (dispApplyMaxY !== undefined ? dispApplyMaxY : 9999.0);
+          uniform.dispFeather = (dispFeather !== undefined ? dispFeather : 0.0);
+        }
       });
+      // minimal one-time log is kept above when MAX_ENTITIES updates
       renderer.render(raymarcher, camera);
     });
 
@@ -594,15 +847,55 @@ class Raymarcher extends Mesh {
     }));
   }
 
-  static cloneEntity({ color, operation, position, rotation, scale, shape }) {
-    return {
+  static cloneEntity({ color, operation, position, rotation, scale, shape, terrainParams }) {
+    const entity = {
       color: color.clone(),
       operation,
       position: position.clone(),
       rotation: rotation.clone(),
       scale: scale.clone(),
       shape,
+      // Default terrain parameters - octaves=0 means NO terrain displacement
+      octaves: 0,
+      amplitude: 1.35,
+      clampYMin: -12,
+      clampYMax: 24,
+      offsetX: 0,
+      offsetZ: 0,
+      seed: 0,
+  dispClampMin: -9999,
+  dispClampMax: 9999,
+  peakGain: 1.0,
+  valleyGain: 1.0,
+  smoothingStrength: 0.0,
+  useColorRamp: 1.0,
+  dispApplyMinY: -9999.0,
+  dispApplyMaxY: 9999.0,
+  dispFeather: 0.0,
     };
+    
+    // Override with terrainParams if provided - this activates terrain!
+    if (terrainParams) {
+      entity.octaves = terrainParams.octaves;
+      entity.amplitude = terrainParams.amplitude;
+      entity.clampYMin = terrainParams.clampYMin;
+      entity.clampYMax = terrainParams.clampYMax;
+      entity.offsetX = terrainParams.offsetX;
+      entity.offsetZ = terrainParams.offsetZ;
+      entity.seed = terrainParams.seed;
+  entity.dispClampMin = terrainParams.dispClampMin ?? -9999;
+  entity.dispClampMax = terrainParams.dispClampMax ?? 9999;
+  entity.peakGain = terrainParams.peakGain ?? 1.0;
+  entity.valleyGain = terrainParams.valleyGain ?? 1.0;
+  entity.smoothingStrength = terrainParams.smoothingStrength ?? 0.0;
+  entity.useColorRamp = (terrainParams.useColorRamp ?? true) ? 1.0 : 0.0;
+  entity.dispApplyMinY = terrainParams.dispApplyMinY ?? -9999.0;
+  entity.dispApplyMaxY = terrainParams.dispApplyMaxY ?? 9999.0;
+  entity.dispFeather = terrainParams.dispFeather ?? 0.0;
+      console.log('cloneEntity received terrainParams:', terrainParams, 'octaves:', entity.octaves);
+    }
+    
+    return entity;
   }
 
   static getEntityCollider({ position, rotation, scale, shape }) {

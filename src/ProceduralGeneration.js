@@ -862,12 +862,12 @@ export function generateProceduralTerrain() {
   console.log(`🎨 Color RGB: (${colorR}, ${colorG}, ${colorB})`);
   console.log(`🔢 Shader seed will be: ${posX + posZ + colorR * 1000.0 + colorG * 500.0 + colorB * 250.0}`);
   
-  // Create a "Terrain Displacement" node that would contain the combined SDF function
-  // This represents: plane_SDF(p) + perlin_noise(p.xz) * displacement_amount
-  const terrainDisplacementId = nodeId++;
+  // Create a Box shape with terrain displacement applied
+  const terrainBoxId = nodeId++;
   const terrainColorId = nodeId++;
   const terrainPositionId = nodeId++;
   const terrainSizeId = nodeId++;
+  const terrainParamsId = nodeId++;
   
   // Terrain parameters - using vector nodes to control the displacement
   nodes.push({
@@ -897,27 +897,41 @@ export function generateProceduralTerrain() {
     data: { color: seedHex }
   });
   
-  // The "magic" terrain node - combines base plane SDF + Perlin noise displacement
+  // TerrainParams node - controls the noise generation
   nodes.push({
-    id: terrainDisplacementId.toString(),
-    type: 'terrainNode',
-    position: { x: 800, y: 200 },
-    data: { 
-      shape: 'terrain',
-      position: { x: 0, y: -5, z: 0 }, // Keep centered; world seed comes via color
-      rotation: { x: 0, y: 0, z: 0 },
-      scale: { x: 20, y: 4, z: 20 },
-      // Also carry the seed on the terrain node itself as hex for passthrough
-      color: seedHex,
-      terrainSeed: terrainSeed  // Also pass it directly
+    id: terrainParamsId.toString(),
+    type: 'terrainParamsNode',
+    position: { x: 400, y: 500 },
+    data: {
+      octaves: 5,
+      amplitude: 1.35,
+      clampYMin: -12,
+      clampYMax: 24,
+      offsetX: 0,
+      offsetZ: 0,
+      seed: terrainSeed
     }
   });
   
-  // Connect parameters to terrain
+  // Box shape that will have terrain applied to it
+  nodes.push({
+    id: terrainBoxId.toString(),
+    type: 'boxNode',
+    position: { x: 800, y: 300 },
+    data: { 
+      shape: 'box',
+      position: { x: 0, y: -5, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: { x: 20, y: 4, z: 20 },
+      color: seedHex
+    }
+  });
+  
+  // Connect parameters to box
   edges.push({
     id: `e${edges.length + 1}`,
     source: terrainSizeId.toString(),
-    target: terrainDisplacementId.toString(),
+    target: terrainBoxId.toString(),
     sourceHandle: 'vector',
     targetHandle: 'size'
   });
@@ -925,7 +939,7 @@ export function generateProceduralTerrain() {
   edges.push({
     id: `e${edges.length + 1}`,
     source: terrainPositionId.toString(),
-    target: terrainDisplacementId.toString(),
+    target: terrainBoxId.toString(),
     sourceHandle: 'vector', 
     targetHandle: 'position'
   });
@@ -933,9 +947,18 @@ export function generateProceduralTerrain() {
   edges.push({
     id: `e${edges.length + 1}`,
     source: terrainColorId.toString(),
-    target: terrainDisplacementId.toString(),
+    target: terrainBoxId.toString(),
     sourceHandle: 'color',
     targetHandle: 'color'
+  });
+  
+  // Connect TerrainParams to box - this turns the box into terrain!
+  edges.push({
+    id: `e${edges.length + 1}`,
+    source: terrainParamsId.toString(),
+    target: terrainBoxId.toString(),
+    sourceHandle: 'terrainParams',
+    targetHandle: 'terrainParams'
   });
   
   // Add mode node for visibility (even single shapes need this for proper rendering)
@@ -956,10 +979,10 @@ export function generateProceduralTerrain() {
     data: { label: 'Render', layerId: 'terrain-sdf-layer' }
   });
   
-  // Connect terrain -> mode -> render
+  // Connect box -> mode -> render
   edges.push({
     id: `e${edges.length + 1}`,
-    source: terrainDisplacementId.toString(),
+    source: terrainBoxId.toString(),
     target: modeId.toString(),
     sourceHandle: 'render',
     targetHandle: 'shape1'

@@ -55,16 +55,68 @@ const ThreeScene = forwardRef((props, ref) => {
           colorValue = shapeData.color || 0xffffff;
         }
         
-        // Add the shape to the specified layer
-        raymarcherRef.current.userData.layers[layerId].push({
+        // Build the entity object
+        const entity = {
           color: new THREE.Color(colorValue),
           operation: operationMap[shapeData.operation] || Raymarcher.operations.union, // Default to union if undefined
           position: new THREE.Vector3(shapeData.position.x * SCALING_FACTOR, shapeData.position.y * SCALING_FACTOR, shapeData.position.z * SCALING_FACTOR),
           rotation: quaternion, // Apply the quaternion for rotation
           scale: new THREE.Vector3(shapeData.scale.x * SCALING_FACTOR, shapeData.scale.y * SCALING_FACTOR, shapeData.scale.z * SCALING_FACTOR),
           shape: Raymarcher.shapes[shapeData.shape]
-        });
+        };
+        
+        // Add terrainParams if present and mirror to flat fields for renderer
+        if (shapeData.terrainParams) {
+          const tp = shapeData.terrainParams;
+          entity.terrainParams = tp;
+          // Mirror to flat uniforms consumed in onBeforeRender
+          entity.octaves = tp.octaves;
+          entity.amplitude = tp.amplitude;
+          entity.clampYMin = tp.clampYMin;
+          entity.clampYMax = tp.clampYMax;
+          entity.offsetX = tp.offsetX;
+          entity.offsetZ = tp.offsetZ;
+          entity.seed = tp.seed;
+          entity.dispClampMin = tp.dispClampMin ?? -9999;
+          entity.dispClampMax = tp.dispClampMax ?? 9999;
+          entity.peakGain = tp.peakGain ?? 1.0;
+          entity.valleyGain = tp.valleyGain ?? 1.0;
+          entity.smoothingStrength = tp.smoothingStrength ?? 0.0;
+          entity.useColorRamp = tp.useColorRamp === false ? 0.0 : 1.0;
+          entity.dispApplyMinY = tp.dispApplyMinY ?? -9999.0;
+          entity.dispApplyMaxY = tp.dispApplyMaxY ?? 9999.0;
+          entity.dispFeather = tp.dispFeather ?? 0.0;
+          console.log('ThreeScene received terrainParams:', tp);
+        } else {
+          // Ensure defaults exist when no terrain connected
+          entity.octaves = 0;
+          entity.amplitude = 1.35;
+          entity.clampYMin = -12;
+          entity.clampYMax = 24;
+          entity.offsetX = 0;
+          entity.offsetZ = 0;
+          entity.seed = 0;
+          entity.dispClampMin = -9999;
+          entity.dispClampMax = 9999;
+          entity.peakGain = 1.0;
+          entity.valleyGain = 1.0;
+          entity.smoothingStrength = 0.0;
+          entity.useColorRamp = 1.0;
+          entity.dispApplyMinY = -9999.0;
+          entity.dispApplyMaxY = 9999.0;
+          entity.dispFeather = 0.0;
+        }
+        
+        // Add the shape to the specified layer
+        raymarcherRef.current.userData.layers[layerId].push(entity);
         raymarcherRef.current.needsUpdate = true;
+      }
+    },
+    setDebugTerrain: (enabled) => {
+      if (raymarcherRef.current) {
+        raymarcherRef.current.userData.debugForceTerrain = !!enabled;
+        raymarcherRef.current.needsUpdate = true;
+        console.log('[ThreeScene] debugForceTerrain =', !!enabled);
       }
     },
     clearScene: () => {
@@ -139,6 +191,8 @@ const ThreeScene = forwardRef((props, ref) => {
       envMapIntensity: 1,
       layers: [[]] // Start with a single empty layer
     });
+    // Initialize debug flag off
+    raymarcher.userData.debugForceTerrain = false;
     raymarcherRef.current = raymarcher;
     scene.add(raymarcher);
 

@@ -4,7 +4,7 @@ import 'reactflow/dist/style.css';
 import './App.css'; // Import the CSS file
 import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
-import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode, TerrainNode } from './CustomNodes';
+import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode, TerrainNode, TerrainParamsNode } from './CustomNodes';
 import { reconnectEdge } from 'reactflow';
 import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the custom edge and connection line
 
@@ -143,6 +143,7 @@ const nodeTypes = {
   modeNode: ModeNode,
   motorNode: MotorNode,
   terrainNode: TerrainNode,
+  terrainParamsNode: TerrainParamsNode,
 };
 
 const edgeTypes = {
@@ -154,6 +155,7 @@ function App() {
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [debugTerrain, setDebugTerrain] = useState(false);
   const edgeReconnectSuccessful = useRef(true);
 
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, nodeId: null });
@@ -274,8 +276,9 @@ function App() {
             let rotation = node.data.rotation || { x: 0, y: 0, z: 0 };
             let scale = node.data.scale || { x: 1, y: 1, z: 1 };
             let color = node.data.color || 0xffffff;
+            let terrainParams = null; // Only populated for terrain nodes
   
-            // Find all connected edges for position, rotation, and size
+            // Find all connected edges for position, rotation, size, color, and terrainParams
             edges.forEach(edge => {
               const sourceNode = nodes.find(n => n.id === edge.source);
               if (sourceNode) {
@@ -304,6 +307,27 @@ function App() {
                   }
                 } else if (sourceNode.type === 'colorNode' && edge.target === node.id && edge.targetHandle === 'color') {
                   color = sourceNode.data.color;
+                } else if (sourceNode.type === 'terrainParamsNode' && edge.target === node.id && edge.targetHandle === 'terrainParams') {
+                  // Read terrainParams for ANY shape node - turns it into terrain!
+                  terrainParams = {
+                    octaves: sourceNode.data.octaves,
+                    amplitude: sourceNode.data.amplitude,
+                    clampYMin: sourceNode.data.clampYMin,
+                    clampYMax: sourceNode.data.clampYMax,
+                    offsetX: sourceNode.data.offsetX,
+                    offsetZ: sourceNode.data.offsetZ,
+                    seed: sourceNode.data.seed,
+                    dispClampMin: sourceNode.data.dispClampMin,
+                    dispClampMax: sourceNode.data.dispClampMax,
+                    peakGain: sourceNode.data.peakGain,
+                    valleyGain: sourceNode.data.valleyGain,
+                    smoothingStrength: sourceNode.data.smoothingStrength,
+                    useColorRamp: sourceNode.data.useColorRamp,
+                    dispApplyMinY: sourceNode.data.dispApplyMinY,
+                    dispApplyMaxY: sourceNode.data.dispApplyMaxY,
+                    dispFeather: sourceNode.data.dispFeather,
+                  };
+                  console.log('TerrainParams connected to shape:', node.data.shape, terrainParams);
                 } else if (sourceNode.type === 'motorNode') {
                   // Apply motor influence to the corresponding target pin
                   if (edge.target === node.id && edge.targetHandle === 'position') {
@@ -329,14 +353,21 @@ function App() {
               }
             });
   
-            shapes.push({
+            const shapeData = {
               shape: node.data.shape,
               operation: operation || 'union',
               position: position,
               color: color,
               rotation: rotation,
               scale: scale,
-            });
+            };
+            
+            // Add terrainParams if ANY shape has it connected - turns shape into terrain!
+            if (terrainParams) {
+              shapeData.terrainParams = terrainParams;
+            }
+            
+            shapes.push(shapeData);
           } else if (node.type === 'modeNode') {
             const shape1NodeId = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'shape1')
@@ -422,6 +453,7 @@ function App() {
         capsuleNode: ['shape1', 'shapes'],
         modeNode: ['shape1', 'shapes', 'render'],
         motorNode: ['position', 'size', 'rotation'],
+        terrainParamsNode: ['terrainParams'],
       };
   
       const sourceNode = nodes.find((node) => node.id === source);
@@ -470,6 +502,7 @@ const onReconnect = useCallback((oldEdge, newConnection) => {
     capsuleNode: ['shape1', 'shapes'],
     modeNode: ['shape1', 'shapes', 'render'],
     motorNode: ['position', 'size', 'rotation'],
+    terrainParamsNode: ['terrainParams'],
   };
 
   // Ensure validation before reconnecting
@@ -684,6 +717,37 @@ const onReconnectEnd = useCallback((_, edge) => {
           overflow: 'hidden',
         }}
       >
+        {/* Debug Toggle Button (hidden) */}
+        {false && !isFullscreen && (
+          <button
+            className="nodrag"
+            onClick={(e) => {
+              e.stopPropagation();
+              const next = !debugTerrain;
+              setDebugTerrain(next);
+              if (threeSceneRef.current) {
+                threeSceneRef.current.setDebugTerrain(next);
+              }
+            }}
+            title="Force terrain displacement on all shapes"
+            style={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              zIndex: 100,
+              background: debugTerrain ? '#2a9d8f' : '#555',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '6px 10px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.25)'
+            }}
+          >
+            {debugTerrain ? 'Terrain: ON' : 'Terrain: OFF'}
+          </button>
+        )}
         
         {/* Resize handles */}
         {!isFullscreen && (

@@ -60,6 +60,12 @@ function Toolbar({ onGenerateSimple, onGenerateComplex, onGenerateVariations, on
       <div style={toolbarItemStyle} onDragStart={(event) => onDragStart(event, 'colorNode')} draggable>
         Color Node
       </div>
+      <div style={toolbarItemStyle} onDragStart={(event) => onDragStart(event, 'motorNode')} draggable>
+        Motor Node
+      </div>
+      <div style={{...toolbarItemStyle, background: '#ff9500'}} onDragStart={(event) => onDragStart(event, 'terrainParamsNode')} draggable>
+        Terrain Params
+      </div>
       
       {/* Procedural Generation Buttons */}
       <div style={{ borderLeft: '1px solid #666', height: '40px', margin: '5px 10px' }}></div>

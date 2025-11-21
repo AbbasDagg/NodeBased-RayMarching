@@ -327,7 +327,7 @@ function App() {
                     dispApplyMaxY: sourceNode.data.dispApplyMaxY,
                     dispFeather: sourceNode.data.dispFeather,
                   };
-                  console.log('TerrainParams connected to shape:', node.data.shape, terrainParams);
+                  
                 } else if (sourceNode.type === 'motorNode') {
                   // Apply motor influence to the corresponding target pin
                   if (edge.target === node.id && edge.targetHandle === 'position') {

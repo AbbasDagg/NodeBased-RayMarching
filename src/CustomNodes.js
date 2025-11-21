@@ -445,7 +445,7 @@ export function TerrainParamsNode({ data }) {
         dispApplyMaxY: dispApplyMaxY,
         dispFeather: dispFeather,
       });
-      console.log('TerrainParamsNode initialized with:', data);
+      
     }
   }, []);
 

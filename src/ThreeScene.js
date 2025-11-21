@@ -86,7 +86,7 @@ const ThreeScene = forwardRef((props, ref) => {
           entity.dispApplyMinY = tp.dispApplyMinY ?? -9999.0;
           entity.dispApplyMaxY = tp.dispApplyMaxY ?? 9999.0;
           entity.dispFeather = tp.dispFeather ?? 0.0;
-          console.log('ThreeScene received terrainParams:', tp);
+          
         } else {
           // Ensure defaults exist when no terrain connected
           entity.octaves = 0;
@@ -135,7 +135,7 @@ const ThreeScene = forwardRef((props, ref) => {
   }));
 
   useEffect(() => {
-    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    const renderer = new THREE.WebGLRenderer({ alpha: true, powerPreference: 'high-performance' });
     rendererRef.current = renderer;
     renderer.setSize(window.innerWidth / 2, window.innerHeight);
     document.getElementById('three-scene').appendChild(renderer.domElement);

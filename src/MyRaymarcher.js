@@ -276,6 +276,14 @@ vec2 terrainDisplacementAndWeight(const in vec3 plocal, const in Entity e) {
   // Clamp the displacement to requested range (independent from height clamps)
   displacement = clamp(displacement, e.dispClampMin, e.dispClampMax);
 
+  // Also enforce absolute local-Y limits for displaced surface
+  // Allowed final Y range is [clampYMin, clampYMax], so displacement must be within [min - y, max - y]
+  if (e.clampYMax > e.clampYMin) {
+    float dmin = e.clampYMin - plocal.y;
+    float dmax = e.clampYMax - plocal.y;
+    displacement = clamp(displacement, dmin, dmax);
+  }
+
   // Compute apply weight within a specified local-Y band with optional feathering
   float weight = 1.0;
   if (e.dispApplyMaxY > e.dispApplyMinY) {
@@ -892,7 +900,7 @@ class Raymarcher extends Mesh {
   entity.dispApplyMinY = terrainParams.dispApplyMinY ?? -9999.0;
   entity.dispApplyMaxY = terrainParams.dispApplyMaxY ?? 9999.0;
   entity.dispFeather = terrainParams.dispFeather ?? 0.0;
-      console.log('cloneEntity received terrainParams:', terrainParams, 'octaves:', entity.octaves);
+      
     }
     
     return entity;

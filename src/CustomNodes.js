@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Handle, Position, useReactFlow } from 'reactflow';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { Handle, Position, useReactFlow, useUpdateNodeInternals } from 'reactflow';
 import { SketchPicker } from 'react-color';
 
 //const handleStyleRight = { right: '-1.5px', backgroundColor: 'black', margin: 0, padding: 0, width: '10px', height: '10px' };
@@ -54,16 +54,16 @@ export function ModeNode({ data }) {
         <div style={{ position: 'absolute', left: '8px', top: '20px', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>
           Base
         </div>
-        <Handle type="target" position={Position.Left} id="shape1" style={{ top: '30%', ...modeHandleStyleLeft  }} />
+        <Handle key="shape1" type="target" position={Position.Left} id="shape1" style={{ top: '30%', ...modeHandleStyleLeft  }} />
         
         {/* Bottom input - for operations on the base */}
         <div style={{ position: 'absolute', left: '8px', bottom: '25px', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>
           Operations
         </div>
-        <Handle type="target" position={Position.Left} id="shapes" style={{ top: '80%', ...modeHandleStyleLeft }} />
+        <Handle key="shapes" type="target" position={Position.Left} id="shapes" style={{ top: '80%', ...modeHandleStyleLeft }} />
         
         {/* Output */}
-        <Handle type="source" position={Position.Right} id="render" style={{ top: '50%', ...modeHandleStyleRight }} />
+        <Handle key="render" type="source" position={Position.Right} id="render" style={{ top: '50%', ...modeHandleStyleRight }} />
       </div>
     </div>
   );
@@ -213,7 +213,7 @@ export function VectorNode({ data, isConnectable }) {
           className="nodrag"
           style={{ width: '80%', marginBottom: '5px', accentColor: '#ffcc00' }}
         />
-        <Handle type="source" position={Position.Right} id="vector" style={handleStyleRight} isConnectable={isConnectable} />
+        <Handle key="vector" type="source" position={Position.Right} id="vector" style={handleStyleRight} isConnectable={isConnectable} />
       </div>
     </div>
   );
@@ -260,112 +260,478 @@ export function MotorNode({ data, isConnectable }) {
             <input type="number" value={eval(`${axis.toLowerCase()}Range`).max} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'max', e.target.value)} className="nodrag" style={{ width: '40%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #ffcc00', background: '#1b1f22', color: '#ffcc00' }} />
           </div>
         ))}
-        <Handle type="source" position={Position.Right} id="vector" style={handleStyleRight} isConnectable={isConnectable} />
+        <Handle key="vector" type="source" position={Position.Right} id="vector" style={handleStyleRight} isConnectable={isConnectable} />
       </div>
     </div>
   );
 }
 
 
+export function MultNode({ id, data }) {
+  const accent = '#ff6b6b';
+  const { setNodes } = useReactFlow();
+  // Initialize matrix cells (m00..m33) if missing
+  const initial = {};
+  for (let r=0; r<4; r++) {
+    for (let c=0; c<4; c++) {
+      const key = `m${r}${c}`;
+      if (data[key] === undefined) initial[key] = (r===c ? 1 : 0);
+    }
+  }
+  if (Object.keys(initial).length) Object.assign(data, initial);
+  const [matrixState, setMatrixState] = useState(() => {
+    const obj = {};
+    for (let r=0; r<4; r++) for (let c=0; c<4; c++) obj[`m${r}${c}`] = data[`m${r}${c}`];
+    return obj;
+  });
 
-export function SphereNode({ data }) {
+  const handleCellChange = (key, value) => {
+    const num = parseFloat(value);
+    setMatrixState(prev => {
+      const next = { ...prev, [key]: isNaN(num) ? 0 : num };
+      data[key] = next[key];
+      // Push full updated matrix into global node data so render loop recomputes
+      setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...next } } : n));
+      // Debug log first row & translation row
+      console.log('[MatrixNode]', id, 'm00..m03=', next.m00, next.m01, next.m02, next.m03, 'translation candidates bottom:', next.m30, next.m31, next.m32, 'last column:', next.m03, next.m13, next.m23);
+      return next;
+    });
+  };
+
+  return (
+    <div className="card multNode" style={{ width: '190px', height: '220px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px', position: 'relative' }}>
+      <div style={{ padding: '6px 8px 4px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ fontWeight: 'bold', color: accent, fontSize: '13px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Matrix</div>
+        <div style={{ fontSize: '10px', color: '#aaa', marginBottom: '4px', textAlign: 'center', lineHeight: '1.1' }}>Chain left→right: final = Local * Upstream.</div>
+        <div style={{ fontSize: '9px', color: '#888', marginBottom: '6px', textAlign: 'center', lineHeight: '1.1' }}>
+          Translate: bottom row m30 m31 m32<br />
+          Scale: diagonal m00 m11 m22<br />
+          Rotation: edit off-diagonals (3x3 block)
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '3px', width: '100%', marginBottom: '6px' }}>
+          {Array.from({ length: 4 }).map((_, r) => (
+            Array.from({ length: 4 }).map((__, c) => {
+              const key = `m${r}${c}`;
+              return (
+                <input
+                  key={key}
+                  type="number"
+                  step="0.01"
+                  value={matrixState[key]}
+                  onChange={(e) => handleCellChange(key, e.target.value)}
+                  className="nodrag"
+                  style={{ width: '100%', padding: '2px', fontSize: '10px', borderRadius: '3px', border: `1px solid ${accent}`, background: '#1b1f22', color: accent }}
+                />
+              );
+            })
+          ))}
+        </div>
+      </div>
+      <Handle type="target" position={Position.Left} id="matrix-in" style={{ ...handleStyleLeft, top: '50%' }} />
+      <Handle type="source" position={Position.Right} id="matrix" style={{ ...handleStyleRight, top: '50%' }} />
+    </div>
+  );
+}
+// TransformNode removed per new matrix-only workflow.
+
+
+export function SphereNode({ id, data }) {
   const outlineColor = '#2ecc71';
   const accent = '#2ecc71';
+  const [mode, setMode] = useState(data.shapeMode || 'configured');
+  const reactFlowInstance = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  // Force update handle positions whenever mode changes
+  // Force handle hitbox re-measure when mode changes
+  useEffect(() => {
+    const immediate = updateNodeInternals(id);
+    const raf = requestAnimationFrame(() => updateNodeInternals(id));
+    const timeout = setTimeout(() => updateNodeInternals(id), 50);
+    return () => { cancelAnimationFrame(raf); clearTimeout(timeout); };
+  }, [mode, id, updateNodeInternals]);
+
+  const handleModeToggle = () => {
+    const newMode = mode === 'configured' ? 'modular' : 'configured';
+    reactFlowInstance.setEdges((edges) =>
+      edges.filter((edge) => {
+        if (edge.source === id && edge.sourceHandle === 'render') return true;
+        if (edge.target === id) {
+          if (newMode === 'configured' && edge.targetHandle === 'color-configured') return true;
+          if (newMode === 'modular' && edge.targetHandle === 'color-modular') return true;
+          return false; // drop other incoming edges on toggle
+        }
+        if (edge.source === id) return false; // drop outgoing edges from old mode
+        return true;
+      })
+    );
+    setMode(newMode);
+    data.shapeMode = newMode;
+    reactFlowInstance.setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, shapeMode: newMode } } : n));
+    setTimeout(() => updateNodeInternals(id), 0);
+  };
 
   return (
-  <div className="card shapeNode" style={{ width: '240px', height: '270px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px', padding: 0, margin: 0 }}>
-      <div style={{ padding: '0', top:'20px', bottom:'20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-        <div style={{ fontWeight: 'bold', color: accent, fontSize: '16px', marginBottom: '140px', WebkitTextStroke: `0.1px ${outlineColor}`, textTransform: 'uppercase', letterSpacing: '1px' }}>
+  <div className="card shapeNode" style={{ width: '240px', height: '300px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px', padding: 0, margin: 0 }}>
+      <div style={{ padding: '10px 0 0 0', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: accent, fontSize: '16px', marginBottom: '8px', WebkitTextStroke: `0.1px ${outlineColor}`, textTransform: 'uppercase', letterSpacing: '1px' }}>
           Shape: Sphere
         </div>
-        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '28%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '28%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
-        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '47%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '47%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
-        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '66%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
-        <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '85%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '85%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-        <Handle type="target" position={Position.Left} id="terrainParams" style={{ ...handleStyleLeft, top: '104%', backgroundColor: '#ff9500' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '104%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
-        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '65%' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '145px' }}>
+          <span style={{ fontSize: '12px', color: mode === 'configured' ? accent : '#666' }}>Configured</span>
+          <button 
+            className="nodrag"
+            onClick={handleModeToggle}
+            style={{
+              width: '44px',
+              height: '22px',
+              borderRadius: '11px',
+              background: mode === 'modular' ? accent : '#555',
+              border: 'none',
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'background 0.3s'
+            }}
+          >
+            <div style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              background: '#fff',
+              position: 'absolute',
+              top: '2px',
+              left: mode === 'modular' ? '24px' : '2px',
+              transition: 'left 0.3s'
+            }} />
+          </button>
+          <span style={{ fontSize: '12px', color: mode === 'modular' ? accent : '#666' }}>Modular</span>
+        </div>
+        {mode === 'configured' ? (
+          <>
+            <Handle type="target" position={Position.Left} id="position-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '38%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '38%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
+            <Handle type="target" position={Position.Left} id="size-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '52%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '52%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
+            <Handle type="target" position={Position.Left} id="color-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '66%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+            <Handle type="target" position={Position.Left} id="rotation-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '80%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '80%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
+            <Handle type="target" position={Position.Left} id="terrainParams-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '94%', backgroundColor: '#ff9500' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '94%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+          </>
+        ) : (
+          <>
+            <Handle type="target" position={Position.Left} id="transform-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '55%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Transform</span>
+            <Handle type="target" position={Position.Left} id="color-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '75%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '75%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+            <Handle type="target" position={Position.Left} id="terrainParams-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#ff9500' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+          </>
+        )}
+        <Handle type="source" position={Position.Right} id="render" isConnectable={true} style={{ ...handleStyleRight, top: '65%' }} />
       </div>
     </div>
   );
 }
 
 
-export function TorusNode({ data }) {
+export function TorusNode({ id, data }) {
   const outlineColor = '#a970ff';
   const accent = '#a970ff';
+  const [mode, setMode] = useState(data.shapeMode || 'configured');
+  const reactFlowInstance = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  useEffect(() => {
+    updateNodeInternals(id);
+    const raf = requestAnimationFrame(() => updateNodeInternals(id));
+    const timeout = setTimeout(() => updateNodeInternals(id), 50);
+    return () => { cancelAnimationFrame(raf); clearTimeout(timeout); };
+  }, [mode, id, updateNodeInternals]);
+
+  const handleModeToggle = () => {
+    const newMode = mode === 'configured' ? 'modular' : 'configured';
+    reactFlowInstance.setEdges((edges) =>
+      edges.filter((edge) => {
+        if (edge.source === id && edge.sourceHandle === 'render') return true;
+        if (edge.target === id) {
+          if (newMode === 'configured' && edge.targetHandle === 'color-configured') return true;
+          if (newMode === 'modular' && edge.targetHandle === 'color-modular') return true;
+          return false;
+        }
+        if (edge.source === id) return false;
+        return true;
+      })
+    );
+    setMode(newMode);
+    data.shapeMode = newMode;
+    reactFlowInstance.setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, shapeMode: newMode } } : n));
+    setTimeout(() => updateNodeInternals(id), 0);
+  };
 
   return (
-  <div className="card shapeNode" style={{ width: '240px', height: '270px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px', padding: 0, margin: 0 }}>
-      <div style={{ padding: '0', top:'20px', bottom:'20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-        <div style={{ fontWeight: 'bold', color: accent, fontSize: '16px', marginBottom: '140px', WebkitTextStroke: `0.1px ${outlineColor}`, textTransform: 'uppercase', letterSpacing: '1px' }}>
+  <div className="card shapeNode" style={{ width: '240px', height: '300px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px', padding: 0, margin: 0 }}>
+      <div style={{ padding: '10px 0 0 0', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: accent, fontSize: '16px', marginBottom: '8px', WebkitTextStroke: `0.1px ${outlineColor}`, textTransform: 'uppercase', letterSpacing: '1px' }}>
           Shape: Torus
         </div>
-        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '28%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '28%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
-        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '47%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '47%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
-        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '66%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
-        <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '85%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '85%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-        <Handle type="target" position={Position.Left} id="terrainParams" style={{ ...handleStyleLeft, top: '104%', backgroundColor: '#ff9500' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '104%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
-        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '65%' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '145px' }}>
+          <span style={{ fontSize: '12px', color: mode === 'configured' ? accent : '#666' }}>Configured</span>
+          <button 
+            className="nodrag"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleModeToggle();
+            }}
+            style={{
+              width: '44px',
+              height: '22px',
+              borderRadius: '11px',
+              background: mode === 'modular' ? accent : '#555',
+              border: 'none',
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'background 0.3s'
+            }}
+          >
+            <div style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              background: '#fff',
+              position: 'absolute',
+              top: '2px',
+              left: mode === 'modular' ? '24px' : '2px',
+              transition: 'left 0.3s'
+            }} />
+          </button>
+          <span style={{ fontSize: '12px', color: mode === 'modular' ? accent : '#666' }}>Modular</span>
+        </div>
+        {mode === 'configured' ? (
+          <>
+            <Handle type="target" position={Position.Left} id="position-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '38%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '38%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
+            <Handle type="target" position={Position.Left} id="size-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '52%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '52%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
+            <Handle type="target" position={Position.Left} id="color-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '66%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+            <Handle type="target" position={Position.Left} id="rotation-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '80%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '80%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
+            <Handle type="target" position={Position.Left} id="terrainParams-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '94%', backgroundColor: '#ff9500' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '94%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+          </>
+        ) : (
+          <>
+            <Handle type="target" position={Position.Left} id="transform-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '55%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Transform</span>
+            <Handle type="target" position={Position.Left} id="color-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '75%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '75%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+            <Handle type="target" position={Position.Left} id="terrainParams-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#ff9500' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+          </>
+        )}
+        <Handle type="source" position={Position.Right} id="render" isConnectable={true} style={{ ...handleStyleRight, top: '65%' }} />
       </div>
     </div>
   );
 }
-export function BoxNode({ data }) {
+export function BoxNode({ id, data }) {
   const outlineColor = '#ff4d4d';
   const accent = '#ff4d4d';
+  const [mode, setMode] = useState(data.shapeMode || 'configured');
+  const reactFlowInstance = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  useEffect(() => {
+    updateNodeInternals(id);
+    const raf = requestAnimationFrame(() => updateNodeInternals(id));
+    const timeout = setTimeout(() => updateNodeInternals(id), 50);
+    return () => { cancelAnimationFrame(raf); clearTimeout(timeout); };
+  }, [mode, id, updateNodeInternals]);
+
+  const handleModeToggle = () => {
+    const newMode = mode === 'configured' ? 'modular' : 'configured';
+    reactFlowInstance.setEdges((edges) =>
+      edges.filter((edge) => {
+        if (edge.source === id && edge.sourceHandle === 'render') return true;
+        if (edge.target === id) {
+          if (newMode === 'configured' && edge.targetHandle === 'color-configured') return true;
+          if (newMode === 'modular' && edge.targetHandle === 'color-modular') return true;
+          return false;
+        }
+        if (edge.source === id) return false;
+        return true;
+      })
+    );
+    setMode(newMode);
+    data.shapeMode = newMode;
+    reactFlowInstance.setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, shapeMode: newMode } } : n));
+    setTimeout(() => updateNodeInternals(id), 0);
+  };
 
   return (
-  <div className="card shapeNode" style={{ width: '240px', height: '270px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px', padding: 0, margin: 0 }}>
-      <div style={{ padding: '0', top:'20px', bottom:'20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-        <div style={{ fontWeight: 'bold', color: accent, fontSize: '16px', marginBottom: '140px', WebkitTextStroke: `0.1px ${outlineColor}`, textTransform: 'uppercase', letterSpacing: '1px' }}>
+  <div className="card shapeNode" style={{ width: '240px', height: '300px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px', padding: 0, margin: 0 }}>
+      <div style={{ padding: '10px 0 0 0', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: accent, fontSize: '16px', marginBottom: '8px', WebkitTextStroke: `0.1px ${outlineColor}`, textTransform: 'uppercase', letterSpacing: '1px' }}>
           Shape: Box
         </div>
-        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '28%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '28%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
-        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '47%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '47%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
-        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '66%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
-        <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '85%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '85%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-        <Handle type="target" position={Position.Left} id="terrainParams" style={{ ...handleStyleLeft, top: '104%', backgroundColor: '#ff9500' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '104%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
-        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '65%' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '145px' }}>
+          <span style={{ fontSize: '12px', color: mode === 'configured' ? accent : '#666' }}>Configured</span>
+          <button 
+            className="nodrag"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleModeToggle();
+            }}
+            style={{
+              width: '44px',
+              height: '22px',
+              borderRadius: '11px',
+              background: mode === 'modular' ? accent : '#555',
+              border: 'none',
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'background 0.3s'
+            }}
+          >
+            <div style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              background: '#fff',
+              position: 'absolute',
+              top: '2px',
+              left: mode === 'modular' ? '24px' : '2px',
+              transition: 'left 0.3s'
+            }} />
+          </button>
+          <span style={{ fontSize: '12px', color: mode === 'modular' ? accent : '#666' }}>Modular</span>
+        </div>
+        {mode === 'configured' ? (
+          <>
+            <Handle type="target" position={Position.Left} id="position-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '38%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '38%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
+            <Handle type="target" position={Position.Left} id="size-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '52%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '52%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
+            <Handle type="target" position={Position.Left} id="color-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '66%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+            <Handle type="target" position={Position.Left} id="rotation-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '80%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '80%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
+            <Handle type="target" position={Position.Left} id="terrainParams-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '94%', backgroundColor: '#ff9500' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '94%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+          </>
+        ) : (
+          <>
+            <Handle type="target" position={Position.Left} id="transform-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '55%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Transform</span>
+            <Handle type="target" position={Position.Left} id="color-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '75%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '75%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+            <Handle type="target" position={Position.Left} id="terrainParams-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#ff9500' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+          </>
+        )}
+        <Handle type="source" position={Position.Right} id="render" isConnectable={true} style={{ ...handleStyleRight, top: '65%' }} />
       </div>
     </div>
   );
 }
-export function CapsuleNode({ data }) {
+export function CapsuleNode({ id, data }) {
   const outlineColor = '#f39c12';
   const accent = '#f39c12';
+  const [mode, setMode] = useState(data.shapeMode || 'configured');
+  const reactFlowInstance = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  useEffect(() => {
+    updateNodeInternals(id);
+    const raf = requestAnimationFrame(() => updateNodeInternals(id));
+    const timeout = setTimeout(() => updateNodeInternals(id), 50);
+    return () => { cancelAnimationFrame(raf); clearTimeout(timeout); };
+  }, [mode, id, updateNodeInternals]);
+
+  const handleModeToggle = () => {
+    const newMode = mode === 'configured' ? 'modular' : 'configured';
+    reactFlowInstance.setEdges((edges) =>
+      edges.filter((edge) => {
+        if (edge.source === id && edge.sourceHandle === 'render') return true;
+        if (edge.target === id) {
+          if (newMode === 'configured' && edge.targetHandle === 'color-configured') return true;
+          if (newMode === 'modular' && edge.targetHandle === 'color-modular') return true;
+          return false;
+        }
+        if (edge.source === id) return false;
+        return true;
+      })
+    );
+    setMode(newMode);
+    data.shapeMode = newMode;
+    reactFlowInstance.setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, shapeMode: newMode } } : n));
+    setTimeout(() => updateNodeInternals(id), 0);
+  };
 
   return (
-  <div className="card shapeNode" style={{ width: '240px', height: '270px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px', padding: 0, margin: 0 }}>
-      <div style={{ padding: '0', top:'20px', bottom:'20px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-        <div style={{ fontWeight: 'bold', color: accent, fontSize: '16px', marginBottom: '140px', WebkitTextStroke: `0.1px ${outlineColor}`, textTransform: 'uppercase', letterSpacing: '1px' }}>
+  <div className="card shapeNode" style={{ width: '240px', height: '300px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px', padding: 0, margin: 0 }}>
+      <div style={{ padding: '10px 0 0 0', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        <div style={{ fontWeight: 'bold', color: accent, fontSize: '16px', marginBottom: '8px', WebkitTextStroke: `0.1px ${outlineColor}`, textTransform: 'uppercase', letterSpacing: '1px' }}>
           Shape: Capsule
         </div>
-        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '28%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '28%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
-        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '47%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '47%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
-        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '66%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
-        <Handle type="target" position={Position.Left} id="rotation" style={{ ...handleStyleLeft, top: '85%' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '85%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-        <Handle type="target" position={Position.Left} id="terrainParams" style={{ ...handleStyleLeft, top: '104%', backgroundColor: '#ff9500' }} />
-        <span style={{ position: 'absolute', left: '40px', top: '104%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
-        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '65%' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '145px' }}>
+          <span style={{ fontSize: '12px', color: mode === 'configured' ? accent : '#666' }}>Configured</span>
+          <button 
+            className="nodrag"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleModeToggle();
+            }}
+            style={{
+              width: '44px',
+              height: '22px',
+              borderRadius: '11px',
+              background: mode === 'modular' ? accent : '#555',
+              border: 'none',
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'background 0.3s'
+            }}
+          >
+            <div style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              background: '#fff',
+              position: 'absolute',
+              top: '2px',
+              left: mode === 'modular' ? '24px' : '2px',
+              transition: 'left 0.3s'
+            }} />
+          </button>
+          <span style={{ fontSize: '12px', color: mode === 'modular' ? accent : '#666' }}>Modular</span>
+        </div>
+        {mode === 'configured' ? (
+          <>
+            <Handle type="target" position={Position.Left} id="position-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '38%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '38%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
+            <Handle type="target" position={Position.Left} id="size-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '52%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '52%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
+            <Handle type="target" position={Position.Left} id="color-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '66%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+            <Handle type="target" position={Position.Left} id="rotation-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '80%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '80%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
+            <Handle type="target" position={Position.Left} id="terrainParams-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '94%', backgroundColor: '#ff9500' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '94%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+          </>
+        ) : (
+          <>
+            <Handle type="target" position={Position.Left} id="transform-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '55%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Transform</span>
+            <Handle type="target" position={Position.Left} id="color-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '75%' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '75%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+            <Handle type="target" position={Position.Left} id="terrainParams-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#ff9500' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+          </>
+        )}
+        <Handle type="source" position={Position.Right} id="render" isConnectable={true} style={{ ...handleStyleRight, top: '65%' }} />
       </div>
     </div>
   );
@@ -384,22 +750,22 @@ export function TerrainNode({ data }) {
           SDF + Perlin Noise
         </div>
         
-        <Handle type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '25%' }} />
+        <Handle key="position" type="target" position={Position.Left} id="position" style={{ ...handleStyleLeft, top: '25%' }} />
         <span style={{ position: 'absolute', left: '40px', top: '25%', color: 'white', fontSize: '14px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Position</span>
         
-        <Handle type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '40%' }} />
+        <Handle key="size" type="target" position={Position.Left} id="size" style={{ ...handleStyleLeft, top: '40%' }} />
         <span style={{ position: 'absolute', left: '40px', top: '40%', color: 'white', fontSize: '14px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Size</span>
         
-        <Handle type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '55%' }} />
+        <Handle key="color" type="target" position={Position.Left} id="color" style={{ ...handleStyleLeft, top: '55%' }} />
         <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '14px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
         
-        <Handle type="target" position={Position.Left} id="noise" style={{ ...handleStyleLeft, top: '70%' }} />
+        <Handle key="noise" type="target" position={Position.Left} id="noise" style={{ ...handleStyleLeft, top: '70%' }} />
         <span style={{ position: 'absolute', left: '40px', top: '70%', color: '#4a9eff', fontSize: '14px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Noise</span>
         
-        <Handle type="target" position={Position.Left} id="displacement" style={{ ...handleStyleLeft, top: '85%' }} />
+        <Handle key="displacement" type="target" position={Position.Left} id="displacement" style={{ ...handleStyleLeft, top: '85%' }} />
         <span style={{ position: 'absolute', left: '40px', top: '85%', color: '#4a9eff', fontSize: '14px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Displacement</span>
         
-        <Handle type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '55%' }} />
+        <Handle key="render" type="source" position={Position.Right} id="render" style={{ ...handleStyleRight, top: '55%' }} />
       </div>
     </div>
   );
@@ -796,6 +1162,7 @@ export function TerrainParamsNode({ data }) {
         </div>
 
         <Handle 
+          key="terrainParams"
           type="source" 
           position={Position.Right} 
           id="terrainParams" 
@@ -835,7 +1202,7 @@ export function ColorNode({ data, isConnectable }) {
       <div style={{ padding: '12px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '16px', color: '#3aafa9', textTransform: 'uppercase', letterSpacing: '1px' }}>Color</div>
         <input type="color" value={color} onChange={handleChange} className="nodrag" style={{ cursor: 'pointer', width: '60%', height: '30px', border: '1px solid #3aafa9', padding: '0' }} />
-        <Handle type="source" position={Position.Right} id="color" style={{ ...handleStyleRight, backgroundColor: '#3aafa9' }} isConnectable={isConnectable} />
+        <Handle key="color" type="source" position={Position.Right} id="color" style={{ ...handleStyleRight, backgroundColor: '#3aafa9' }} isConnectable={isConnectable} />
       </div>
     </div>
   );
@@ -846,7 +1213,7 @@ export function RenderNode({ data }) {
     <div className="card renderNode" style={{ width: '120px', height: 'auto', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #ff4d4d', borderRadius: '8px' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px', color: '#ff4d4d', textTransform: 'uppercase', letterSpacing: '1px' }}>Render</div>
-        <Handle type="target" position={Position.Left} id="render" style={{ ...handleStyleLeft, top: '50%', backgroundColor: '#ff4d4d' }} />
+        <Handle key="render" type="target" position={Position.Left} id="render" style={{ ...handleStyleLeft, top: '50%', backgroundColor: '#ff4d4d' }} />
       </div>
     </div>
   );

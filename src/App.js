@@ -4,7 +4,7 @@ import 'reactflow/dist/style.css';
 import './App.css'; // Import the CSS file
 import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
-import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode, TerrainNode, TerrainParamsNode } from './CustomNodes';
+import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode, TerrainNode, TerrainParamsNode, MultNode } from './CustomNodes';
 import { reconnectEdge } from 'reactflow';
 import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the custom edge and connection line
 
@@ -105,26 +105,26 @@ const initialNodes = [
 
 const initialEdges = [
   // Left side connections
-  { id: 'e1', source: '1', target: '8', sourceHandle: 'color', targetHandle: 'color' },
-  { id: 'e2', source: '2', target: '9', sourceHandle: 'color', targetHandle: 'color' },
-  { id: 'e3', source: '3', target: '8', sourceHandle: 'vector', targetHandle: 'size' },
-  { id: 'e4', source: '4', target: '9', sourceHandle: 'vector', targetHandle: 'size' },
-  { id: 'e5', source: '5', target: '8', sourceHandle: 'vector', targetHandle: 'rotation' },
-  { id: 'e6', source: '6', target: '9', sourceHandle: 'vector', targetHandle: 'rotation' },
-  { id: 'e7', source: '7', target: '8', sourceHandle: 'vector', targetHandle: 'position' },
-  { id: 'e8', source: '7', target: '9', sourceHandle: 'vector', targetHandle: 'position' },
+  { id: 'e1', source: '1', target: '8', sourceHandle: 'color', targetHandle: 'color-configured' },
+  { id: 'e2', source: '2', target: '9', sourceHandle: 'color', targetHandle: 'color-configured' },
+  { id: 'e3', source: '3', target: '8', sourceHandle: 'vector', targetHandle: 'size-configured' },
+  { id: 'e4', source: '4', target: '9', sourceHandle: 'vector', targetHandle: 'size-configured' },
+  { id: 'e5', source: '5', target: '8', sourceHandle: 'vector', targetHandle: 'rotation-configured' },
+  { id: 'e6', source: '6', target: '9', sourceHandle: 'vector', targetHandle: 'rotation-configured' },
+  { id: 'e7', source: '7', target: '8', sourceHandle: 'vector', targetHandle: 'position-configured' },
+  { id: 'e8', source: '7', target: '9', sourceHandle: 'vector', targetHandle: 'position-configured' },
   { id: 'e9', source: '8', target: '10', sourceHandle: 'render', targetHandle: 'shape1' },
   { id: 'e10', source: '9', target: '10', sourceHandle: 'render', targetHandle: 'shapes' },
   { id: 'e11', source: '10', target: '11', sourceHandle: 'render', targetHandle: 'render' },
 
   // Right side connections
-  { id: 'e12', source: '12', target: '18', sourceHandle: 'color', targetHandle: 'color' },
-  { id: 'e13', source: '13', target: '19', sourceHandle: 'color', targetHandle: 'color' },
-  { id: 'e14', source: '14', target: '18', sourceHandle: 'vector', targetHandle: 'size' },
-  { id: 'e15', source: '15', target: '19', sourceHandle: 'vector', targetHandle: 'size' },
-  { id: 'e16', source: '16', target: '18', sourceHandle: 'vector', targetHandle: 'rotation' },
-  { id: 'e17', source: '17', target: '18', sourceHandle: 'vector', targetHandle: 'position' },
-  { id: 'e18', source: '17', target: '19', sourceHandle: 'vector', targetHandle: 'position' },
+  { id: 'e12', source: '12', target: '18', sourceHandle: 'color', targetHandle: 'color-configured' },
+  { id: 'e13', source: '13', target: '19', sourceHandle: 'color', targetHandle: 'color-configured' },
+  { id: 'e14', source: '14', target: '18', sourceHandle: 'vector', targetHandle: 'size-configured' },
+  { id: 'e15', source: '15', target: '19', sourceHandle: 'vector', targetHandle: 'size-configured' },
+  { id: 'e16', source: '16', target: '18', sourceHandle: 'vector', targetHandle: 'rotation-configured' },
+  { id: 'e17', source: '17', target: '18', sourceHandle: 'vector', targetHandle: 'position-configured' },
+  { id: 'e18', source: '17', target: '19', sourceHandle: 'vector', targetHandle: 'position-configured' },
   { id: 'e19', source: '18', target: '20', sourceHandle: 'render', targetHandle: 'shape1' },
   { id: 'e20', source: '19', target: '20', sourceHandle: 'render', targetHandle: 'shapes' },
   { id: 'e21', source: '20', target: '21', sourceHandle: 'render', targetHandle: 'render' }
@@ -144,6 +144,7 @@ const nodeTypes = {
   motorNode: MotorNode,
   terrainNode: TerrainNode,
   terrainParamsNode: TerrainParamsNode,
+  multNode: MultNode,
 };
 
 const edgeTypes = {
@@ -264,6 +265,9 @@ function App() {
       threeSceneRef.current.clearScene();
   
       const renderNodes = nodes.filter(node => node.type === 'renderNode');
+      // Throttle modular shape debug logging
+      const now = Date.now();
+      if (!window.__lastShapeMatrixDebug) window.__lastShapeMatrixDebug = 0;
   
       renderNodes.forEach((renderNode, layerIndex) => {
         const shapes = [];
@@ -272,13 +276,14 @@ function App() {
           const node = nodes.find(n => n.id === nodeId);
   
           if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode', 'terrainNode'].includes(node.type)) {
+            const isModular = node.data.shapeMode === 'modular';
             let position = node.data.position || { x: 0, y: 0, z: 0 };
             let rotation = node.data.rotation || { x: 0, y: 0, z: 0 };
             let scale = node.data.scale || { x: 1, y: 1, z: 1 };
             let color = node.data.color || 0xffffff;
             let terrainParams = null; // Only populated for terrain nodes
   
-            // Find all connected edges for position, rotation, size, color, and terrainParams
+            // Find all connected edges for position, rotation, size, color, terrainParams, transform, and mult
             edges.forEach(edge => {
               const sourceNode = nodes.find(n => n.id === edge.source);
               if (sourceNode) {
@@ -286,28 +291,28 @@ function App() {
                 const { xRange, yRange, zRange } = sourceNode.data;
   
                 if (sourceNode.type === 'vectorNode') {
-                  if (edge.target === node.id && edge.targetHandle === 'position') {
+                  if (edge.target === node.id && edge.targetHandle === 'position-configured') {
                     position = {
                       x: sourceNode.data.x,
                       y: sourceNode.data.y,
                       z: sourceNode.data.z,
                     };
-                  } else if (edge.target === node.id && edge.targetHandle === 'rotation') {
+                  } else if (edge.target === node.id && edge.targetHandle === 'rotation-configured') {
                     rotation = {
                       x: sourceNode.data.x,
                       y: sourceNode.data.y,
                       z: sourceNode.data.z,
                     };
-                  } else if (edge.target === node.id && edge.targetHandle === 'size') {
+                  } else if (edge.target === node.id && edge.targetHandle === 'size-configured') {
                     scale = {
                       x: sourceNode.data.x,
                       y: sourceNode.data.y,
                       z: sourceNode.data.z,
                     };
                   }
-                } else if (sourceNode.type === 'colorNode' && edge.target === node.id && edge.targetHandle === 'color') {
+                } else if (sourceNode.type === 'colorNode' && edge.target === node.id && (edge.targetHandle === 'color-configured' || edge.targetHandle === 'color-modular')) {
                   color = sourceNode.data.color;
-                } else if (sourceNode.type === 'terrainParamsNode' && edge.target === node.id && edge.targetHandle === 'terrainParams') {
+                } else if (sourceNode.type === 'terrainParamsNode' && edge.target === node.id && (edge.targetHandle === 'terrainParams-configured' || edge.targetHandle === 'terrainParams-modular')) {
                   // Read terrainParams for ANY shape node - turns it into terrain!
                   terrainParams = {
                     octaves: sourceNode.data.octaves,
@@ -328,21 +333,23 @@ function App() {
                     dispFeather: sourceNode.data.dispFeather,
                   };
                   
+                } else if (sourceNode.type === 'multNode' && edge.target === node.id && edge.targetHandle === 'transform-modular' && isModular) {
+                  // Defer matrix application to chain resolution below.
                 } else if (sourceNode.type === 'motorNode') {
                   // Apply motor influence to the corresponding target pin
-                  if (edge.target === node.id && edge.targetHandle === 'position') {
+                  if (edge.target === node.id && edge.targetHandle === 'position-configured') {
                     position = {
                       x: xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min),
                       y: yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min),
                       z: zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min),
                     };
-                  } else if (edge.target === node.id && edge.targetHandle === 'rotation') {
+                  } else if (edge.target === node.id && edge.targetHandle === 'rotation-configured') {
                     rotation = {
                       x: xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min),
                       y: yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min),
                       z: zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min),
                     };
-                  } else if (edge.target === node.id && edge.targetHandle === 'size') {
+                  } else if (edge.target === node.id && edge.targetHandle === 'size-configured') {
                     scale = {
                       x: xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min),
                       y: yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min),
@@ -353,6 +360,99 @@ function App() {
               }
             });
   
+            let matrix = null;
+            if (isModular) {
+              // Debug early: verify data.shapeMode flag
+              if (!window.__modularFlagOnce) {
+                console.log('[ModularCheck]', 'node', node.id, 'shapeMode', node.data.shapeMode);
+                window.__modularFlagOnce = true;
+              }
+              const identityMatrix = () => [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+              const deg2rad = (d) => d * Math.PI / 180;
+              const multiplyMatrix = (a,b) => {
+                const r = new Array(16).fill(0);
+                for (let row=0; row<4; row++) {
+                  for (let col=0; col<4; col++) {
+                    for (let k=0; k<4; k++) {
+                      r[row*4+col] += a[row*4+k]*b[k*4+col];
+                    }
+                  }
+                }
+                return r;
+              };
+              const buildTransformMatrix = (d) => {
+                const tx=d.translateX||0, ty=d.translateY||0, tz=d.translateZ||0;
+                const rx=deg2rad(d.rotateX||0), ry=deg2rad(d.rotateY||0), rz=deg2rad(d.rotateZ||0);
+                const cosX=Math.cos(rx), sinX=Math.sin(rx);
+                const cosY=Math.cos(ry), sinY=Math.sin(ry);
+                const cosZ=Math.cos(rz), sinZ=Math.sin(rz);
+                const rotX=[1,0,0,0, 0,cosX,-sinX,0, 0,sinX,cosX,0, 0,0,0,1];
+                const rotY=[cosY,0,sinY,0, 0,1,0,0, -sinY,0,cosY,0, 0,0,0,1];
+                const rotZ=[cosZ,-sinZ,0,0, sinZ,cosZ,0,0, 0,0,1,0, 0,0,0,1];
+                const translation=[1,0,0,0, 0,1,0,0, 0,0,1,0, tx,ty,tz,1];
+                // Order: T * Rz * Ry * Rz (typo intentionally corrected to T*Rz*Ry*Rx)
+                return multiplyMatrix(translation, multiplyMatrix(rotZ, multiplyMatrix(rotY, rotX)));
+              };
+              const decomposeMatrix = (m) => {
+                // Primary translation (row-major bottom row)
+                let tx = m[12], ty = m[13], tz = m[14];
+                // Fallback: if row translation all zero but last column has values (column-major user input assumption)
+                if (tx === 0 && ty === 0 && tz === 0 && (m[3] !== 0 || m[7] !== 0 || m[11] !== 0)) {
+                  tx = m[3]; ty = m[7]; tz = m[11];
+                }
+                const pos = { x: tx, y: ty, z: tz };
+                // Approximate scale from column lengths
+                const sx = Math.hypot(m[0], m[1], m[2]);
+                const sy = Math.hypot(m[4], m[5], m[6]);
+                const sz = Math.hypot(m[8], m[9], m[10]);
+                // Remove scale for rotation extraction
+                const r0 = [m[0]/sx, m[1]/sx, m[2]/sx];
+                const r1 = [m[4]/sy, m[5]/sy, m[6]/sy];
+                const r2 = [m[8]/sz, m[9]/sz, m[10]/sz];
+                let rotY = Math.asin(-r2[0]);
+                let rotX, rotZ;
+                if (Math.cos(rotY) !== 0) {
+                  rotX = Math.atan2(r2[1], r2[2]);
+                  rotZ = Math.atan2(r1[0], r0[0]);
+                } else {
+                  rotX = Math.atan2(-r0[2], r1[2]);
+                  rotZ = 0;
+                }
+                const rot = { x: rotX*180/Math.PI, y: rotY*180/Math.PI, z: rotZ*180/Math.PI };
+                return { position: pos, rotation: rot, scale: { x: sx, y: sy, z: sz } };
+              };
+              const resolveMatrix = (startId, visited=new Set()) => {
+                if (!startId || visited.has(startId)) return identityMatrix();
+                visited.add(startId);
+                const n = nodes.find(nn => nn.id === startId);
+                if (!n) return identityMatrix();
+                if (n.type === 'multNode') {
+                  const upstreamEdge = edges.find(e => e.target === startId && e.targetHandle === 'matrix-in');
+                  const upstream = upstreamEdge ? resolveMatrix(upstreamEdge.source, visited) : identityMatrix();
+                  const local = [
+                    n.data.m00, n.data.m01, n.data.m02, n.data.m03,
+                    n.data.m10, n.data.m11, n.data.m12, n.data.m13,
+                    n.data.m20, n.data.m21, n.data.m22, n.data.m23,
+                    n.data.m30, n.data.m31, n.data.m32, n.data.m33,
+                  ];
+                  return multiplyMatrix(local, upstream); // Local * Upstream (earlier upstream first)
+                }
+                return identityMatrix();
+              };
+              const tEdge = edges.find(e => e.target === node.id && e.targetHandle === 'transform-modular');
+              if (tEdge) {
+                matrix = resolveMatrix(tEdge.source);
+                const dec = decomposeMatrix(matrix);
+                position = dec.position;
+                rotation = dec.rotation;
+                scale = dec.scale;
+              }
+              // Debug: log first shape's modular matrix decomposition once
+              if (tEdge && now - window.__lastShapeMatrixDebug > 1000) {
+                console.log('[ShapeMatrixDebug]', 'node', node.id, 'pos', position, 'rot', rotation, 'scale', scale);
+                window.__lastShapeMatrixDebug = now;
+              }
+            }
             const shapeData = {
               shape: node.data.shape,
               operation: operation || 'union',
@@ -360,6 +460,7 @@ function App() {
               color: color,
               rotation: rotation,
               scale: scale,
+              matrix: matrix,
             };
             
             // Add terrainParams if ANY shape has it connected - turns shape into terrain!
@@ -445,15 +546,16 @@ function App() {
       const { source, sourceHandle, target, targetHandle } = params;
   
       const validConnections = {
-        vectorNode: ['position', 'size', 'rotation'],
-        colorNode: ['color'],
+        vectorNode: ['position-configured', 'size-configured', 'rotation-configured'],
+        colorNode: ['color-configured', 'color-modular'],
         sphereNode: ['shape1', 'shapes'],
         torusNode: ['shape1', 'shapes'],
         boxNode: ['shape1', 'shapes'],
         capsuleNode: ['shape1', 'shapes'],
         modeNode: ['shape1', 'shapes', 'render'],
-        motorNode: ['position', 'size', 'rotation'],
-        terrainParamsNode: ['terrainParams'],
+        motorNode: ['position-configured', 'size-configured', 'rotation-configured'],
+        terrainParamsNode: ['terrainParams-configured', 'terrainParams-modular'],
+        multNode: ['transform-modular', 'matrix-in'],
       };
   
       const sourceNode = nodes.find((node) => node.id === source);
@@ -494,15 +596,16 @@ const onReconnect = useCallback((oldEdge, newConnection) => {
   const targetNode = nodes.find((node) => node.id === newConnection.target);
 
   const validConnections = {
-    vectorNode: ['position', 'size', 'rotation'],
-    colorNode: ['color'],
+    vectorNode: ['position-configured', 'size-configured', 'rotation-configured'],
+    colorNode: ['color-configured', 'color-modular'],
     sphereNode: ['shape1', 'shapes'],
     torusNode: ['shape1', 'shapes'],
     boxNode: ['shape1', 'shapes'],
     capsuleNode: ['shape1', 'shapes'],
     modeNode: ['shape1', 'shapes', 'render'],
-    motorNode: ['position', 'size', 'rotation'],
-    terrainParamsNode: ['terrainParams'],
+    motorNode: ['position-configured', 'size-configured', 'rotation-configured'],
+    terrainParamsNode: ['terrainParams-configured', 'terrainParams-modular'],
+    multNode: ['transform-modular', 'matrix-in'],
   };
 
   // Ensure validation before reconnecting

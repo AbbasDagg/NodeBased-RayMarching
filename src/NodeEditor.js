@@ -10,7 +10,9 @@ function NodeEditor({ setNodes, isFullscreen }) {
   const [availableIds, setAvailableIds] = useState([]);
   const reactFlowInstance = useReactFlow();
   const [showShapeMenu, setShowShapeMenu] = useState(false);
+  const [showOperatorMenu, setShowOperatorMenu] = useState(false);
   const shapeMenuRef = useRef(null);
+  const operatorMenuRef = useRef(null);
 
   const generateUniqueId = () => {
     if (availableIds.length > 0) {
@@ -88,14 +90,39 @@ function NodeEditor({ setNodes, isFullscreen }) {
     addNodeToCenter('motorNode', { xRange: { min: 0, max: 10, step: 1 }, yRange: { min: 0, max: 10, step: 1 }, zRange: { min: 0, max: 10, step: 1 } });
   };
 
-  const toggleShapeMenu = () => {
-    setShowShapeMenu(!showShapeMenu);
+  const addTransformNode = () => {
+    addNodeToCenter('transformNode', { translateX: 0, translateY: 0, translateZ: 0, rotateX: 0, rotateY: 0, rotateZ: 0 });
   };
 
-  // Close shape menu if clicking outside of it
+  const addMultNode = () => {
+    addNodeToCenter('multNode', { scaleX: 1, scaleY: 1, scaleZ: 1 });
+  };
+
+  const toggleShapeMenu = () => {
+    setShowShapeMenu(!showShapeMenu);
+    setShowOperatorMenu(false);
+  };
+
+  const toggleOperatorMenu = () => {
+    setShowOperatorMenu(!showOperatorMenu);
+    setShowShapeMenu(false);
+  };
+
+  const addOperatorNode = (type) => {
+    if (type === 'vectorNode') addVectorNode();
+    else if (type === 'motorNode') addMotorNode();
+    else if (type === 'transformNode') addTransformNode();
+    else if (type === 'multNode') addMultNode();
+    setShowOperatorMenu(false);
+  };
+
+  // Close menus if clicking outside of them
   const handleClickOutside = (event) => {
     if (shapeMenuRef.current && !shapeMenuRef.current.contains(event.target)) {
       setShowShapeMenu(false);
+    }
+    if (operatorMenuRef.current && !operatorMenuRef.current.contains(event.target)) {
+      setShowOperatorMenu(false);
     }
   };
 
@@ -254,17 +281,27 @@ function NodeEditor({ setNodes, isFullscreen }) {
   return (
     <div style={{ width: '100%' }}>
       <div className={`node-editor-buttons ${isFullscreen ? 'hidden' : ''}`} style={{ width: 'calc(100% - 320px)', padding: '0px', display: 'flex', justifyContent: 'flex-start', gap: '5px', position: 'relative' }}>
-<button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addVectorNode} style={{ flex: '1 1 16%' }}>Vector</button>
-      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addMotorNode} style={{ flex: '1 1 16%' }}>Motor</button>
-
-      <div ref={shapeMenuRef} style={{ position: 'relative', flex: '1 1 15%' }}>
-        <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={toggleShapeMenu} style={{ width: '100%' }}>Shape</button>
+      
+      <div ref={shapeMenuRef} style={{ position: 'relative', flex: '1 1 20%' }}>
+        <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={toggleShapeMenu} style={{ width: '100%' }}>Shape ▾</button>
         {showShapeMenu && (
           <div className="shape-menu">
             <button className="pshdown2" onClick={() => addShapeNode('sphereNode')}>Sphere</button>
             <button className="pshdown2" onClick={() => addShapeNode('torusNode')}>Torus</button>
             <button className="pshdown2" onClick={() => addShapeNode('boxNode')}>Box</button>
             <button className="pshdown2" onClick={() => addShapeNode('capsuleNode')}>Capsule</button>
+          </div>
+        )}
+      </div>
+
+      <div ref={operatorMenuRef} style={{ position: 'relative', flex: '1 1 20%' }}>
+        <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={toggleOperatorMenu} style={{ width: '100%' }}>Operators ▾</button>
+        {showOperatorMenu && (
+          <div className="shape-menu">
+            <button className="pshdown2" onClick={() => addOperatorNode('vectorNode')}>Vector</button>
+            <button className="pshdown2" onClick={() => addOperatorNode('motorNode')}>Motor</button>
+            <button className="pshdown2" onClick={() => addOperatorNode('transformNode')}>Transform</button>
+            <button className="pshdown2" onClick={() => addOperatorNode('multNode')}>Mult</button>
           </div>
         )}
       </div>

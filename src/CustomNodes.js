@@ -1147,3 +1147,22 @@ export function RenderNode({ data }) {
     </div>
   );
 }
+
+export function GroupNode({ data }) {
+  const accent = '#4a9eff';
+  return (
+    <div className="card groupNode" style={{ width: '210px', height: '170px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px' }}>
+      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', height: '100%' }}>
+        <div style={{ marginBottom: '6px', fontWeight: 'bold', fontSize: '14px', color: accent, textTransform: 'uppercase', letterSpacing: '1px' }}>Group</div>
+        {/* Left handles: transform and shapes (multi) */}
+        <div style={{ position: 'absolute', left: '8px', top: '40%', fontSize: '13px', color: '#fff', fontWeight: 'bold' }}>Transform</div>
+        <Handle key="transform" type="target" position={Position.Left} id="transform" style={{ top: '45%', ...handleStyleLeft }} />
+        <div style={{ position: 'absolute', left: '8px', top: '68%', fontSize: '13px', color: '#fff', fontWeight: 'bold' }}>Shapes</div>
+        <Handle key="shapes" type="target" position={Position.Left} id="shapes" style={{ top: '73%', ...handleStyleLeft }} />
+        {/* Right handle: render out */}
+        <div style={{ position: 'absolute', right: '18px', top: '68%', fontSize: '13px', color: '#fff', fontWeight: 'bold' }}>Render</div>
+        <Handle key="render" type="source" position={Position.Right} id="render" style={{ top: '73%', ...handleStyleRight }} />
+      </div>
+    </div>
+  );
+}

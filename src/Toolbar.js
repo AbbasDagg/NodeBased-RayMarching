@@ -102,6 +102,7 @@ function Toolbar({ onGenerateSimple, onGenerateComplex, onGenerateVariations, /*
     { type: 'motorNode', label: 'Motor', color: '#555' },
     { type: 'transformNode', label: 'Transform', color: '#00d4ff' },
     { type: 'multNode', label: 'Mult (Scale)', color: '#ff6b6b' },
+    { type: 'groupNode', label: 'Group', color: '#a970ff' },
   ];
 
   return (

@@ -37,22 +37,28 @@ export function ModeNode({ data }) {
   };
 
   return (
-    <div className="card modeNode" style={{ width: '160px', height: '120px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #a970ff', borderRadius: '8px' }}>
+    <div className="card modeNode" style={{ width: '190px', height: '175px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #a970ff', borderRadius: '8px' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', height: '100%' }}>
         <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px', color: '#a970ff', textTransform: 'uppercase', letterSpacing: '1px' }}>Mode</div>
         <select
           value={mode}
           onChange={handleModeChange}
-          style={{ width: '110px', marginBottom: '8px', padding: '5px', borderRadius: '4px', background: '#1b1f22', color: '#a970ff', border: '1px solid #a970ff' }}
+          style={{ width: '130px', marginBottom: '8px', padding: '5px', borderRadius: '4px', background: '#1b1f22', color: '#a970ff', border: '1px solid #a970ff' }}
         >
           <option value="union">Union</option>
           <option value="substraction">Substraction</option>
           <option value="intersection">Intersection</option>
         </select>
-        <div style={{ position: 'absolute', left: '8px', top: '20px', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>Base</div>
-        <Handle key="shape1" type="target" position={Position.Left} id="shape1" style={{ top: '30%', ...modeHandleStyleLeft }} />
-        <div style={{ position: 'absolute', left: '8px', bottom: '25px', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>Operations</div>
-        <Handle key="shapes" type="target" position={Position.Left} id="shapes" style={{ top: '80%', ...modeHandleStyleLeft }} />
+        {/* Left side handles with consistent labels placed lower */}
+        <div style={{ position: 'absolute', left: '8px', top: '48%', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>Base</div>
+        <Handle key="shape1" type="target" position={Position.Left} id="shape1" style={{ top: '50%', ...modeHandleStyleLeft }} />
+        <div style={{ position: 'absolute', left: '8px', top: '63%', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>Transform</div>
+        <Handle key="group-transform" type="target" position={Position.Left} id="group-transform" style={{ top: '68%', ...modeHandleStyleLeft }} />
+        <div style={{ position: 'absolute', left: '8px', top: '81%', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>Operations</div>
+        <Handle key="shapes" type="target" position={Position.Left} id="shapes" style={{ top: '85%', ...modeHandleStyleLeft }} />
+        {/* Render output mid-right aligned with transform */}
+        <div style={{ position: 'absolute', right: '18px', top: '63%', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>Render</div>
+        <Handle key="render" type="source" position={Position.Right} id="render" style={{ top: '68%', ...modeHandleStyleRight }} />
       </div>
     </div>
   );

@@ -272,7 +272,7 @@ function App() {
       renderNodes.forEach((renderNode, layerIndex) => {
         const shapes = [];
   
-        const traverse = (nodeId, operation) => {
+        const traverse = (nodeId, operation, groupMatrix) => {
           const node = nodes.find(n => n.id === nodeId);
   
           if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode', 'terrainNode'].includes(node.type)) {
@@ -447,9 +447,17 @@ function App() {
                 matrix = resolveMatrix(tEdge.source);
                 // Decompose forward matrix for bounding (collider) data while still using inverse matrix in shader.
                 const dec = decomposeMatrix(matrix);
-                position = dec.position; // used solely for bounds/collider
-                rotation = dec.rotation; // not currently consumed by shader when hasMatrix==1 but collider may use it
-                scale = dec.scale;       // collider size; shader will still treat unit size for hasMatrix path
+                position = dec.position;
+                rotation = dec.rotation;
+                scale = dec.scale;
+                // Apply group transform post local if provided
+                if (groupMatrix) {
+                  matrix = multiplyMatrix(groupMatrix, matrix); // Group * Local
+                  const decGroup = decomposeMatrix(matrix);
+                  position = decGroup.position;
+                  rotation = decGroup.rotation;
+                  scale = decGroup.scale;
+                }
               }
               if (tEdge && now - window.__lastShapeMatrixDebug > 1000) {
                 console.log('[ShapeMatrixRaw]', 'node', node.id, 'matrix', matrix);
@@ -507,14 +515,40 @@ function App() {
             const shape1NodeId = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'shape1')
               .map(edge => edge.source)[0];
-  
+
             const shapesNodeIds = edges
               .filter(edge => edge.target === node.id && edge.targetHandle === 'shapes')
               .map(edge => edge.source);
 
-            if (shape1NodeId) traverse(shape1NodeId, node.data.mode);
+            // Resolve group transform chain if connected
+            let groupMatrixLocal = null;
+            const groupEdge = edges.find(e => e.target === node.id && e.targetHandle === 'group-transform');
+            if (groupEdge) {
+              const resolveGroup = (startId, visited=new Set()) => {
+                if (!startId || visited.has(startId)) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+                visited.add(startId);
+                const n = nodes.find(nn => nn.id === startId);
+                if (!n) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+                if (n.type === 'multNode') {
+                  const upstreamEdge = edges.find(e => e.target === startId && e.targetHandle === 'matrix-in');
+                  const upstream = upstreamEdge ? resolveGroup(upstreamEdge.source, visited) : [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+                  const local = [
+                    n.data.m00, n.data.m01, n.data.m02, n.data.m03,
+                    n.data.m10, n.data.m11, n.data.m12, n.data.m13,
+                    n.data.m20, n.data.m21, n.data.m22, n.data.m23,
+                    n.data.m30, n.data.m31, n.data.m32, n.data.m33,
+                  ];
+                  const mul=(a,b)=>{const r=new Array(16).fill(0);for(let row=0;row<4;row++)for(let col=0;col<4;col++)for(let k=0;k<4;k++)r[row*4+col]+=a[row*4+k]*b[k*4+col];return r;};
+                  return mul(local, upstream);
+                }
+                return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+              };
+              groupMatrixLocal = resolveGroup(groupEdge.source);
+            }
+
+            if (shape1NodeId) traverse(shape1NodeId, node.data.mode, groupMatrixLocal);
             shapesNodeIds.forEach(shapeNodeId => {
-              if (shapeNodeId) traverse(shapeNodeId, node.data.mode);
+              if (shapeNodeId) traverse(shapeNodeId, node.data.mode, groupMatrixLocal);
             });
           }
         };
@@ -533,11 +567,35 @@ function App() {
             .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'shapes')
             .map(edge => edge.source);
 
-          if (shape1NodeId) traverse(shape1NodeId, modeNode.data.mode);
-          
-          // Process all shapes connected to the "shapes" handle
+          // Resolve group matrix once per mode node
+          let groupMatrix = null;
+          const groupEdge = edges.find(e => e.target === modeNode.id && e.targetHandle === 'group-transform');
+          if (groupEdge) {
+            const resolveGroup = (startId, visited=new Set()) => {
+              if (!startId || visited.has(startId)) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+              visited.add(startId);
+              const n = nodes.find(nn => nn.id === startId);
+              if (!n) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+              if (n.type === 'multNode') {
+                const upstreamEdge = edges.find(e => e.target === startId && e.targetHandle === 'matrix-in');
+                const upstream = upstreamEdge ? resolveGroup(upstreamEdge.source, visited) : [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+                const local = [
+                  n.data.m00, n.data.m01, n.data.m02, n.data.m03,
+                  n.data.m10, n.data.m11, n.data.m12, n.data.m13,
+                  n.data.m20, n.data.m21, n.data.m22, n.data.m23,
+                  n.data.m30, n.data.m31, n.data.m32, n.data.m33,
+                ];
+                const mul=(a,b)=>{const r=new Array(16).fill(0);for(let row=0;row<4;row++)for(let col=0;col<4;col++)for(let k=0;k<4;k++)r[row*4+col]+=a[row*4+k]*b[k*4+col];return r;};
+                return mul(local, upstream);
+              }
+              return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+            };
+            groupMatrix = resolveGroup(groupEdge.source);
+          }
+
+          if (shape1NodeId) traverse(shape1NodeId, modeNode.data.mode, groupMatrix);
           shapesNodeIds.forEach(shapeNodeId => {
-            if (shapeNodeId) traverse(shapeNodeId, modeNode.data.mode);
+            if (shapeNodeId) traverse(shapeNodeId, modeNode.data.mode, groupMatrix);
           });
         });        shapes.forEach(shapeData => {
           threeSceneRef.current.addShape(shapeData, layerIndex);
@@ -586,10 +644,10 @@ function App() {
         torusNode: ['shape1', 'shapes'],
         boxNode: ['shape1', 'shapes'],
         capsuleNode: ['shape1', 'shapes'],
-        modeNode: ['shape1', 'shapes', 'render'],
+        modeNode: ['shape1', 'shapes', 'render', 'group-transform'],
         motorNode: ['position-configured', 'size-configured', 'rotation-configured'],
         // TERRAIN DISABLED terrainParamsNode: ['terrainParams-configured', 'terrainParams-modular'],
-        multNode: ['transform-modular', 'matrix-in'],
+        multNode: ['transform-modular', 'matrix-in', 'group-transform'],
       };
   
       const sourceNode = nodes.find((node) => node.id === source);
@@ -636,10 +694,10 @@ const onReconnect = useCallback((oldEdge, newConnection) => {
     torusNode: ['shape1', 'shapes'],
     boxNode: ['shape1', 'shapes'],
     capsuleNode: ['shape1', 'shapes'],
-    modeNode: ['shape1', 'shapes', 'render'],
+    modeNode: ['shape1', 'shapes', 'render', 'group-transform'],
     motorNode: ['position-configured', 'size-configured', 'rotation-configured'],
     // TERRAIN DISABLED terrainParamsNode: ['terrainParams-configured', 'terrainParams-modular'],
-    multNode: ['transform-modular', 'matrix-in'],
+    multNode: ['transform-modular', 'matrix-in', 'group-transform'],
   };
 
   // Ensure validation before reconnecting

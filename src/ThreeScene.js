@@ -64,7 +64,24 @@ const ThreeScene = forwardRef((props, ref) => {
           scale: new THREE.Vector3(shapeData.scale.x * SCALING_FACTOR, shapeData.scale.y * SCALING_FACTOR, shapeData.scale.z * SCALING_FACTOR),
           shape: Raymarcher.shapes[shapeData.shape]
         };
+        // Direct matrix path for modular shapes
+        if (shapeData.hasMatrix && shapeData.inverseMatrix) {
+          entity.hasMatrix = 1.0;
+          const a = shapeData.inverseMatrix; // row-major forward inverse; Three.js set() expects row-major
+          // Do NOT transpose; keep translation in last column m03,m13,m23 mapping to GLSL last column
+          entity.invMatrix = new THREE.Matrix4().set(
+            a[0], a[1], a[2], a[3],
+            a[4], a[5], a[6], a[7],
+            a[8], a[9], a[10], a[11],
+            a[12], a[13], a[14], a[15]
+          );
+        } else {
+          entity.hasMatrix = 0.0;
+          entity.invMatrix = new THREE.Matrix4();
+          entity.invMatrix.identity();
+        }
         
+        /* TERRAIN DISABLED
         // Add terrainParams if present and mirror to flat fields for renderer
         if (shapeData.terrainParams) {
           const tp = shapeData.terrainParams;
@@ -106,12 +123,14 @@ const ThreeScene = forwardRef((props, ref) => {
           entity.dispApplyMaxY = 9999.0;
           entity.dispFeather = 0.0;
         }
+        */
         
         // Add the shape to the specified layer
         raymarcherRef.current.userData.layers[layerId].push(entity);
         raymarcherRef.current.needsUpdate = true;
       }
     },
+    /* TERRAIN DISABLED
     setDebugTerrain: (enabled) => {
       if (raymarcherRef.current) {
         raymarcherRef.current.userData.debugForceTerrain = !!enabled;
@@ -119,6 +138,7 @@ const ThreeScene = forwardRef((props, ref) => {
         console.log('[ThreeScene] debugForceTerrain =', !!enabled);
       }
     },
+    */
     clearScene: () => {
       if (raymarcherRef.current) {
         raymarcherRef.current.userData.layers = []; // Clear all layers
@@ -191,8 +211,8 @@ const ThreeScene = forwardRef((props, ref) => {
       envMapIntensity: 1,
       layers: [[]] // Start with a single empty layer
     });
-    // Initialize debug flag off
-    raymarcher.userData.debugForceTerrain = false;
+    // TERRAIN DISABLED Initialize debug flag off
+    // TERRAIN DISABLED raymarcher.userData.debugForceTerrain = false;
     raymarcherRef.current = raymarcher;
     scene.add(raymarcher);
 

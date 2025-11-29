@@ -37,9 +37,9 @@ export function ModeNode({ data }) {
   };
 
   return (
-  <div className="card modeNode" style={{ width: '160px', height: '120px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #a970ff', borderRadius: '8px' }}>
+    <div className="card modeNode" style={{ width: '160px', height: '120px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #a970ff', borderRadius: '8px' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', height: '100%' }}>
-  <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px', color: '#a970ff', textTransform: 'uppercase', letterSpacing: '1px' }}>Mode</div>
+        <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px', color: '#a970ff', textTransform: 'uppercase', letterSpacing: '1px' }}>Mode</div>
         <select
           value={mode}
           onChange={handleModeChange}
@@ -49,26 +49,14 @@ export function ModeNode({ data }) {
           <option value="substraction">Substraction</option>
           <option value="intersection">Intersection</option>
         </select>
-        
-        {/* Top input - for base shape/mode */}
-        <div style={{ position: 'absolute', left: '8px', top: '20px', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>
-          Base
-        </div>
-        <Handle key="shape1" type="target" position={Position.Left} id="shape1" style={{ top: '30%', ...modeHandleStyleLeft  }} />
-        
-        {/* Bottom input - for operations on the base */}
-        <div style={{ position: 'absolute', left: '8px', bottom: '25px', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>
-          Operations
-        </div>
+        <div style={{ position: 'absolute', left: '8px', top: '20px', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>Base</div>
+        <Handle key="shape1" type="target" position={Position.Left} id="shape1" style={{ top: '30%', ...modeHandleStyleLeft }} />
+        <div style={{ position: 'absolute', left: '8px', bottom: '25px', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>Operations</div>
         <Handle key="shapes" type="target" position={Position.Left} id="shapes" style={{ top: '80%', ...modeHandleStyleLeft }} />
-        
-        {/* Output */}
-        <Handle key="render" type="source" position={Position.Right} id="render" style={{ top: '50%', ...modeHandleStyleRight }} />
       </div>
     </div>
   );
 }
-
 
 export function VectorNode({ data, isConnectable }) {
   const [inputData, setInputData] = useState({
@@ -76,11 +64,7 @@ export function VectorNode({ data, isConnectable }) {
     y: data.y || 0,
     z: data.z || 0,
   });
-  const [range, setRange] = useState({
-    min: -100,
-    max: 100,
-    step: 1,
-  });
+  const [range, setRange] = useState({ min: -100, max: 100, step: 1 });
   const reactFlowInstance = useReactFlow();
 
   const adjustRangeForRotation = () => {
@@ -95,124 +79,51 @@ export function VectorNode({ data, isConnectable }) {
   };
 
   const handleChange = (name, value) => {
-    setInputData((prevData) => {
-      const newData = { ...prevData, [name]: value };
+    setInputData((prev) => {
+      const next = { ...prev, [name]: value };
       data[name] = value;
-
-      reactFlowInstance.setNodes((nodes) => {
-        return nodes.map((node) => {
-          // Update nodes based on the connection type
-          const relevantEdges = reactFlowInstance
-            .getEdges()
-            .filter((edge) => edge.source === data.id);
-
-          const isConnectedToCurrentNode = relevantEdges.some(
-            (edge) =>
-              edge.target === node.id &&
-              edge.targetHandle === name &&
-              edge.sourceHandle === 'vector'
-          );
-
-          if (isConnectedToCurrentNode) {
-            return { ...node, data: { ...node.data, [name]: value } };
-          }
-
-          return node;
-        });
-      });
-
-      return newData;
+      reactFlowInstance.setNodes(nodes => nodes.map(node => {
+        const relevantEdges = reactFlowInstance.getEdges().filter(e => e.source === data.id);
+        const isConnected = relevantEdges.some(e => e.target === node.id && e.targetHandle === name && e.sourceHandle === 'vector');
+        if (isConnected) return { ...node, data: { ...node.data, [name]: value } };
+        return node;
+      }));
+      return next;
     });
   };
 
   useEffect(() => {
     adjustRangeForRotation();
-    const intervalId = setInterval(adjustRangeForRotation, 100); // Check periodically
-    return () => clearInterval(intervalId); // Cleanup on unmount
+    const intervalId = setInterval(adjustRangeForRotation, 100);
+    return () => clearInterval(intervalId);
   }, [reactFlowInstance]);
 
   return (
     <div className="card vectorNode" style={{ width: '200px', height: '200px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #ffcc00', borderRadius: '8px' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ marginBottom: '5px', fontWeight: 'bold', fontSize: '14px', color: '#ffcc00', textTransform: 'uppercase', letterSpacing: '1px' }}>Vector</div>
-        <input
-          type="number"
-          name="x"
-          value={inputData.x}
-          onChange={(e) => handleChange('x', parseFloat(e.target.value))}
-          className="nodrag"
-          style={{
-            width: '35%',
-            marginBottom: '5px',
-            padding: '3px',
-            borderRadius: '4px',
-            border: '1px solid #ffcc00',
-            background: '#1b1f22',
-            color: '#ffcc00',
-          }}
-        />
-        <input
-          type="range"
-          min={range.min}
-          max={range.max}
-          step={range.step}
-          value={inputData.x}
-          onChange={(e) => handleChange('x', parseFloat(e.target.value))}
-          className="nodrag"
-          style={{ width: '80%', marginBottom: '5px', accentColor: '#ffcc00' }}
-        />
-        <input
-          type="number"
-          name="y"
-          value={inputData.y}
-          onChange={(e) => handleChange('y', parseFloat(e.target.value))}
-          className="nodrag"
-          style={{
-            width: '35%',
-            marginBottom: '5px',
-            padding: '3px',
-            borderRadius: '4px',
-            border: '1px solid #ffcc00',
-            background: '#1b1f22',
-            color: '#ffcc00',
-          }}
-        />
-        <input
-          type="range"
-          min={range.min}
-          max={range.max}
-          step={range.step}
-          value={inputData.y}
-          onChange={(e) => handleChange('y', parseFloat(e.target.value))}
-          className="nodrag"
-          style={{ width: '80%', marginBottom: '5px', accentColor: '#ffcc00' }}
-        />
-        <input
-          type="number"
-          name="z"
-          value={inputData.z}
-          onChange={(e) => handleChange('z', parseFloat(e.target.value))}
-          className="nodrag"
-          style={{
-            width: '35%',
-            marginBottom: '5px',
-            padding: '3px',
-            borderRadius: '4px',
-            border: '1px solid #ffcc00',
-            background: '#1b1f22',
-            color: '#ffcc00',
-          }}
-        />
-        <input
-          type="range"
-          min={range.min}
-          max={range.max}
-          step={range.step}
-          value={inputData.z}
-          onChange={(e) => handleChange('z', parseFloat(e.target.value))}
-          className="nodrag"
-          style={{ width: '80%', marginBottom: '5px', accentColor: '#ffcc00' }}
-        />
+        {['x','y','z'].map(axis => (
+          <React.Fragment key={axis}>
+            <input
+              type="number"
+              name={axis}
+              value={inputData[axis]}
+              onChange={(e) => handleChange(axis, parseFloat(e.target.value))}
+              className="nodrag"
+              style={{ width: '35%', marginBottom: '5px', padding: '3px', borderRadius: '4px', border: '1px solid #ffcc00', background: '#1b1f22', color: '#ffcc00' }}
+            />
+            <input
+              type="range"
+              min={range.min}
+              max={range.max}
+              step={range.step}
+              value={inputData[axis]}
+              onChange={(e) => handleChange(axis, parseFloat(e.target.value))}
+              className="nodrag"
+              style={{ width: '80%', marginBottom: '5px', accentColor: '#ffcc00' }}
+            />
+          </React.Fragment>
+        ))}
         <Handle key="vector" type="source" position={Position.Right} id="vector" style={handleStyleRight} isConnectable={isConnectable} />
       </div>
     </div>
@@ -270,61 +181,51 @@ export function MotorNode({ data, isConnectable }) {
 export function MultNode({ id, data }) {
   const accent = '#ff6b6b';
   const { setNodes } = useReactFlow();
-  // Initialize matrix cells (m00..m33) if missing
+  // Initialize matrix cells
   const initial = {};
-  for (let r=0; r<4; r++) {
-    for (let c=0; c<4; c++) {
-      const key = `m${r}${c}`;
-      if (data[key] === undefined) initial[key] = (r===c ? 1 : 0);
-    }
+  for (let r=0;r<4;r++) for (let c=0;c<4;c++) {
+    const k = `m${r}${c}`; if (data[k] === undefined) initial[k] = (r===c?1:0);
   }
   if (Object.keys(initial).length) Object.assign(data, initial);
   const [matrixState, setMatrixState] = useState(() => {
-    const obj = {};
-    for (let r=0; r<4; r++) for (let c=0; c<4; c++) obj[`m${r}${c}`] = data[`m${r}${c}`];
-    return obj;
+    const o={}; for (let r=0;r<4;r++) for (let c=0;c<4;c++) o[`m${r}${c}`]=data[`m${r}${c}`]; return o;
   });
-
-  const handleCellChange = (key, value) => {
-    const num = parseFloat(value);
-    setMatrixState(prev => {
-      const next = { ...prev, [key]: isNaN(num) ? 0 : num };
-      data[key] = next[key];
-      // Push full updated matrix into global node data so render loop recomputes
-      setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...next } } : n));
-      // Debug log first row & translation row
-      console.log('[MatrixNode]', id, 'm00..m03=', next.m00, next.m01, next.m02, next.m03, 'translation candidates bottom:', next.m30, next.m31, next.m32, 'last column:', next.m03, next.m13, next.m23);
-      return next;
-    });
+  const commit = next => {
+    Object.assign(data, next);
+    setNodes(ns => ns.map(n => n.id===id? { ...n, data: { ...n.data, ...next } } : n));
   };
-
+  const handleCellChange = (key,val) => {
+    const num = parseFloat(val);
+    setMatrixState(prev => { const next={...prev,[key]:isNaN(num)?0:num}; commit(next); console.log('[MatrixNode]',id,next); return next; });
+  };
+  const applyMatrixPreset = preset => {
+    const next={}; for (let r=0;r<4;r++) for (let c=0;c<4;c++) next[`m${r}${c}`]=(r===c?1:0);
+    if (preset==='RotX90'){next.m11=0;next.m12=-1;next.m21=1;next.m22=0;}
+    else if (preset==='RotY90'){next.m00=0;next.m02=1;next.m20=-1;next.m22=0;}
+    else if (preset==='RotZ90'){next.m00=0;next.m01=-1;next.m10=1;next.m11=0;}
+    else if (preset==='TranslateX1'){next.m03=1;}
+    else if (preset==='UniformScale2'){next.m00=2;next.m11=2;next.m22=2;}
+    // ResetIdentity already identity
+    setMatrixState(next); commit(next); console.log('[MatrixNodePreset]',id,preset,next);
+  };
   return (
-    <div className="card multNode" style={{ width: '190px', height: '220px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px', position: 'relative' }}>
-      <div style={{ padding: '6px 8px 4px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ fontWeight: 'bold', color: accent, fontSize: '13px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Matrix</div>
-        <div style={{ fontSize: '10px', color: '#aaa', marginBottom: '4px', textAlign: 'center', lineHeight: '1.1' }}>Chain left→right: final = Local * Upstream.</div>
-        <div style={{ fontSize: '9px', color: '#888', marginBottom: '6px', textAlign: 'center', lineHeight: '1.1' }}>
-          Translate: bottom row m30 m31 m32<br />
-          Scale: diagonal m00 m11 m22<br />
-          Rotation: edit off-diagonals (3x3 block)
+    <div className="card multNode" style={{ width: '240px', height: '260px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px', position: 'relative' }}>
+      <div style={{ padding: '8px 10px 6px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ fontWeight: 'bold', color: accent, fontSize: '14px', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '1px' }}>Matrix</div>
+        <div style={{ fontSize: '10px', color: '#aaa', marginBottom: '8px', textAlign: 'center', lineHeight: '1.2' }}>Chain left→right: final = Local * Upstream.</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, auto)', gap: '6px', marginBottom: '8px' }}>
+          <button className="nodrag" onClick={()=>applyMatrixPreset('RotX90')} style={{ fontSize:'10px', padding:'4px 6px', borderRadius:'4px', border:`1px solid ${accent}`, background:'#1b1f22', color:accent }}>RotX 90°</button>
+          <button className="nodrag" onClick={()=>applyMatrixPreset('RotY90')} style={{ fontSize:'10px', padding:'4px 6px', borderRadius:'4px', border:`1px solid ${accent}`, background:'#1b1f22', color:accent }}>RotY 90°</button>
+          <button className="nodrag" onClick={()=>applyMatrixPreset('RotZ90')} style={{ fontSize:'10px', padding:'4px 6px', borderRadius:'4px', border:`1px solid ${accent}`, background:'#1b1f22', color:accent }}>RotZ 90°</button>
+          <button className="nodrag" onClick={()=>applyMatrixPreset('TranslateX1')} style={{ fontSize:'10px', padding:'4px 6px', borderRadius:'4px', border:`1px solid ${accent}`, background:'#1b1f22', color:accent }}>+X Translate 1</button>
+          <button className="nodrag" onClick={()=>applyMatrixPreset('UniformScale2')} style={{ fontSize:'10px', padding:'4px 6px', borderRadius:'4px', border:`1px solid ${accent}`, background:'#1b1f22', color:accent }}>Uniform Scale 2×</button>
+          <button className="nodrag" onClick={()=>applyMatrixPreset('ResetIdentity')} style={{ fontSize:'10px', padding:'4px 6px', borderRadius:'4px', border:`1px solid ${accent}`, background:'#1b1f22', color:accent }}>Reset Identity</button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '3px', width: '100%', marginBottom: '6px' }}>
-          {Array.from({ length: 4 }).map((_, r) => (
-            Array.from({ length: 4 }).map((__, c) => {
-              const key = `m${r}${c}`;
-              return (
-                <input
-                  key={key}
-                  type="number"
-                  step="0.01"
-                  value={matrixState[key]}
-                  onChange={(e) => handleCellChange(key, e.target.value)}
-                  className="nodrag"
-                  style={{ width: '100%', padding: '2px', fontSize: '10px', borderRadius: '3px', border: `1px solid ${accent}`, background: '#1b1f22', color: accent }}
-                />
-              );
-            })
-          ))}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'3px', width:'100%', marginBottom:'6px' }}>
+          {Array.from({length:4}).map((_,r)=>Array.from({length:4}).map((__,c)=>{
+            const key=`m${r}${c}`;
+            return <input key={key} type="number" step="0.01" value={matrixState[key]} onChange={e=>handleCellChange(key,e.target.value)} className="nodrag" style={{ width:'100%', padding:'2px', fontSize:'11px', borderRadius:'3px', border:`1px solid ${accent}`, background:'#1b1f22', color:accent }} />;
+          }))}
         </div>
       </div>
       <Handle type="target" position={Position.Left} id="matrix-in" style={{ ...handleStyleLeft, top: '50%' }} />
@@ -416,8 +317,10 @@ export function SphereNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
             <Handle type="target" position={Position.Left} id="rotation-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '80%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '80%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
+            {/* TERRAIN DISABLED
             <Handle type="target" position={Position.Left} id="terrainParams-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '94%', backgroundColor: '#ff9500' }} />
             <span style={{ position: 'absolute', left: '40px', top: '94%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+            */}
           </>
         ) : (
           <>
@@ -425,8 +328,10 @@ export function SphereNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Transform</span>
             <Handle type="target" position={Position.Left} id="color-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '75%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '75%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+            {/* TERRAIN DISABLED
             <Handle type="target" position={Position.Left} id="terrainParams-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#ff9500' }} />
             <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+            */}
           </>
         )}
         <Handle type="source" position={Position.Right} id="render" isConnectable={true} style={{ ...handleStyleRight, top: '65%' }} />
@@ -518,8 +423,10 @@ export function TorusNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
             <Handle type="target" position={Position.Left} id="rotation-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '80%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '80%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
+            {/* TERRAIN DISABLED
             <Handle type="target" position={Position.Left} id="terrainParams-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '94%', backgroundColor: '#ff9500' }} />
             <span style={{ position: 'absolute', left: '40px', top: '94%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+            */}
           </>
         ) : (
           <>
@@ -527,8 +434,10 @@ export function TorusNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Transform</span>
             <Handle type="target" position={Position.Left} id="color-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '75%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '75%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+            {/* TERRAIN DISABLED
             <Handle type="target" position={Position.Left} id="terrainParams-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#ff9500' }} />
             <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+            */}
           </>
         )}
         <Handle type="source" position={Position.Right} id="render" isConnectable={true} style={{ ...handleStyleRight, top: '65%' }} />
@@ -618,8 +527,10 @@ export function BoxNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
             <Handle type="target" position={Position.Left} id="rotation-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '80%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '80%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
+            {/* TERRAIN DISABLED
             <Handle type="target" position={Position.Left} id="terrainParams-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '94%', backgroundColor: '#ff9500' }} />
             <span style={{ position: 'absolute', left: '40px', top: '94%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+            */}
           </>
         ) : (
           <>
@@ -627,8 +538,10 @@ export function BoxNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Transform</span>
             <Handle type="target" position={Position.Left} id="color-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '75%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '75%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+            {/* TERRAIN DISABLED
             <Handle type="target" position={Position.Left} id="terrainParams-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#ff9500' }} />
             <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+            */}
           </>
         )}
         <Handle type="source" position={Position.Right} id="render" isConnectable={true} style={{ ...handleStyleRight, top: '65%' }} />
@@ -718,8 +631,10 @@ export function CapsuleNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
             <Handle type="target" position={Position.Left} id="rotation-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '80%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '80%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
+            {/* TERRAIN DISABLED
             <Handle type="target" position={Position.Left} id="terrainParams-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '94%', backgroundColor: '#ff9500' }} />
             <span style={{ position: 'absolute', left: '40px', top: '94%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+            */}
           </>
         ) : (
           <>
@@ -727,8 +642,10 @@ export function CapsuleNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Transform</span>
             <Handle type="target" position={Position.Left} id="color-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '75%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '75%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
+            {/* TERRAIN DISABLED
             <Handle type="target" position={Position.Left} id="terrainParams-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#ff9500' }} />
             <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
+            */}
           </>
         )}
         <Handle type="source" position={Position.Right} id="render" isConnectable={true} style={{ ...handleStyleRight, top: '65%' }} />
@@ -737,6 +654,7 @@ export function CapsuleNode({ id, data }) {
   );
 }
 
+/* TERRAIN DISABLED - TerrainNode component
 export function TerrainNode({ data }) {
   const outlineColor = 'white';
 
@@ -770,7 +688,10 @@ export function TerrainNode({ data }) {
     </div>
   );
 }
+*/
 
+// TERRAIN DISABLED - TerrainParamsNode component
+/*
 export function TerrainParamsNode({ data }) {
   const [octaves, setOctaves] = useState(data.octaves || 5);
   const [amplitude, setAmplitude] = useState(data.amplitude || 1.35);
@@ -951,7 +872,7 @@ export function TerrainParamsNode({ data }) {
           />
         </div>
 
-        {/* Band and color grading controls were removed to restore performance as requested */}
+        
 
         <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <input
@@ -1177,6 +1098,8 @@ export function TerrainParamsNode({ data }) {
     </div>
   );
 }
+// END TERRAIN DISABLED
+*/
 
 export function ColorNode({ data, isConnectable }) {
   const [color, setColor] = useState(data.color || '#ffffff');

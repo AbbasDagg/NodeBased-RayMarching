@@ -4,7 +4,7 @@ import 'reactflow/dist/style.css';
 import './App.css'; // Import the CSS file
 import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
-import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode, TerrainNode, TerrainParamsNode, MultNode } from './CustomNodes';
+import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode, /* TERRAIN DISABLED TerrainNode, TerrainParamsNode, */ MultNode } from './CustomNodes';
 import { reconnectEdge } from 'reactflow';
 import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the custom edge and connection line
 
@@ -142,8 +142,8 @@ const nodeTypes = {
   renderNode: RenderNode,
   modeNode: ModeNode,
   motorNode: MotorNode,
-  terrainNode: TerrainNode,
-  terrainParamsNode: TerrainParamsNode,
+  // TERRAIN DISABLED terrainNode: TerrainNode,
+  // TERRAIN DISABLED terrainParamsNode: TerrainParamsNode,
   multNode: MultNode,
 };
 
@@ -156,7 +156,7 @@ function App() {
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [debugTerrain, setDebugTerrain] = useState(false);
+  // TERRAIN DISABLED const [debugTerrain, setDebugTerrain] = useState(false);
   const edgeReconnectSuccessful = useRef(true);
 
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, nodeId: null });
@@ -281,9 +281,9 @@ function App() {
             let rotation = node.data.rotation || { x: 0, y: 0, z: 0 };
             let scale = node.data.scale || { x: 1, y: 1, z: 1 };
             let color = node.data.color || 0xffffff;
-            let terrainParams = null; // Only populated for terrain nodes
+            // TERRAIN DISABLED let terrainParams = null; // Only populated for terrain nodes
   
-            // Find all connected edges for position, rotation, size, color, terrainParams, transform, and mult
+            // Find all connected edges for position, rotation, size, color, /* TERRAIN DISABLED terrainParams, */ transform, and mult
             edges.forEach(edge => {
               const sourceNode = nodes.find(n => n.id === edge.source);
               if (sourceNode) {
@@ -312,7 +312,9 @@ function App() {
                   }
                 } else if (sourceNode.type === 'colorNode' && edge.target === node.id && (edge.targetHandle === 'color-configured' || edge.targetHandle === 'color-modular')) {
                   color = sourceNode.data.color;
-                } else if (sourceNode.type === 'terrainParamsNode' && edge.target === node.id && (edge.targetHandle === 'terrainParams-configured' || edge.targetHandle === 'terrainParams-modular')) {
+                }
+                /* TERRAIN DISABLED
+                else if (sourceNode.type === 'terrainParamsNode' && edge.target === node.id && (edge.targetHandle === 'terrainParams-configured' || edge.targetHandle === 'terrainParams-modular')) {
                   // Read terrainParams for ANY shape node - turns it into terrain!
                   terrainParams = {
                     octaves: sourceNode.data.octaves,
@@ -332,8 +334,8 @@ function App() {
                     dispApplyMaxY: sourceNode.data.dispApplyMaxY,
                     dispFeather: sourceNode.data.dispFeather,
                   };
-                  
-                } else if (sourceNode.type === 'multNode' && edge.target === node.id && edge.targetHandle === 'transform-modular' && isModular) {
+                } // END TERRAIN DISABLED */
+                else if (sourceNode.type === 'multNode' && edge.target === node.id && edge.targetHandle === 'transform-modular' && isModular) {
                   // Defer matrix application to chain resolution below.
                 } else if (sourceNode.type === 'motorNode') {
                   // Apply motor influence to the corresponding target pin
@@ -386,19 +388,20 @@ function App() {
                 const cosX=Math.cos(rx), sinX=Math.sin(rx);
                 const cosY=Math.cos(ry), sinY=Math.sin(ry);
                 const cosZ=Math.cos(rz), sinZ=Math.sin(rz);
+                // Row-major rotation matrices
                 const rotX=[1,0,0,0, 0,cosX,-sinX,0, 0,sinX,cosX,0, 0,0,0,1];
                 const rotY=[cosY,0,sinY,0, 0,1,0,0, -sinY,0,cosY,0, 0,0,0,1];
                 const rotZ=[cosZ,-sinZ,0,0, sinZ,cosZ,0,0, 0,0,1,0, 0,0,0,1];
-                const translation=[1,0,0,0, 0,1,0,0, 0,0,1,0, tx,ty,tz,1];
-                // Order: T * Rz * Ry * Rz (typo intentionally corrected to T*Rz*Ry*Rx)
+                // Translation now placed in last column (row-major form of standard affine matrix)
+                const translation=[1,0,0,tx, 0,1,0,ty, 0,0,1,tz, 0,0,0,1];
+                // Combined: T * Rz * Ry * Rx
                 return multiplyMatrix(translation, multiplyMatrix(rotZ, multiplyMatrix(rotY, rotX)));
               };
               const decomposeMatrix = (m) => {
-                // Primary translation (row-major bottom row)
-                let tx = m[12], ty = m[13], tz = m[14];
-                // Fallback: if row translation all zero but last column has values (column-major user input assumption)
-                if (tx === 0 && ty === 0 && tz === 0 && (m[3] !== 0 || m[7] !== 0 || m[11] !== 0)) {
-                  tx = m[3]; ty = m[7]; tz = m[11];
+                // Prefer last column (standard affine) then fallback to legacy bottom-row translation
+                let tx = m[3], ty = m[7], tz = m[11];
+                if (tx === 0 && ty === 0 && tz === 0 && (m[12] !== 0 || m[13] !== 0 || m[14] !== 0)) {
+                  tx = m[12]; ty = m[13]; tz = m[14];
                 }
                 const pos = { x: tx, y: ty, z: tz };
                 // Approximate scale from column lengths
@@ -442,14 +445,14 @@ function App() {
               const tEdge = edges.find(e => e.target === node.id && e.targetHandle === 'transform-modular');
               if (tEdge) {
                 matrix = resolveMatrix(tEdge.source);
+                // Decompose forward matrix for bounding (collider) data while still using inverse matrix in shader.
                 const dec = decomposeMatrix(matrix);
-                position = dec.position;
-                rotation = dec.rotation;
-                scale = dec.scale;
+                position = dec.position; // used solely for bounds/collider
+                rotation = dec.rotation; // not currently consumed by shader when hasMatrix==1 but collider may use it
+                scale = dec.scale;       // collider size; shader will still treat unit size for hasMatrix path
               }
-              // Debug: log first shape's modular matrix decomposition once
               if (tEdge && now - window.__lastShapeMatrixDebug > 1000) {
-                console.log('[ShapeMatrixDebug]', 'node', node.id, 'pos', position, 'rot', rotation, 'scale', scale);
+                console.log('[ShapeMatrixRaw]', 'node', node.id, 'matrix', matrix);
                 window.__lastShapeMatrixDebug = now;
               }
             }
@@ -462,11 +465,42 @@ function App() {
               scale: scale,
               matrix: matrix,
             };
+            // Attach inverse matrix for modular shapes
+            if (matrix) {
+              const invertMatrix4 = (m) => {
+                const inv = new Array(16);
+                const a = m;
+                inv[0] = a[5]*a[10]*a[15]-a[5]*a[11]*a[14]-a[9]*a[6]*a[15]+a[9]*a[7]*a[14]+a[13]*a[6]*a[11]-a[13]*a[7]*a[10];
+                inv[4] = -a[4]*a[10]*a[15]+a[4]*a[11]*a[14]+a[8]*a[6]*a[15]-a[8]*a[7]*a[14]-a[12]*a[6]*a[11]+a[12]*a[7]*a[10];
+                inv[8] = a[4]*a[9]*a[15]-a[4]*a[11]*a[13]-a[8]*a[5]*a[15]+a[8]*a[7]*a[13]+a[12]*a[5]*a[11]-a[12]*a[7]*a[9];
+                inv[12] = -a[4]*a[9]*a[14]+a[4]*a[10]*a[13]+a[8]*a[5]*a[14]-a[8]*a[6]*a[13]-a[12]*a[5]*a[10]+a[12]*a[6]*a[9];
+                inv[1] = -a[1]*a[10]*a[15]+a[1]*a[11]*a[14]+a[9]*a[2]*a[15]-a[9]*a[3]*a[14]-a[13]*a[2]*a[11]+a[13]*a[3]*a[10];
+                inv[5] = a[0]*a[10]*a[15]-a[0]*a[11]*a[14]-a[8]*a[2]*a[15]+a[8]*a[3]*a[14]+a[12]*a[2]*a[11]-a[12]*a[3]*a[10];
+                inv[9] = -a[0]*a[9]*a[15]+a[0]*a[11]*a[13]+a[8]*a[1]*a[15]-a[8]*a[3]*a[13]-a[12]*a[1]*a[11]+a[12]*a[3]*a[9];
+                inv[13] = a[0]*a[9]*a[14]-a[0]*a[10]*a[13]-a[8]*a[1]*a[14]+a[8]*a[2]*a[13]+a[12]*a[1]*a[10]-a[12]*a[2]*a[9];
+                inv[2] = a[1]*a[6]*a[15]-a[1]*a[7]*a[14]-a[5]*a[2]*a[15]+a[5]*a[3]*a[14]+a[13]*a[2]*a[7]-a[13]*a[3]*a[6];
+                inv[6] = -a[0]*a[6]*a[15]+a[0]*a[7]*a[14]+a[4]*a[2]*a[15]-a[4]*a[3]*a[14]-a[12]*a[2]*a[7]+a[12]*a[3]*a[6];
+                inv[10] = a[0]*a[5]*a[15]-a[0]*a[7]*a[13]-a[4]*a[1]*a[15]+a[4]*a[3]*a[13]+a[12]*a[1]*a[7]-a[12]*a[3]*a[5];
+                inv[14] = -a[0]*a[5]*a[14]+a[0]*a[6]*a[13]+a[4]*a[1]*a[14]-a[4]*a[2]*a[13]-a[12]*a[1]*a[6]+a[12]*a[2]*a[5];
+                inv[3] = -a[1]*a[6]*a[11]+a[1]*a[7]*a[10]+a[5]*a[2]*a[11]-a[5]*a[3]*a[10]-a[9]*a[2]*a[7]+a[9]*a[3]*a[6];
+                inv[7] = a[0]*a[6]*a[11]-a[0]*a[7]*a[10]-a[4]*a[2]*a[11]+a[4]*a[3]*a[10]+a[8]*a[2]*a[7]-a[8]*a[3]*a[6];
+                inv[11] = -a[0]*a[5]*a[11]+a[0]*a[7]*a[9]+a[4]*a[1]*a[11]-a[4]*a[3]*a[9]-a[8]*a[1]*a[7]+a[8]*a[3]*a[5];
+                inv[15] = a[0]*a[5]*a[10]-a[0]*a[6]*a[9]-a[4]*a[1]*a[10]+a[4]*a[2]*a[9]+a[8]*a[1]*a[6]-a[8]*a[2]*a[5];
+                let det = a[0]*inv[0] + a[1]*inv[4] + a[2]*inv[8] + a[3]*inv[12];
+                if (Math.abs(det) < 1e-8) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+                for (let i=0;i<16;i++) inv[i] /= det;
+                return inv;
+              };
+              shapeData.inverseMatrix = invertMatrix4(matrix);
+              shapeData.hasMatrix = true;
+            }
             
+            /* TERRAIN DISABLED
             // Add terrainParams if ANY shape has it connected - turns shape into terrain!
             if (terrainParams) {
               shapeData.terrainParams = terrainParams;
             }
+            */
             
             shapes.push(shapeData);
           } else if (node.type === 'modeNode') {
@@ -554,7 +588,7 @@ function App() {
         capsuleNode: ['shape1', 'shapes'],
         modeNode: ['shape1', 'shapes', 'render'],
         motorNode: ['position-configured', 'size-configured', 'rotation-configured'],
-        terrainParamsNode: ['terrainParams-configured', 'terrainParams-modular'],
+        // TERRAIN DISABLED terrainParamsNode: ['terrainParams-configured', 'terrainParams-modular'],
         multNode: ['transform-modular', 'matrix-in'],
       };
   
@@ -604,7 +638,7 @@ const onReconnect = useCallback((oldEdge, newConnection) => {
     capsuleNode: ['shape1', 'shapes'],
     modeNode: ['shape1', 'shapes', 'render'],
     motorNode: ['position-configured', 'size-configured', 'rotation-configured'],
-    terrainParamsNode: ['terrainParams-configured', 'terrainParams-modular'],
+    // TERRAIN DISABLED terrainParamsNode: ['terrainParams-configured', 'terrainParams-modular'],
     multNode: ['transform-modular', 'matrix-in'],
   };
 
@@ -820,7 +854,7 @@ const onReconnectEnd = useCallback((_, edge) => {
           overflow: 'hidden',
         }}
       >
-        {/* Debug Toggle Button (hidden) */}
+        {/* TERRAIN DISABLED - Debug Toggle Button (hidden)
         {false && !isFullscreen && (
           <button
             className="nodrag"
@@ -851,6 +885,7 @@ const onReconnectEnd = useCallback((_, edge) => {
             {debugTerrain ? 'Terrain: ON' : 'Terrain: OFF'}
           </button>
         )}
+        */}
         
         {/* Resize handles */}
         {!isFullscreen && (

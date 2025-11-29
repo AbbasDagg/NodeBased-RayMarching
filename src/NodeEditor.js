@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useReactFlow } from 'reactflow';
 import './App.css'; // Import the CSS file
-import { generateSimpleScene, generateComplexScene, generateVariations, generateRandomSingleShape, generateProceduralTerrain } from './ProceduralGeneration';
+import { generateSimpleScene, generateComplexScene, generateVariations, generateRandomSingleShape, /* TERRAIN DISABLED generateProceduralTerrain */ } from './ProceduralGeneration';
 //import { add } from 'three/webgpu';
 //import { add } from 'three/webgpu';
 
@@ -238,6 +238,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
     }
   };
 
+  /* TERRAIN DISABLED
   const handleGenerateTerrain = () => {
     try {
       saveToHistory(); // Save current state before generating
@@ -254,6 +255,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
       console.error('Error in handleGenerateTerrain:', error);
     }
   };
+  */
 
   const generateVariationsFromCurrent = () => {
     const currentNodes = reactFlowInstance.getNodes();
@@ -340,6 +342,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
         >
           Random Shape
         </button>
+        {/* TERRAIN DISABLED
         <button 
           className={`terrain-btn ${isFullscreen ? 'hidden' : ''}`} 
           onClick={handleGenerateTerrain} 
@@ -347,6 +350,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
         >
           Generate Terrain
         </button>
+        */}
         <button 
           className={`delete ${isFullscreen ? 'hidden' : ''}`} 
           onClick={resetAllNodes} 

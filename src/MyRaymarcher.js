@@ -16,11 +16,13 @@ struct Bounds {
 struct Entity {
   vec3 color;
   int operation;
-  vec3 position;
-  vec4 rotation;
-  vec3 scale;
+  vec3 position; // legacy (ignored when hasMatrix==1)
+  vec4 rotation; // legacy (ignored when hasMatrix==1)
+  vec3 scale;    // legacy (ignored when hasMatrix==1)
   int shape;
-  // Terrain parameters
+  mat4 invMatrix; // full inverse transform (used when hasMatrix==1)
+  float hasMatrix; // 1.0 => use invMatrix path
+  /* TERRAIN DISABLED - Terrain parameters
   float octaves;
   float amplitude;
   float clampYMin;
@@ -42,6 +44,7 @@ struct Entity {
   float dispApplyMinY;
   float dispApplyMaxY;
   float dispFeather;
+  */
 };
 
 struct SDF {
@@ -101,6 +104,7 @@ float sdTorus(const in vec3 p, const in vec2 t) {
   return length(q) - t.y;
 }
 
+/* TERRAIN DISABLED - Noise functions and terrain generation
 // Stable hash (fixed constants) to avoid precision artifacts; seed will be applied via coordinate offset
 // hash21: classic value-noise hash (not gradient/Perlin). We keep constants fixed for continuity
 float hash21(vec2 p) {
@@ -294,41 +298,49 @@ vec2 terrainDisplacementAndWeight(const in vec3 plocal, const in Entity e) {
   }
   return vec2(displacement * weight, weight);
 }
+// END TERRAIN DISABLED */
 
 SDF sdEntity(in vec3 p, const in Entity e) {
   float distance;
   vec3 outColor = e.color;
   
-  // Special case for dedicated terrain heightfield (shape == 4)
-  if (e.shape == 4) {
-    vec3 plocal = applyQuaternion(p - e.position, normalize(e.rotation));
-    return sdTerrainWithColor(p, plocal, e); // Pass both world and local coordinates
+  // Transform point into local space
+  vec3 plocal;
+  if (e.hasMatrix > 0.5) {
+    plocal = (e.invMatrix * vec4(p, 1.0)).xyz;
+  } else {
+    plocal = applyQuaternion(p - e.position, normalize(e.rotation));
   }
-  
-  // For all other shapes, apply normal transformations
-  p = applyQuaternion(p - e.position, normalize(e.rotation));
+
+  /* TERRAIN DISABLED
+  // Terrain heightfield uses local coords for noise sampling but world p for distance
+  if (e.shape == 4) {
+    return sdTerrainWithColor(p, plocal, e);
+  }
+  */
   
   switch (e.shape) {
     default:
     case 0:
-      distance = sdBox(p, e.scale * 0.5 - vec3(0.1)) - 0.1;
+      distance = sdBox(plocal, (e.hasMatrix>0.5? vec3(1.0): e.scale) * 0.5 - vec3(0.1)) - 0.1;
       break;
     case 1:
-      distance = sdCapsule(p, e.scale * 0.5);
+      distance = sdCapsule(plocal, (e.hasMatrix>0.5? vec3(1.0): e.scale) * 0.5);
       break;
     case 2:
-      distance = sdEllipsoid(p, e.scale * 0.5);
+      distance = sdEllipsoid(plocal, (e.hasMatrix>0.5? vec3(1.0): e.scale) * 0.5);
       break;
     case 3:
-      distance = sdTorus(p, e.scale.xy * 0.5);
+      distance = sdTorus(plocal, (e.hasMatrix>0.5? vec2(1.0): e.scale.xy) * 0.5);
       break;
   }
   
+  /* TERRAIN DISABLED - Displacement application
   // Apply displacement only when octaves > 0 (i.e., TerrainParams connected or debug override)
   int ocount = int(e.octaves + 0.5);
   if (ocount > 0) {
     // Compute displacement and weight; optionally smooth when shaping breaks smoothness
-    vec2 dw0 = terrainDisplacementAndWeight(p, e);
+    vec2 dw0 = terrainDisplacementAndWeight(plocal, e);
     float disp = dw0.x;
     float weight = dw0.y;
     // Adaptive smoothing based on user smoothingStrength (0..1); cheap 3-tap for low levels, 5-tap for high
@@ -350,7 +362,7 @@ SDF sdEntity(in vec3 p, const in Entity e) {
       }
     }
     // Displace strictly along local Y by re-evaluating the base SDF at y-offset point
-    vec3 p2 = p; p2.y -= disp;
+    vec3 p2 = plocal; p2.y -= disp;
     float distanceY;
     switch (e.shape) {
       default:
@@ -383,6 +395,7 @@ SDF sdEntity(in vec3 p, const in Entity e) {
       outColor = mix(e.color, rampColor, weight);
     }
   }
+  // END TERRAIN DISABLED */
   
   return SDF(distance, outColor);
 }
@@ -591,6 +604,8 @@ class Raymarcher extends Mesh {
             rotation: {},
             scale: {},
             shape: {},
+            invMatrix: {},
+            hasMatrix: {},
             octaves: {},
             amplitude: {},
             clampYMin: {},
@@ -712,7 +727,7 @@ class Raymarcher extends Mesh {
 
   onBeforeRender(renderer, scene, camera) {
     const { userData: { layers, resolution, raymarcher, target } } = this;
-    const debugForce = !!this.userData.debugForceTerrain;
+    // TERRAIN DISABLED const debugForce = !!this.userData.debugForceTerrain;
     const { material: { defines, uniforms } } = raymarcher;
 
     camera.getWorldDirection(uniforms.cameraDirection.value);
@@ -782,7 +797,7 @@ class Raymarcher extends Mesh {
       uniforms.bounds.value.center.copy(bounds.center);
       uniforms.bounds.value.radius = bounds.radius;
       uniforms.numEntities.value = entities.length;
-  entities.forEach(({ color, operation, position, rotation, scale, shape, octaves, amplitude, clampYMin, clampYMax, offsetX, offsetZ, seed, dispClampMin, dispClampMax, peakGain, valleyGain, useColorRamp, smoothingStrength, dispApplyMinY, dispApplyMaxY, dispFeather }, i) => {
+    entities.forEach(({ color, operation, position, rotation, scale, shape, invMatrix, hasMatrix/* TERRAIN DISABLED , octaves, amplitude, clampYMin, clampYMax, offsetX, offsetZ, seed, dispClampMin, dispClampMax, peakGain, valleyGain, useColorRamp, smoothingStrength, dispApplyMinY, dispApplyMaxY, dispFeather */ }, i) => {
         const uniform = uniforms.entities.value[i];
         uniform.color.copy(color);
         uniform.operation = operation;
@@ -790,6 +805,9 @@ class Raymarcher extends Mesh {
         uniform.rotation.copy(rotation);
         uniform.scale.copy(scale);
         uniform.shape = shape;
+      uniform.invMatrix.copy(invMatrix);
+      uniform.hasMatrix = hasMatrix;
+        /* TERRAIN DISABLED
         // If debugForce is on, override terrain uniforms to strong values
         if (debugForce) {
           uniform.octaves = 6.0;
@@ -826,6 +844,7 @@ class Raymarcher extends Mesh {
           uniform.dispApplyMaxY = (dispApplyMaxY !== undefined ? dispApplyMaxY : 9999.0);
           uniform.dispFeather = (dispFeather !== undefined ? dispFeather : 0.0);
         }
+        */
       });
       // minimal one-time log is kept above when MAX_ENTITIES updates
       renderer.render(raymarcher, camera);
@@ -855,7 +874,7 @@ class Raymarcher extends Mesh {
     }));
   }
 
-  static cloneEntity({ color, operation, position, rotation, scale, shape, terrainParams }) {
+  static cloneEntity({ color, operation, position, rotation, scale, shape/* TERRAIN DISABLED , terrainParams */ }) {
     const entity = {
       color: color.clone(),
       operation,
@@ -863,6 +882,9 @@ class Raymarcher extends Mesh {
       rotation: rotation.clone(),
       scale: scale.clone(),
       shape,
+      invMatrix: new Matrix4(),
+      hasMatrix: 0.0,
+      /* TERRAIN DISABLED
       // Default terrain parameters - octaves=0 means NO terrain displacement
       octaves: 0,
       amplitude: 1.35,
@@ -880,8 +902,10 @@ class Raymarcher extends Mesh {
   dispApplyMinY: -9999.0,
   dispApplyMaxY: 9999.0,
   dispFeather: 0.0,
+      */
     };
     
+    /* TERRAIN DISABLED
     // Override with terrainParams if provided - this activates terrain!
     if (terrainParams) {
       entity.octaves = terrainParams.octaves;
@@ -902,6 +926,7 @@ class Raymarcher extends Mesh {
   entity.dispFeather = terrainParams.dispFeather ?? 0.0;
       
     }
+    */
     
     return entity;
   }
@@ -937,7 +962,7 @@ Raymarcher.shapes = {
   capsule: 1,
   sphere: 2,
   torus: 3,
-  terrain: 4,
+  // TERRAIN DISABLED terrain: 4,
 };
 
 export { Raymarcher as default };

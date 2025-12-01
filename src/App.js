@@ -547,10 +547,80 @@ function App() {
               groupMatrixLocal = resolveGroup(groupEdge.source);
             }
 
-            if (shape1NodeId) traverse(shape1NodeId, node.data.mode, groupMatrixLocal);
-            shapesNodeIds.forEach(shapeNodeId => {
-              if (shapeNodeId) traverse(shapeNodeId, node.data.mode, groupMatrixLocal);
+            // Helper to gather shapes from a group node as a union of its members
+            const gatherGroupMemberIds = (groupId) => {
+              const results = [];
+              const gn = nodes.find(n => n.id === groupId);
+              if (!gn || gn.type !== 'groupNode') return results;
+              // Resolve this group's own transform
+              let combineMatrix = null;
+              const edgeTransform = edges.find(e => e.target === gn.id && e.targetHandle === 'transform');
+              if (edgeTransform) {
+                const resolveCombine = (startId, visited=new Set()) => {
+                  if (!startId || visited.has(startId)) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+                  visited.add(startId);
+                  const n = nodes.find(nn => nn.id === startId);
+                  if (!n) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+                  if (n.type === 'multNode') {
+                    const upstreamEdge = edges.find(e => e.target === startId && e.targetHandle === 'matrix-in');
+                    const upstream = upstreamEdge ? resolveCombine(upstreamEdge.source, visited) : [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+                    const local = [
+                      n.data.m00, n.data.m01, n.data.m02, n.data.m03,
+                      n.data.m10, n.data.m11, n.data.m12, n.data.m13,
+                      n.data.m20, n.data.m21, n.data.m22, n.data.m23,
+                      n.data.m30, n.data.m31, n.data.m32, n.data.m33,
+                    ];
+                    const mul=(a,b)=>{const r=new Array(16).fill(0);for(let row=0;row<4;row++)for(let col=0;col<4;col++)for(let k=0;k<4;k++)r[row*4+col]+=a[row*4+k]*b[k*4+col];return r;};
+                    return mul(local, upstream);
+                  }
+                  return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+                };
+                combineMatrix = resolveCombine(edgeTransform.source);
+              }
+              const mul=(a,b)=>{const r=new Array(16).fill(0);for(let row=0;row<4;row++)for(let col=0;col<4;col++)for(let k=0;k<4;k++)r[row*4+col]+=a[row*4+k]*b[k*4+col];return r;};
+              const effectiveGroup = groupMatrixLocal && combineMatrix ? mul(groupMatrixLocal, combineMatrix)
+                                    : groupMatrixLocal ? groupMatrixLocal
+                                    : combineMatrix ? combineMatrix
+                                    : null;
+              const childShapeIds = edges
+                .filter(e => e.target === gn.id && e.targetHandle === 'shapes')
+                .map(e => e.source);
+              childShapeIds.forEach(cid => {
+                // Push ids; traversal will apply effectiveGroup per call
+                results.push({ id: cid, group: effectiveGroup });
+              });
+              return results;
+            };
+            // Build base and operations lists with effective group per member
+            const baseMembers = (shape1NodeId && nodes.find(n=>n.id===shape1NodeId)?.type==='groupNode')
+              ? gatherGroupMemberIds(shape1NodeId)
+              : (shape1NodeId ? [{ id: shape1NodeId, group: groupMatrixLocal }] : []);
+            const opMembers = [];
+            shapesNodeIds.forEach(sid => {
+              const n = nodes.find(nn=>nn.id===sid);
+              if (n && n.type==='groupNode') {
+                opMembers.push(...gatherGroupMemberIds(sid));
+              } else if (sid) {
+                opMembers.push({ id: sid, group: groupMatrixLocal });
+              }
             });
+
+            // Compose final ordering: for subtraction, for each base emit base (union) followed by each op (subtraction) to achieve pairwise subtraction
+            if (node.data.mode === 'subtraction') {
+              baseMembers.forEach(b => {
+                traverse(b.id, 'union', b.group);
+                opMembers.forEach(o => traverse(o.id, 'subtraction', o.group));
+              });
+            } else if (node.data.mode === 'intersection') {
+              baseMembers.forEach(b => {
+                traverse(b.id, 'union', b.group);
+                opMembers.forEach(o => traverse(o.id, 'intersection', o.group));
+              });
+            } else {
+              // Union mode: just union all
+              baseMembers.forEach(b => traverse(b.id, 'union', b.group));
+              opMembers.forEach(o => traverse(o.id, 'union', o.group));
+            }
           } else if (node.type === 'groupNode') {
             // Resolve combime transform chain from its 'transform' input
             let combineMatrix = null;
@@ -700,7 +770,7 @@ function App() {
         motorNode: ['position-configured', 'size-configured', 'rotation-configured'],
         // TERRAIN DISABLED terrainParamsNode: ['terrainParams-configured', 'terrainParams-modular'],
         multNode: ['transform-modular', 'matrix-in', 'group-transform', 'transform'],
-        groupNode: ['shapes', 'render', 'transform'],
+        groupNode: ['shape1', 'shapes', 'render', 'transform'],
       };
   
       const sourceNode = nodes.find((node) => node.id === source);
@@ -751,7 +821,7 @@ const onReconnect = useCallback((oldEdge, newConnection) => {
     motorNode: ['position-configured', 'size-configured', 'rotation-configured'],
     // TERRAIN DISABLED terrainParamsNode: ['terrainParams-configured', 'terrainParams-modular'],
     multNode: ['transform-modular', 'matrix-in', 'group-transform', 'transform'],
-    groupNode: ['shapes', 'render', 'transform'],
+    groupNode: ['shape1', 'shapes', 'render', 'transform'],
   };
 
   // Ensure validation before reconnecting

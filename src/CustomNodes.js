@@ -17,18 +17,25 @@ const modeHandleStyleLeft = { left: modeHandleOffset, backgroundColor: 'black', 
 
 
 
-export function ModeNode({ data }) {
+export function ModeNode({ id, data }) {
   const [mode, setMode] = useState(data.mode || 'union');
   const reactFlowInstance = useReactFlow();
 
+  // Sync dropdown with data.mode changes (e.g., after duplication or reconnection)
+  useEffect(() => {
+    if (data.mode && data.mode !== mode) {
+      setMode(data.mode);
+    }
+  }, [data.mode]);
+
   const handleModeChange = (e) => {
-    const newMode = e.target.value.toLowerCase();
+    const newMode = e.target.value;
     setMode(newMode);
     data.mode = newMode;
 
     reactFlowInstance.setNodes((nodes) =>
       nodes.map((node) => {
-        if (node.id === data.id) {
+        if (node.id === id) {
           return { ...node, data: { ...node.data, mode: newMode } };
         }
         return node;
@@ -46,7 +53,7 @@ export function ModeNode({ data }) {
           style={{ width: '130px', marginBottom: '8px', padding: '5px', borderRadius: '4px', background: '#1b1f22', color: '#a970ff', border: '1px solid #a970ff' }}
         >
           <option value="union">Union</option>
-          <option value="substraction">Substraction</option>
+          <option value="subtraction">Subtraction</option>
           <option value="intersection">Intersection</option>
         </select>
         {/* Left side handles with consistent labels placed lower */}

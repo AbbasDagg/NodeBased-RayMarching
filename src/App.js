@@ -444,21 +444,21 @@ function App() {
                 return identityMatrix();
               };
               const tEdge = edges.find(e => e.target === node.id && e.targetHandle === 'transform-modular');
-              if (tEdge) {
-                matrix = resolveMatrix(tEdge.source);
-                // Decompose forward matrix for bounding (collider) data while still using inverse matrix in shader.
-                const dec = decomposeMatrix(matrix);
-                position = dec.position;
-                rotation = dec.rotation;
-                scale = dec.scale;
-                // Apply group transform post local if provided
-                if (groupMatrix) {
-                  matrix = multiplyMatrix(groupMatrix, matrix); // Group * Local
-                  const decGroup = decomposeMatrix(matrix);
-                  position = decGroup.position;
-                  rotation = decGroup.rotation;
-                  scale = decGroup.scale;
-                }
+              // Always start from identity so global/group transforms apply even without local transforms
+              const localMatrix = tEdge ? resolveMatrix(tEdge.source) : identityMatrix();
+              matrix = localMatrix;
+              // Decompose forward matrix for bounding (collider) data while still using inverse matrix in shader.
+              const dec = decomposeMatrix(matrix);
+              position = dec.position;
+              rotation = dec.rotation;
+              scale = dec.scale;
+              // Apply group transform post local if provided
+              if (groupMatrix) {
+                matrix = multiplyMatrix(groupMatrix, matrix); // Group * Local (or Group * I if no local)
+                const decGroup = decomposeMatrix(matrix);
+                position = decGroup.position;
+                rotation = decGroup.rotation;
+                scale = decGroup.scale;
               }
               if (tEdge && now - window.__lastShapeMatrixDebug > 1000) {
                 console.log('[ShapeMatrixRaw]', 'node', node.id, 'matrix', matrix);

@@ -7,6 +7,7 @@ import ThreeScene from './ThreeScene';
 import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode, /* TERRAIN DISABLED TerrainNode, TerrainParamsNode, */ MultNode, GroupNode } from './CustomNodes';
 import { reconnectEdge } from 'reactflow';
 import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the custom edge and connection line
+import { GraphManager } from './graph/GraphManager';
 
 
 const initialNodes = [
@@ -164,6 +165,12 @@ function App() {
   const [renderSquareSize, setRenderSquareSize] = useState({ width: 300, height: 300 });
   const [isResizing, setIsResizing] = useState(false);
   const fullscreenTimeoutRef = useRef(null);
+  const gmRef = useRef(null);
+
+  // Initialize GraphManager once with initial graph; future updates are incremental
+  useEffect(() => {
+    gmRef.current = new GraphManager(nodes, edges);
+  }, []);
 
 
   const printPos = false
@@ -233,12 +240,17 @@ function App() {
         setEdges((eds) => {
           const cleanedEdges = eds.filter((edge) => edge.source !== newId && edge.target !== newId);
           console.log(`Cleaned edges before adding copied node:`, cleanedEdges);
+          if (gmRef.current) gmRef.current.setEdges(cleanedEdges);
           return cleanedEdges;
         });
         
         // Add the new node to the list of nodes after a small delay to ensure edge cleanup completes
         setTimeout(() => {
-          setNodes((nds) => [...nds, newNode]);
+          setNodes((nds) => {
+            const next = [...nds, newNode];
+            if (gmRef.current) gmRef.current.setNodes(next);
+            return next;
+          });
           console.log(`Added copied node with ID: ${newId}`);
         }, 10);
   
@@ -253,10 +265,14 @@ function App() {
   const handleDeleteNode = () => {
     if (contextMenu.nodeId) {
       const nodeIdToDelete = contextMenu.nodeId;
-      // Remove the node
-      setNodes((nds) => nds.filter((node) => node.id !== nodeIdToDelete));
-      // Remove associated edges
-      setEdges((eds) => eds.filter((edge) => edge.source !== nodeIdToDelete && edge.target !== nodeIdToDelete));
+      // Compute next state
+      const nextNodes = nodes.filter((node) => node.id !== nodeIdToDelete);
+      const nextEdges = edges.filter((edge) => edge.source !== nodeIdToDelete && edge.target !== nodeIdToDelete);
+      // Apply and update GraphManager incrementally
+      setNodes(nextNodes);
+      if (gmRef.current) gmRef.current.setNodes(nextNodes);
+      setEdges(nextEdges);
+      if (gmRef.current) gmRef.current.setEdges(nextEdges);
       setContextMenu({ ...contextMenu, visible: false });
     }
   };
@@ -264,461 +280,14 @@ function App() {
   const handleRenderScene = useCallback(() => {
     if (threeSceneRef.current) {
       threeSceneRef.current.clearScene();
-  
-      const renderNodes = nodes.filter(node => node.type === 'renderNode');
-      // Throttle modular shape debug logging
-      const now = Date.now();
-      if (!window.__lastShapeMatrixDebug) window.__lastShapeMatrixDebug = 0;
-  
+      // New DAG-based evaluation using GraphManager (cached per nodes/edges change)
+      const gm = gmRef.current;
+      if (!gm) return;
+      // Start a new frame to refresh time-dependent nodes (motors)
+      gm.beginFrame();
+      const renderNodes = nodes.filter(n => n.type === 'renderNode');
       renderNodes.forEach((renderNode, layerIndex) => {
-        const shapes = [];
-  
-        const traverse = (nodeId, operation, groupMatrix) => {
-          const node = nodes.find(n => n.id === nodeId);
-  
-          if (['sphereNode', 'torusNode', 'boxNode', 'capsuleNode', 'terrainNode'].includes(node.type)) {
-            const isModular = node.data.shapeMode === 'modular';
-            let position = node.data.position || { x: 0, y: 0, z: 0 };
-            let rotation = node.data.rotation || { x: 0, y: 0, z: 0 };
-            let scale = node.data.scale || { x: 1, y: 1, z: 1 };
-            let color = node.data.color || 0xffffff;
-            // TERRAIN DISABLED let terrainParams = null; // Only populated for terrain nodes
-  
-            // Find all connected edges for position, rotation, size, color, /* TERRAIN DISABLED terrainParams, */ transform, and mult
-            edges.forEach(edge => {
-              const sourceNode = nodes.find(n => n.id === edge.source);
-              if (sourceNode) {
-                const time = Date.now() / 1000;
-                const { xRange, yRange, zRange } = sourceNode.data;
-  
-                if (sourceNode.type === 'vectorNode') {
-                  if (edge.target === node.id && edge.targetHandle === 'position-configured') {
-                    position = {
-                      x: sourceNode.data.x,
-                      y: sourceNode.data.y,
-                      z: sourceNode.data.z,
-                    };
-                  } else if (edge.target === node.id && edge.targetHandle === 'rotation-configured') {
-                    rotation = {
-                      x: sourceNode.data.x,
-                      y: sourceNode.data.y,
-                      z: sourceNode.data.z,
-                    };
-                  } else if (edge.target === node.id && edge.targetHandle === 'size-configured') {
-                    scale = {
-                      x: sourceNode.data.x,
-                      y: sourceNode.data.y,
-                      z: sourceNode.data.z,
-                    };
-                  }
-                } else if (sourceNode.type === 'colorNode' && edge.target === node.id && (edge.targetHandle === 'color-configured' || edge.targetHandle === 'color-modular')) {
-                  color = sourceNode.data.color;
-                }
-                /* TERRAIN DISABLED
-                else if (sourceNode.type === 'terrainParamsNode' && edge.target === node.id && (edge.targetHandle === 'terrainParams-configured' || edge.targetHandle === 'terrainParams-modular')) {
-                  // Read terrainParams for ANY shape node - turns it into terrain!
-                  terrainParams = {
-                    octaves: sourceNode.data.octaves,
-                    amplitude: sourceNode.data.amplitude,
-                    clampYMin: sourceNode.data.clampYMin,
-                    clampYMax: sourceNode.data.clampYMax,
-                    offsetX: sourceNode.data.offsetX,
-                    offsetZ: sourceNode.data.offsetZ,
-                    seed: sourceNode.data.seed,
-                    dispClampMin: sourceNode.data.dispClampMin,
-                    dispClampMax: sourceNode.data.dispClampMax,
-                    peakGain: sourceNode.data.peakGain,
-                    valleyGain: sourceNode.data.valleyGain,
-                    smoothingStrength: sourceNode.data.smoothingStrength,
-                    useColorRamp: sourceNode.data.useColorRamp,
-                    dispApplyMinY: sourceNode.data.dispApplyMinY,
-                    dispApplyMaxY: sourceNode.data.dispApplyMaxY,
-                    dispFeather: sourceNode.data.dispFeather,
-                  };
-                } // END TERRAIN DISABLED */
-                else if (sourceNode.type === 'multNode' && edge.target === node.id && edge.targetHandle === 'transform-modular' && isModular) {
-                  // Defer matrix application to chain resolution below.
-                } else if (sourceNode.type === 'motorNode') {
-                  // Apply motor influence to the corresponding target pin
-                  if (edge.target === node.id && edge.targetHandle === 'position-configured') {
-                    position = {
-                      x: xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min),
-                      y: yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min),
-                      z: zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min),
-                    };
-                  } else if (edge.target === node.id && edge.targetHandle === 'rotation-configured') {
-                    rotation = {
-                      x: xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min),
-                      y: yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min),
-                      z: zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min),
-                    };
-                  } else if (edge.target === node.id && edge.targetHandle === 'size-configured') {
-                    scale = {
-                      x: xRange.min + Math.abs(Math.sin(time)) * (xRange.max - xRange.min),
-                      y: yRange.min + Math.abs(Math.sin(time)) * (yRange.max - yRange.min),
-                      z: zRange.min + Math.abs(Math.sin(time)) * (zRange.max - zRange.min),
-                    };
-                  }
-                }
-              }
-            });
-  
-            let matrix = null;
-            if (isModular) {
-              // Debug early: verify data.shapeMode flag
-              if (!window.__modularFlagOnce) {
-                console.log('[ModularCheck]', 'node', node.id, 'shapeMode', node.data.shapeMode);
-                window.__modularFlagOnce = true;
-              }
-              const identityMatrix = () => [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-              const deg2rad = (d) => d * Math.PI / 180;
-              const multiplyMatrix = (a,b) => {
-                const r = new Array(16).fill(0);
-                for (let row=0; row<4; row++) {
-                  for (let col=0; col<4; col++) {
-                    for (let k=0; k<4; k++) {
-                      r[row*4+col] += a[row*4+k]*b[k*4+col];
-                    }
-                  }
-                }
-                return r;
-              };
-              const buildTransformMatrix = (d) => {
-                const tx=d.translateX||0, ty=d.translateY||0, tz=d.translateZ||0;
-                const rx=deg2rad(d.rotateX||0), ry=deg2rad(d.rotateY||0), rz=deg2rad(d.rotateZ||0);
-                const cosX=Math.cos(rx), sinX=Math.sin(rx);
-                const cosY=Math.cos(ry), sinY=Math.sin(ry);
-                const cosZ=Math.cos(rz), sinZ=Math.sin(rz);
-                // Row-major rotation matrices
-                const rotX=[1,0,0,0, 0,cosX,-sinX,0, 0,sinX,cosX,0, 0,0,0,1];
-                const rotY=[cosY,0,sinY,0, 0,1,0,0, -sinY,0,cosY,0, 0,0,0,1];
-                const rotZ=[cosZ,-sinZ,0,0, sinZ,cosZ,0,0, 0,0,1,0, 0,0,0,1];
-                // Translation now placed in last column (row-major form of standard affine matrix)
-                const translation=[1,0,0,tx, 0,1,0,ty, 0,0,1,tz, 0,0,0,1];
-                // Combined: T * Rz * Ry * Rx
-                return multiplyMatrix(translation, multiplyMatrix(rotZ, multiplyMatrix(rotY, rotX)));
-              };
-              const decomposeMatrix = (m) => {
-                // Prefer last column (standard affine) then fallback to legacy bottom-row translation
-                let tx = m[3], ty = m[7], tz = m[11];
-                if (tx === 0 && ty === 0 && tz === 0 && (m[12] !== 0 || m[13] !== 0 || m[14] !== 0)) {
-                  tx = m[12]; ty = m[13]; tz = m[14];
-                }
-                const pos = { x: tx, y: ty, z: tz };
-                // Approximate scale from column lengths
-                const sx = Math.hypot(m[0], m[1], m[2]);
-                const sy = Math.hypot(m[4], m[5], m[6]);
-                const sz = Math.hypot(m[8], m[9], m[10]);
-                // Remove scale for rotation extraction
-                const r0 = [m[0]/sx, m[1]/sx, m[2]/sx];
-                const r1 = [m[4]/sy, m[5]/sy, m[6]/sy];
-                const r2 = [m[8]/sz, m[9]/sz, m[10]/sz];
-                let rotY = Math.asin(-r2[0]);
-                let rotX, rotZ;
-                if (Math.cos(rotY) !== 0) {
-                  rotX = Math.atan2(r2[1], r2[2]);
-                  rotZ = Math.atan2(r1[0], r0[0]);
-                } else {
-                  rotX = Math.atan2(-r0[2], r1[2]);
-                  rotZ = 0;
-                }
-                const rot = { x: rotX*180/Math.PI, y: rotY*180/Math.PI, z: rotZ*180/Math.PI };
-                return { position: pos, rotation: rot, scale: { x: sx, y: sy, z: sz } };
-              };
-              const resolveMatrix = (startId, visited=new Set()) => {
-                if (!startId || visited.has(startId)) return identityMatrix();
-                visited.add(startId);
-                const n = nodes.find(nn => nn.id === startId);
-                if (!n) return identityMatrix();
-                if (n.type === 'multNode') {
-                  const upstreamEdge = edges.find(e => e.target === startId && e.targetHandle === 'matrix-in');
-                  const upstream = upstreamEdge ? resolveMatrix(upstreamEdge.source, visited) : identityMatrix();
-                  const local = [
-                    n.data.m00, n.data.m01, n.data.m02, n.data.m03,
-                    n.data.m10, n.data.m11, n.data.m12, n.data.m13,
-                    n.data.m20, n.data.m21, n.data.m22, n.data.m23,
-                    n.data.m30, n.data.m31, n.data.m32, n.data.m33,
-                  ];
-                  return multiplyMatrix(local, upstream); // Local * Upstream (earlier upstream first)
-                }
-                return identityMatrix();
-              };
-              const tEdge = edges.find(e => e.target === node.id && e.targetHandle === 'transform-modular');
-              // Always start from identity so global/group transforms apply even without local transforms
-              const localMatrix = tEdge ? resolveMatrix(tEdge.source) : identityMatrix();
-              matrix = localMatrix;
-              // Decompose forward matrix for bounding (collider) data while still using inverse matrix in shader.
-              const dec = decomposeMatrix(matrix);
-              position = dec.position;
-              rotation = dec.rotation;
-              scale = dec.scale;
-              // Apply group transform post local if provided
-              if (groupMatrix) {
-                matrix = multiplyMatrix(groupMatrix, matrix); // Group * Local (or Group * I if no local)
-                const decGroup = decomposeMatrix(matrix);
-                position = decGroup.position;
-                rotation = decGroup.rotation;
-                scale = decGroup.scale;
-              }
-              if (tEdge && now - window.__lastShapeMatrixDebug > 1000) {
-                console.log('[ShapeMatrixRaw]', 'node', node.id, 'matrix', matrix);
-                window.__lastShapeMatrixDebug = now;
-              }
-            }
-            const shapeData = {
-              shape: node.data.shape,
-              operation: operation || 'union',
-              position: position,
-              color: color,
-              rotation: rotation,
-              scale: scale,
-              matrix: matrix,
-            };
-            // Attach inverse matrix for modular shapes
-            if (matrix) {
-              const invertMatrix4 = (m) => {
-                const inv = new Array(16);
-                const a = m;
-                inv[0] = a[5]*a[10]*a[15]-a[5]*a[11]*a[14]-a[9]*a[6]*a[15]+a[9]*a[7]*a[14]+a[13]*a[6]*a[11]-a[13]*a[7]*a[10];
-                inv[4] = -a[4]*a[10]*a[15]+a[4]*a[11]*a[14]+a[8]*a[6]*a[15]-a[8]*a[7]*a[14]-a[12]*a[6]*a[11]+a[12]*a[7]*a[10];
-                inv[8] = a[4]*a[9]*a[15]-a[4]*a[11]*a[13]-a[8]*a[5]*a[15]+a[8]*a[7]*a[13]+a[12]*a[5]*a[11]-a[12]*a[7]*a[9];
-                inv[12] = -a[4]*a[9]*a[14]+a[4]*a[10]*a[13]+a[8]*a[5]*a[14]-a[8]*a[6]*a[13]-a[12]*a[5]*a[10]+a[12]*a[6]*a[9];
-                inv[1] = -a[1]*a[10]*a[15]+a[1]*a[11]*a[14]+a[9]*a[2]*a[15]-a[9]*a[3]*a[14]-a[13]*a[2]*a[11]+a[13]*a[3]*a[10];
-                inv[5] = a[0]*a[10]*a[15]-a[0]*a[11]*a[14]-a[8]*a[2]*a[15]+a[8]*a[3]*a[14]+a[12]*a[2]*a[11]-a[12]*a[3]*a[10];
-                inv[9] = -a[0]*a[9]*a[15]+a[0]*a[11]*a[13]+a[8]*a[1]*a[15]-a[8]*a[3]*a[13]-a[12]*a[1]*a[11]+a[12]*a[3]*a[9];
-                inv[13] = a[0]*a[9]*a[14]-a[0]*a[10]*a[13]-a[8]*a[1]*a[14]+a[8]*a[2]*a[13]+a[12]*a[1]*a[10]-a[12]*a[2]*a[9];
-                inv[2] = a[1]*a[6]*a[15]-a[1]*a[7]*a[14]-a[5]*a[2]*a[15]+a[5]*a[3]*a[14]+a[13]*a[2]*a[7]-a[13]*a[3]*a[6];
-                inv[6] = -a[0]*a[6]*a[15]+a[0]*a[7]*a[14]+a[4]*a[2]*a[15]-a[4]*a[3]*a[14]-a[12]*a[2]*a[7]+a[12]*a[3]*a[6];
-                inv[10] = a[0]*a[5]*a[15]-a[0]*a[7]*a[13]-a[4]*a[1]*a[15]+a[4]*a[3]*a[13]+a[12]*a[1]*a[7]-a[12]*a[3]*a[5];
-                inv[14] = -a[0]*a[5]*a[14]+a[0]*a[6]*a[13]+a[4]*a[1]*a[14]-a[4]*a[2]*a[13]-a[12]*a[1]*a[6]+a[12]*a[2]*a[5];
-                inv[3] = -a[1]*a[6]*a[11]+a[1]*a[7]*a[10]+a[5]*a[2]*a[11]-a[5]*a[3]*a[10]-a[9]*a[2]*a[7]+a[9]*a[3]*a[6];
-                inv[7] = a[0]*a[6]*a[11]-a[0]*a[7]*a[10]-a[4]*a[2]*a[11]+a[4]*a[3]*a[10]+a[8]*a[2]*a[7]-a[8]*a[3]*a[6];
-                inv[11] = -a[0]*a[5]*a[11]+a[0]*a[7]*a[9]+a[4]*a[1]*a[11]-a[4]*a[3]*a[9]-a[8]*a[1]*a[7]+a[8]*a[3]*a[5];
-                inv[15] = a[0]*a[5]*a[10]-a[0]*a[6]*a[9]-a[4]*a[1]*a[10]+a[4]*a[2]*a[9]+a[8]*a[1]*a[6]-a[8]*a[2]*a[5];
-                let det = a[0]*inv[0] + a[1]*inv[4] + a[2]*inv[8] + a[3]*inv[12];
-                if (Math.abs(det) < 1e-8) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-                for (let i=0;i<16;i++) inv[i] /= det;
-                return inv;
-              };
-              shapeData.inverseMatrix = invertMatrix4(matrix);
-              shapeData.hasMatrix = true;
-            }
-            
-            /* TERRAIN DISABLED
-            // Add terrainParams if ANY shape has it connected - turns shape into terrain!
-            if (terrainParams) {
-              shapeData.terrainParams = terrainParams;
-            }
-            */
-            
-            shapes.push(shapeData);
-          } else if (node.type === 'modeNode') {
-            const shape1NodeId = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'shape1')
-              .map(edge => edge.source)[0];
-
-            const shapesNodeIds = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'shapes')
-              .map(edge => edge.source);
-
-            // Resolve group transform chain if connected
-            let groupMatrixLocal = null;
-            const groupEdge = edges.find(e => e.target === node.id && e.targetHandle === 'group-transform');
-            if (groupEdge) {
-              const resolveGroup = (startId, visited=new Set()) => {
-                if (!startId || visited.has(startId)) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-                visited.add(startId);
-                const n = nodes.find(nn => nn.id === startId);
-                if (!n) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-                if (n.type === 'multNode') {
-                  const upstreamEdge = edges.find(e => e.target === startId && e.targetHandle === 'matrix-in');
-                  const upstream = upstreamEdge ? resolveGroup(upstreamEdge.source, visited) : [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-                  const local = [
-                    n.data.m00, n.data.m01, n.data.m02, n.data.m03,
-                    n.data.m10, n.data.m11, n.data.m12, n.data.m13,
-                    n.data.m20, n.data.m21, n.data.m22, n.data.m23,
-                    n.data.m30, n.data.m31, n.data.m32, n.data.m33,
-                  ];
-                  const mul=(a,b)=>{const r=new Array(16).fill(0);for(let row=0;row<4;row++)for(let col=0;col<4;col++)for(let k=0;k<4;k++)r[row*4+col]+=a[row*4+k]*b[k*4+col];return r;};
-                  return mul(local, upstream);
-                }
-                return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-              };
-              groupMatrixLocal = resolveGroup(groupEdge.source);
-            }
-
-            // Helper to gather shapes from a group node as a union of its members
-            const gatherGroupMemberIds = (groupId) => {
-              const results = [];
-              const gn = nodes.find(n => n.id === groupId);
-              if (!gn || gn.type !== 'groupNode') return results;
-              // Resolve this group's own transform
-              let combineMatrix = null;
-              const edgeTransform = edges.find(e => e.target === gn.id && e.targetHandle === 'transform');
-              if (edgeTransform) {
-                const resolveCombine = (startId, visited=new Set()) => {
-                  if (!startId || visited.has(startId)) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-                  visited.add(startId);
-                  const n = nodes.find(nn => nn.id === startId);
-                  if (!n) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-                  if (n.type === 'multNode') {
-                    const upstreamEdge = edges.find(e => e.target === startId && e.targetHandle === 'matrix-in');
-                    const upstream = upstreamEdge ? resolveCombine(upstreamEdge.source, visited) : [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-                    const local = [
-                      n.data.m00, n.data.m01, n.data.m02, n.data.m03,
-                      n.data.m10, n.data.m11, n.data.m12, n.data.m13,
-                      n.data.m20, n.data.m21, n.data.m22, n.data.m23,
-                      n.data.m30, n.data.m31, n.data.m32, n.data.m33,
-                    ];
-                    const mul=(a,b)=>{const r=new Array(16).fill(0);for(let row=0;row<4;row++)for(let col=0;col<4;col++)for(let k=0;k<4;k++)r[row*4+col]+=a[row*4+k]*b[k*4+col];return r;};
-                    return mul(local, upstream);
-                  }
-                  return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-                };
-                combineMatrix = resolveCombine(edgeTransform.source);
-              }
-              const mul=(a,b)=>{const r=new Array(16).fill(0);for(let row=0;row<4;row++)for(let col=0;col<4;col++)for(let k=0;k<4;k++)r[row*4+col]+=a[row*4+k]*b[k*4+col];return r;};
-              const effectiveGroup = groupMatrixLocal && combineMatrix ? mul(groupMatrixLocal, combineMatrix)
-                                    : groupMatrixLocal ? groupMatrixLocal
-                                    : combineMatrix ? combineMatrix
-                                    : null;
-              const childShapeIds = edges
-                .filter(e => e.target === gn.id && e.targetHandle === 'shapes')
-                .map(e => e.source);
-              childShapeIds.forEach(cid => {
-                // Push ids; traversal will apply effectiveGroup per call
-                results.push({ id: cid, group: effectiveGroup });
-              });
-              return results;
-            };
-            // Build base and operations lists with effective group per member
-            const baseMembers = (shape1NodeId && nodes.find(n=>n.id===shape1NodeId)?.type==='groupNode')
-              ? gatherGroupMemberIds(shape1NodeId)
-              : (shape1NodeId ? [{ id: shape1NodeId, group: groupMatrixLocal }] : []);
-            const opMembers = [];
-            shapesNodeIds.forEach(sid => {
-              const n = nodes.find(nn=>nn.id===sid);
-              if (n && n.type==='groupNode') {
-                opMembers.push(...gatherGroupMemberIds(sid));
-              } else if (sid) {
-                opMembers.push({ id: sid, group: groupMatrixLocal });
-              }
-            });
-
-            // Compose final ordering: for subtraction, for each base emit base (union) followed by each op (subtraction) to achieve pairwise subtraction
-            if (node.data.mode === 'subtraction') {
-              baseMembers.forEach(b => {
-                traverse(b.id, 'union', b.group);
-                opMembers.forEach(o => traverse(o.id, 'subtraction', o.group));
-              });
-            } else if (node.data.mode === 'intersection') {
-              baseMembers.forEach(b => {
-                traverse(b.id, 'union', b.group);
-                opMembers.forEach(o => traverse(o.id, 'intersection', o.group));
-              });
-            } else {
-              // Union mode: just union all
-              baseMembers.forEach(b => traverse(b.id, 'union', b.group));
-              opMembers.forEach(o => traverse(o.id, 'union', o.group));
-            }
-          } else if (node.type === 'groupNode') {
-            // Resolve combime transform chain from its 'transform' input
-            let combineMatrix = null;
-            const edgeTransform = edges.find(e => e.target === node.id && e.targetHandle === 'transform');
-            if (edgeTransform) {
-              const resolveCombine = (startId, visited=new Set()) => {
-                if (!startId || visited.has(startId)) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-                visited.add(startId);
-                const n = nodes.find(nn => nn.id === startId);
-                if (!n) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-                if (n.type === 'multNode') {
-                  const upstreamEdge = edges.find(e => e.target === startId && e.targetHandle === 'matrix-in');
-                  const upstream = upstreamEdge ? resolveCombine(upstreamEdge.source, visited) : [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-                  const local = [
-                    n.data.m00, n.data.m01, n.data.m02, n.data.m03,
-                    n.data.m10, n.data.m11, n.data.m12, n.data.m13,
-                    n.data.m20, n.data.m21, n.data.m22, n.data.m23,
-                    n.data.m30, n.data.m31, n.data.m32, n.data.m33,
-                  ];
-                  const mul=(a,b)=>{const r=new Array(16).fill(0);for(let row=0;row<4;row++)for(let col=0;col<4;col++)for(let k=0;k<4;k++)r[row*4+col]+=a[row*4+k]*b[k*4+col];return r;};
-                  return mul(local, upstream);
-                }
-                return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-              };
-              combineMatrix = resolveCombine(edgeTransform.source);
-            }
-
-            // Effective group = incoming Mode group (if any) * this combime group
-            const mul=(a,b)=>{const r=new Array(16).fill(0);for(let row=0;row<4;row++)for(let col=0;col<4;col++)for(let k=0;k<4;k++)r[row*4+col]+=a[row*4+k]*b[k*4+col];return r;};
-            const effectiveGroup = groupMatrix && combineMatrix ? mul(groupMatrix, combineMatrix)
-                                  : groupMatrix ? groupMatrix
-                                  : combineMatrix ? combineMatrix
-                                  : null;
-
-            const shapesNodeIds = edges
-              .filter(edge => edge.target === node.id && edge.targetHandle === 'shapes')
-              .map(edge => edge.source);
-            shapesNodeIds.forEach(shapeNodeId => {
-              if (shapeNodeId) traverse(shapeNodeId, operation, effectiveGroup);
-            });
-          }
-        };
-  
-        const modeNodes = edges
-          .filter(edge => edge.target === renderNode.id && edge.targetHandle === 'render')
-          .map(edge => nodes.find(n => n.id === edge.source && n.type === 'modeNode'))
-          .filter(Boolean);
-  
-        modeNodes.forEach(modeNode => {
-          const shape1NodeId = edges
-            .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'shape1')
-            .map(edge => edge.source)[0];
-
-          const shapesNodeIds = edges
-            .filter(edge => edge.target === modeNode.id && edge.targetHandle === 'shapes')
-            .map(edge => edge.source);
-
-          // Resolve group matrix once per mode node
-          let groupMatrix = null;
-          const groupEdge = edges.find(e => e.target === modeNode.id && e.targetHandle === 'group-transform');
-          if (groupEdge) {
-            const resolveGroup = (startId, visited=new Set()) => {
-              if (!startId || visited.has(startId)) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-              visited.add(startId);
-              const n = nodes.find(nn => nn.id === startId);
-              if (!n) return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-              if (n.type === 'multNode') {
-                const upstreamEdge = edges.find(e => e.target === startId && e.targetHandle === 'matrix-in');
-                const upstream = upstreamEdge ? resolveGroup(upstreamEdge.source, visited) : [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-                const local = [
-                  n.data.m00, n.data.m01, n.data.m02, n.data.m03,
-                  n.data.m10, n.data.m11, n.data.m12, n.data.m13,
-                  n.data.m20, n.data.m21, n.data.m22, n.data.m23,
-                  n.data.m30, n.data.m31, n.data.m32, n.data.m33,
-                ];
-                const mul=(a,b)=>{const r=new Array(16).fill(0);for(let row=0;row<4;row++)for(let col=0;col<4;col++)for(let k=0;k<4;k++)r[row*4+col]+=a[row*4+k]*b[k*4+col];return r;};
-                return mul(local, upstream);
-              }
-              return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-            };
-            groupMatrix = resolveGroup(groupEdge.source);
-          }
-
-          if (shape1NodeId) traverse(shape1NodeId, modeNode.data.mode, groupMatrix);
-          shapesNodeIds.forEach(shapeNodeId => {
-            if (shapeNodeId) traverse(shapeNodeId, modeNode.data.mode, groupMatrix);
-          });
-        });
-
-        // Also allow combime nodes to feed directly into a Render node
-        const groupNodes = edges
-          .filter(edge => edge.target === renderNode.id && edge.targetHandle === 'render')
-          .map(edge => nodes.find(n => n.id === edge.source && n.type === 'groupNode'))
-          .filter(Boolean);
-        groupNodes.forEach(cn => {
-          traverse(cn.id, 'union', null);
-        });
-
+        const shapes = gm.computeRenderShapes(renderNode.id);
         shapes.forEach(shapeData => {
           threeSceneRef.current.addShape(shapeData, layerIndex);
         });
@@ -741,7 +310,11 @@ function App() {
 
   const onNodesChange = useCallback(
     (changes) => {
-      setNodes((nds) => applyNodeChanges(changes, nds));
+      setNodes((nds) => {
+        const next = applyNodeChanges(changes, nds);
+        if (gmRef.current) gmRef.current.setNodes(next);
+        return next;
+      });
       handleRenderScene();
     },
     [handleRenderScene]
@@ -749,7 +322,11 @@ function App() {
 
   const onEdgesChange = useCallback(
     (changes) => {
-      setEdges((eds) => applyEdgeChanges(changes, eds));
+      setEdges((eds) => {
+        const next = applyEdgeChanges(changes, eds);
+        if (gmRef.current) gmRef.current.setEdges(next);
+        return next;
+      });
       handleRenderScene();
     },
     [handleRenderScene]
@@ -785,7 +362,11 @@ function App() {
           const existingConnection = edges.find((edge) => edge.target === target && edge.targetHandle === targetHandle);
           
           if (!existingConnection || allowMultipleConnections) {
-            setEdges((eds) => addEdge(params, eds));
+            setEdges((eds) => {
+              const next = addEdge(params, eds);
+              if (gmRef.current) gmRef.current.setEdges(next);
+              return next;
+            });
             handleRenderScene();
           } else {
             console.warn('Only one connection allowed per pin');
@@ -835,8 +416,12 @@ const onReconnect = useCallback((oldEdge, newConnection) => {
 
     // If an incoming connection already exists, prevent reconnection (unless allowed)
     if (allowMultiple || !existingIncomingConnection || oldEdge.id === existingIncomingConnection.id) {
-      setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
-      handleRenderScene(); // Call your existing render function
+      setEdges((els) => {
+        const next = reconnectEdge(oldEdge, newConnection, els);
+        if (gmRef.current) gmRef.current.setEdges(next);
+        return next;
+      });
+      handleRenderScene();
     } else {
       console.warn('Only one connection allowed per target pin');
     }
@@ -848,7 +433,11 @@ const onReconnect = useCallback((oldEdge, newConnection) => {
 
 const onReconnectEnd = useCallback((_, edge) => {
   if (!edgeReconnectSuccessful.current) {
-    setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+    setEdges((eds) => {
+      const next = eds.filter((e) => e.id !== edge.id);
+      if (gmRef.current) gmRef.current.setEdges(next);
+      return next;
+    });
   }
   edgeReconnectSuccessful.current = true;
 }, []);

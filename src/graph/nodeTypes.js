@@ -4,6 +4,26 @@
 // - vector: {x,y,z}
 // - color: number
 // - shapes: array of shapeData { shape, operation, position, rotation, scale, color, matrix, inverseMatrix, hasMatrix }
+// - sdf: Sdf function object (when USE_SDF_PIPELINE is true)
+
+import { astFold, astPrimitive, compileAstToShapes } from './sdfAst';
+import { 
+  useSdfPipeline, 
+  SdfBox, 
+  SdfSphere, 
+  SdfCapsule, 
+  SdfTorus,
+  SdfTransform,
+  SdfUnion,
+  SdfSubtraction,
+  SdfIntersection,
+  SdfWithColor,
+  makeTranslation,
+  makeRotation,
+  makeScale,
+  makePRS
+} from './sdfFunction';
+import * as THREE from 'three';
 
 const identityMatrix = () => [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
 const multiplyMatrix = (a,b) => {
@@ -70,6 +90,65 @@ const decomposeMatrix = (m) => {
   return { position: pos, rotation: rot, scale: { x: sx, y: sy, z: sz } };
 };
 
+function createShapeSdf(shapeType, position, rotation, scale, color) {
+  const pos = new THREE.Vector3(position.x, position.y, position.z);
+  const rot = new THREE.Vector3(rotation.x, rotation.y, rotation.z);
+  const scl = new THREE.Vector3(scale.x, scale.y, scale.z);
+  
+  console.log(`[createShapeSdf] Creating ${shapeType} with color: 0x${color.toString(16).padStart(6, '0')}`);
+  
+  try {
+    // Handle both string and numeric shape types
+    const shapeNum = typeof shapeType === 'string' ? 
+      { 'box': 0, 'sphere': 1, 'torus': 2, 'capsule': 3 }[shapeType] : shapeType;
+    
+    switch (shapeNum) {
+      case 0: // box
+        return new SdfBox({ position: pos, rotation: rot, scale: scl, color });
+      case 1: // sphere
+        return new SdfSphere({ position: pos, rotation: rot, scale: scl, color });
+      case 2: // torus
+        return new SdfTorus({ position: pos, majorRadius: 1.0, minorRadius: 0.25, rotation: rot, color });
+      case 3: // capsule
+        return new SdfCapsule({ position: pos, radius: 0.5, height: 1.5, rotation: rot, color });
+      default:
+        console.warn('Unknown shape type:', shapeType, '- using sphere');
+        return new SdfSphere({ position: pos, rotation: rot, scale: scl, color });
+    }
+  } catch (err) {
+    console.error('Error creating shape SDF:', err, 'shapeType:', shapeType);
+    return new SdfSphere({ position: pos, rotation: rot, scale: scl, color });
+  }
+}
+
+const USE_AST_PIPELINE = true;
+const AST_DEBUG = (typeof window !== 'undefined') && !!window.__SDF_AST_DEBUG__;
+
+// Apply a matrix only to modular primitives (matches the legacy behavior where
+// group/mode transforms only affect shapes with explicit matrices).
+function applyMatrixToModularAst(ast, matrix) {
+  if (!ast) return ast;
+  if (!matrix) return ast;
+
+  if (ast.kind === 'primitive') {
+    if (ast.mode !== 'modular') return ast;
+    const baseMat = ast.matrix || identityMatrix();
+    return { ...ast, matrix: multiplyMatrix(matrix, baseMat) };
+  }
+  if (ast.kind === 'fold') {
+    return {
+      ...ast,
+      base: applyMatrixToModularAst(ast.base, matrix),
+      ops: (ast.ops || []).map(o => ({ ...o, ast: applyMatrixToModularAst(o.ast, matrix) }))
+    };
+  }
+  if (ast.kind === 'transform') {
+    // If transforms are present, keep structure but continue applying into children.
+    return { ...ast, child: applyMatrixToModularAst(ast.child, matrix) };
+  }
+  return ast;
+}
+
 function computeMatrixChain(gm, startId) {
   if (!startId) return identityMatrix();
   const node = gm.getNode(startId);
@@ -101,7 +180,23 @@ export const nodeRegistry = {
     }
   },
   colorNode: {
-    compute: (node) => ({ color: node.data.color })
+    compute: (node, gm) => {
+      if (!useSdfPipeline()) {
+        return { color: node.data.color };
+      }
+      
+      // In SDF mode, wrap upstream SDF with color
+      const upstreams = gm.getUpstreams(node.id, 'shapes');
+      if (upstreams.length) {
+        const upstreamOut = gm.computeNode(upstreams[0]);
+        if (upstreamOut && upstreamOut.sdf) {
+          return { sdf: new SdfWithColor(upstreamOut.sdf, node.data.color) };
+        }
+      }
+      
+      // Fallback if no upstream
+      return { color: node.data.color };
+    }
   },
   multNode: {
     compute: (node, gm) => {
@@ -124,13 +219,20 @@ export const nodeRegistry = {
     compute: (node, gm) => {
       const childIds = gm.getUpstreams(node.id, 'shapes');
       let shapes = [];
+      const childAsts = [];
+      const childSdfs = [];
+      
       childIds.forEach(cid => {
         const out = gm.computeNode(cid);
         if (out && out.shapes) shapes.push(...out.shapes);
+        if (out && out.ast) childAsts.push(out.ast);
+        if (out && out.sdf) childSdfs.push(out.sdf);
       });
+      
       // Resolve group transform
       const tEdge = gm.getUpstreams(node.id, 'transform');
       const combineMatrix = tEdge.length ? computeMatrixChain(gm, tEdge[0]) : null;
+      
       if (combineMatrix) {
         shapes = shapes.map(s => {
           if (!s.matrix) return s; // Only apply group transform to modular shapes with matrices
@@ -141,7 +243,32 @@ export const nodeRegistry = {
           return { ...s, position: dec.position, rotation: dec.rotation, scale: dec.scale, matrix: finalMat, inverseMatrix: inv, hasMatrix: true };
         });
       }
-      return { shapes };
+
+      let ast = null;
+      if (childAsts.length) {
+        ast = astFold(childAsts[0], childAsts.slice(1).map(a => ({ op: 'union', ast: a })));
+        if (combineMatrix) ast = applyMatrixToModularAst(ast, combineMatrix);
+      }
+      
+      // SDF pipeline
+      let sdf = null;
+      if (useSdfPipeline() && childSdfs.length) {
+        sdf = childSdfs.length === 1 ? childSdfs[0] : new SdfUnion(childSdfs, 0.5);
+        if (combineMatrix) {
+          // Transpose row-major array to column-major for Three.js
+          const m = combineMatrix;
+          const mat4 = new THREE.Matrix4();
+          mat4.set(
+            m[0], m[4], m[8], m[12],
+            m[1], m[5], m[9], m[13],
+            m[2], m[6], m[10], m[14],
+            m[3], m[7], m[11], m[15]
+          );
+          sdf = new SdfTransform(mat4, sdf);
+        }
+      }
+
+      return { shapes, ast, sdf };
     }
   },
   modeNode: {
@@ -159,8 +286,20 @@ export const nodeRegistry = {
         if (!out) return [];
         return out.shapes || [];
       };
+      const collectAst = (id) => {
+        const out = gm.computeNode(id);
+        if (!out) return null;
+        return out.ast || null;
+      };
       if (bIds.length) baseShapes.push(...collectShapes(bIds[0]));
       oIds.forEach(id => opShapes.push(...collectShapes(id)));
+
+      const baseAst = bIds.length ? collectAst(bIds[0]) : null;
+      const opAsts = [];
+      oIds.forEach(id => {
+        const a = collectAst(id);
+        if (a) opAsts.push(a);
+      });
 
       const applyGroup = (s) => {
         if (!groupMatrixLocal) return s;
@@ -173,21 +312,89 @@ export const nodeRegistry = {
       };
 
       let shapes = [];
+      let ast = null;
       if (node.data.mode === 'subtraction') {
         baseShapes.forEach(b => {
           shapes.push(applyGroup({ ...b, operation: 'union' }));
           opShapes.forEach(o => shapes.push(applyGroup({ ...o, operation: 'subtraction' })));
         });
+
+        if (baseAst) {
+          ast = astFold(baseAst, opAsts.map(a => ({ op: 'subtraction', ast: a })));
+        }
       } else if (node.data.mode === 'intersection') {
         baseShapes.forEach(b => {
           shapes.push(applyGroup({ ...b, operation: 'union' }));
           opShapes.forEach(o => shapes.push(applyGroup({ ...o, operation: 'intersection' })));
         });
+
+        if (baseAst) {
+          ast = astFold(baseAst, opAsts.map(a => ({ op: 'intersection', ast: a })));
+        }
       } else {
         baseShapes.forEach(b => shapes.push(applyGroup({ ...b, operation: 'union' })));
         opShapes.forEach(o => shapes.push(applyGroup({ ...o, operation: 'union' })));
+
+        if (baseAst) {
+          ast = astFold(baseAst, opAsts.map(a => ({ op: 'union', ast: a })));
+        }
       }
-      return { shapes };
+
+      if (ast && groupMatrixLocal) ast = applyMatrixToModularAst(ast, groupMatrixLocal);
+      
+      // SDF pipeline
+      let sdf = null;
+      if (useSdfPipeline()) {
+        const baseSdf = bIds.length ? gm.computeNode(bIds[0])?.sdf : null;
+        const opSdfs = [];
+        oIds.forEach(id => {
+          const out = gm.computeNode(id);
+          if (out && out.sdf) opSdfs.push(out.sdf);
+        });
+        
+        if (baseSdf && opSdfs.length) {
+          const blendK = 0.5;
+          if (node.data.mode === 'subtraction') {
+            // SdfSubtraction(base, subtractedChildren[], blending)
+            sdf = new SdfSubtraction(baseSdf, opSdfs, blendK);
+          } else if (node.data.mode === 'intersection') {
+            // SdfIntersection([children], blending)
+            sdf = new SdfIntersection([baseSdf, ...opSdfs], blendK);
+          } else {
+            // union - SdfUnion([children], blending)
+            sdf = new SdfUnion([baseSdf, ...opSdfs], blendK);
+          }
+          
+          if (groupMatrixLocal) {
+            // Transpose row-major array to column-major for Three.js
+            const m = groupMatrixLocal;
+            const mat4 = new THREE.Matrix4();
+            mat4.set(
+              m[0], m[4], m[8], m[12],
+              m[1], m[5], m[9], m[13],
+              m[2], m[6], m[10], m[14],
+              m[3], m[7], m[11], m[15]
+            );
+            sdf = new SdfTransform(mat4, sdf);
+          }
+        } else if (baseSdf) {
+          sdf = baseSdf;
+          if (groupMatrixLocal) {
+            // Transpose row-major array to column-major for Three.js
+            const m = groupMatrixLocal;
+            const mat4 = new THREE.Matrix4();
+            mat4.set(
+              m[0], m[4], m[8], m[12],
+              m[1], m[5], m[9], m[13],
+              m[2], m[6], m[10], m[14],
+              m[3], m[7], m[11], m[15]
+            );
+            sdf = new SdfTransform(mat4, sdf);
+          }
+        }
+      }
+      
+      return { shapes, ast, sdf };
     }
   },
   renderNode: {
@@ -195,10 +402,55 @@ export const nodeRegistry = {
       // Collect from any upstream feeding 'render'
       const srcIds = gm.getUpstreams(node.id, 'render');
       const shapes = [];
+      const asts = [];
+      const sdfs = [];
+      
       srcIds.forEach(id => {
         const out = gm.computeNode(id);
         if (out && out.shapes) shapes.push(...out.shapes);
+        if (out && out.ast) asts.push(out.ast);
+        if (out && out.sdf) sdfs.push(out.sdf);
       });
+
+      // SDF pipeline: generate GLSL
+      if (useSdfPipeline() && sdfs.length) {
+        console.log('=== PROOF: Using Function Objects ===');
+        console.log('Number of Sdf objects collected:', sdfs.length);
+        sdfs.forEach((sdf, i) => {
+          console.log(`  [${i}] Class: ${sdf.constructor.name}`);
+          console.log(`      Color: 0x${sdf.color.toString(16).padStart(6, '0')}`);
+          console.log(`      Has .evaluate(): ${typeof sdf.evaluate === 'function'}`);
+          console.log(`      Has .toGLSL(): ${typeof sdf.toGLSL === 'function'}`);
+        });
+        
+        const rootSdf = sdfs.length === 1 ? sdfs[0] : new SdfUnion(sdfs, 0.5);
+        const glslCode = rootSdf.toGLSL('p');
+        
+        console.log('\n=== Generated GLSL ===');
+        console.log(glslCode);
+        console.log('======================\n');
+        
+        // Still return shapes for now (backward compatibility)
+        return { shapes, sdf: rootSdf };
+      }
+
+      if (USE_AST_PIPELINE && asts.length) {
+        // Union all upstream ASTs under a single fold.
+        const ast = astFold(asts[0], asts.slice(1).map(a => ({ op: 'union', ast: a })));
+        try {
+          const shapesCompiled = compileAstToShapes(ast, { debug: AST_DEBUG });
+          if (AST_DEBUG) {
+            // eslint-disable-next-line no-console
+            console.log('[renderNode] compiled order:', shapesCompiled.map(s => `${s.operation}:${s.shape}`));
+          }
+          return { shapes: shapesCompiled };
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.warn('AST compile failed; falling back to legacy shapes:', e);
+          return { shapes };
+        }
+      }
+
       return { shapes };
     }
   }
@@ -247,5 +499,36 @@ function shapeCompute(node, gm) {
     shapeData.inverseMatrix = invertMatrix4(matrix);
     shapeData.hasMatrix = true;
   }
-  return { shapes: [shapeData] };
+
+  const ast = isModular
+    ? astPrimitive({ shape: node.data.shape, color, mode: 'modular', matrix })
+    : astPrimitive({ shape: node.data.shape, color, mode: 'configured', position, rotation, scale });
+
+  // SDF pipeline
+  let sdf = null;
+  if (useSdfPipeline()) {
+    // For modular mode: create shape at origin with node's base scale, then apply matrix transform
+    // For configured mode: create shape with position/rotation/scale directly
+    const sdfPosition = isModular ? { x: 0, y: 0, z: 0 } : position;
+    const sdfRotation = isModular ? { x: 0, y: 0, z: 0 } : rotation;
+    const sdfScale = isModular ? (node.data.scale || { x: 1, y: 1, z: 1 }) : scale;
+    
+    sdf = createShapeSdf(node.data.shape, sdfPosition, sdfRotation, sdfScale, color);
+    
+    // Apply modular transform if present
+    if (isModular && matrix) {
+      // Transpose row-major array to column-major for Three.js
+      const m = matrix;
+      const mat4 = new THREE.Matrix4();
+      mat4.set(
+        m[0], m[4], m[8], m[12],
+        m[1], m[5], m[9], m[13],
+        m[2], m[6], m[10], m[14],
+        m[3], m[7], m[11], m[15]
+      );
+      sdf = new SdfTransform(mat4, sdf);
+    }
+  }
+
+  return { shapes: [shapeData], ast, sdf };
 }

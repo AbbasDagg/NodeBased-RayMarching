@@ -1,6 +1,9 @@
-import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, Mesh, Frustum, Vector3, Matrix4, Vector2, Sphere, PlaneGeometry, WebGLRenderTarget, DepthTexture, UnsignedShortType, RawShaderMaterial, GLSL3, MathUtils, TorusGeometry } from 'three';
+import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, Mesh, Frustum, Vector3, Matrix4, Vector2, Sphere, PlaneGeometry, WebGLRenderTarget, DepthTexture, UnsignedShortType, RawShaderMaterial, GLSL3, MathUtils, TorusGeometry, ShaderChunk } from 'three';
 
 var lighting = "#ifdef ENVMAP_TYPE_CUBE_UV\n\n#define PI 3.141592653589793\n#define RECIPROCAL_PI 0.3183098861837907\n\nstruct GeometricContext {\n  vec3 normal;\n  vec3 viewDir;\n};\n\nstruct PhysicalMaterial {\n  vec3 diffuseColor;\n  float roughness;\n  vec3 specularColor;\n  float specularF90;\n};\n\nstruct ReflectedLight {\n  vec3 indirectDiffuse;\n  vec3 indirectSpecular;\n};\n\nvec3 BRDF_Lambert(const in vec3 diffuseColor) {\n  return RECIPROCAL_PI * diffuseColor;\n}\n\nvec2 DFGApprox(const in vec3 normal, const in vec3 viewDir, const in float roughness) {\n  float dotNV = saturate(dot(normal, viewDir));\n  const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);\n  const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);\n  vec4 r = roughness * c0 + c1;\n  float a004 = min(r.x * r.x, exp2(-9.28 * dotNV)) * r.x + r.y;\n  vec2 fab = vec2(-1.04, 1.04) * a004 + r.zw;\n  return fab;\n}\n\nvoid computeMultiscattering(const in vec3 normal, const in vec3 viewDir, const in vec3 specularColor, const in float specularF90, const in float roughness, inout vec3 singleScatter, inout vec3 multiScatter) {\n  vec2 fab = DFGApprox(normal, viewDir, roughness);\n  vec3 FssEss = specularColor * fab.x + specularF90 * fab.y;\n  float Ess = fab.x + fab.y;\n  float Ems = 1.0 - Ess;\n  vec3 Favg = specularColor + (1.0 - specularColor) * 0.047619;\n  vec3 Fms = FssEss * Favg / (1.0 - Ems * Favg);\n  singleScatter += FssEss;\n  multiScatter += Fms * Ems;\n}\n\nvoid RE_IndirectDiffuse(const in vec3 irradiance, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {\n  reflectedLight.indirectDiffuse += irradiance * BRDF_Lambert(material.diffuseColor);\n}\n\nvoid RE_IndirectSpecular(const in vec3 radiance, const in vec3 irradiance, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {\n  vec3 singleScattering = vec3(0.0);\n  vec3 multiScattering = vec3(0.0);\n  vec3 cosineWeightedIrradiance = irradiance * RECIPROCAL_PI;\n  computeMultiscattering(geometry.normal, geometry.viewDir, material.specularColor, material.specularF90, material.roughness, singleScattering, multiScattering);\n  vec3 diffuse = material.diffuseColor * (1.0 - (singleScattering + multiScattering));\n  reflectedLight.indirectSpecular += radiance * singleScattering;\n  reflectedLight.indirectSpecular += multiScattering * cosineWeightedIrradiance;\n  reflectedLight.indirectDiffuse += diffuse * cosineWeightedIrradiance;\n}\n\nvec3 getIBLRadiance(const in vec3 viewDir, const in vec3 normal, const in float roughness) {\n  vec3 reflectVec = reflect(-viewDir, normal);\n  reflectVec = normalize(mix(reflectVec, normal, roughness * roughness));\n  vec4 envMapColor = textureCubeUV(envMap, reflectVec, roughness);\n  return envMapColor.rgb * envMapIntensity;\n}\n\nvec3 getIBLIrradiance(const in vec3 normal) {\n  vec3 envMapColor = textureCubeUV(envMap, normal, 1.0).rgb;\n  return PI * envMapColor * envMapIntensity;\n}\n\nvec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse) {\n  GeometricContext geometry;\n  geometry.normal = normal;\n  geometry.viewDir = normalize(cameraPosition - position);\n\n  PhysicalMaterial material;\n  material.diffuseColor = diffuse * (1.0 - metalness);\n  material.roughness = max(min(roughness, 1.0), 0.0525);\n  material.specularColor = mix(vec3(0.04), diffuse, metalness);\n  material.specularF90 = 1.0;\n\n  ReflectedLight reflectedLight = ReflectedLight(vec3(0.0), vec3(0.0));\n  vec3 radiance = getIBLRadiance(geometry.viewDir, geometry.normal, material.roughness);\n  vec3 irradiance = getIBLIrradiance(geometry.normal);\n  RE_IndirectDiffuse(irradiance, geometry, material, reflectedLight);\n  RE_IndirectSpecular(radiance, irradiance, geometry, material, reflectedLight);\n\n  return reflectedLight.indirectDiffuse + reflectedLight.indirectSpecular;\n}\n\n#else\n\nvec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse) {\n  return diffuse * envMapIntensity;\n}\n\n#endif\n";
+
+// Register lighting chunk with Three.js shader system so includes work
+ShaderChunk.lighting = lighting;
 
 
 // Change SDFs here
@@ -424,6 +427,11 @@ SDF opSmoothIntersection(const in SDF a, const in SDF b, const in float k) {
   );
 }
 
+#ifdef USE_CUSTOM_SDF
+// Custom SDF map function injected by preprocessor
+__CUSTOM_SDF_MAP__
+#else
+// Legacy descriptor-based map function
 SDF map(const in vec3 p) {
   SDF scene = sdEntity(p, entities[0]);
   for (int i = 1, l = min(numEntities, MAX_ENTITIES); i < l; i++) {
@@ -442,6 +450,7 @@ SDF map(const in vec3 p) {
   }
   return scene;
 }
+#endif
 
 vec3 getNormal(const in vec3 p, const in float d) {
   // Scale epsilon with distance to stabilize normals under strong displacement
@@ -941,6 +950,36 @@ class Raymarcher extends Mesh {
     }
     collider.updateMatrixWorld();
     return collider;
+  }
+
+  setCustomSdfMap(glslCode) {
+    const { userData: { raymarcher } } = this;
+    const { material } = raymarcher;
+    
+    if (glslCode) {
+      // The generated GLSL already returns an SDF struct, so we wrap it in map() that extracts distance
+      const wrappedGlsl = `SDF map(const in vec3 p) {
+  return ${glslCode};
+}`;
+      
+      console.log('Generated map function:', wrappedGlsl);
+      
+      // Store in defines and trigger rebuild
+      material.defines.USE_CUSTOM_SDF = 1;
+      
+      // Replace the placeholder
+      const modifiedFragmentShader = raymarcherFragment.replace('__CUSTOM_SDF_MAP__', wrappedGlsl);
+      
+      material.fragmentShader = modifiedFragmentShader;
+      material.needsUpdate = true;
+    } else {
+      // Disable custom SDF mode - restore original shader
+      if (material.defines.USE_CUSTOM_SDF) {
+        delete material.defines.USE_CUSTOM_SDF;
+        material.fragmentShader = raymarcherFragment;
+        material.needsUpdate = true;
+      }
+    }
   }
 
   static getLayerBounds(layer) {

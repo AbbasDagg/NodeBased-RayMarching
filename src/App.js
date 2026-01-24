@@ -8,6 +8,12 @@ import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, Ren
 import { reconnectEdge } from 'reactflow';
 import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the custom edge and connection line
 import { GraphManager } from './graph/GraphManager';
+import { runSdfTests } from './graph/testSdfFunction';
+
+// Make test function available in console
+if (typeof window !== 'undefined') {
+  window.testSdf = runSdfTests;
+}
 
 
 const initialNodes = [
@@ -286,7 +292,42 @@ function App() {
       // Start a new frame to refresh time-dependent nodes (motors)
       gm.beginFrame();
       const renderNodes = nodes.filter(n => n.type === 'renderNode');
+      
+      // Collect all SDFs from all render nodes first
+      const allSdfs = [];
+      renderNodes.forEach(renderNode => {
+        const renderOutput = gm.computeNode(renderNode.id);
+        if (renderOutput && renderOutput.sdf) {
+          allSdfs.push(renderOutput.sdf);
+        }
+      });
+      
+      // If we have SDFs, combine them and set once
+      if (allSdfs.length > 0 && window.USE_SDF_PIPELINE) {
+        const { SdfUnion } = require('./graph/sdfFunction');
+        const combinedSdf = allSdfs.length === 1 ? allSdfs[0] : new SdfUnion(allSdfs, 0.5);
+        const glslCode = combinedSdf.toGLSL('p');
+        threeSceneRef.current.setCustomSdfMap(glslCode);
+        
+        // Add one dummy bounding sphere for all SDFs
+        threeSceneRef.current.addShape({
+          shape: 'sphere',
+          operation: 'union',
+          position: { x: 0, y: 0, z: 0 },
+          rotation: { x: 0, y: 0, z: 0 },
+          scale: { x: 100, y: 100, z: 100 },
+          color: 0xffffff,
+        }, 0);
+        
+        return; // Skip legacy rendering
+      } else {
+        threeSceneRef.current.setCustomSdfMap(null);
+      }
+      
+      // Legacy descriptor path
       renderNodes.forEach((renderNode, layerIndex) => {
+        const renderOutput = gm.computeNode(renderNode.id);
+        
         const shapes = gm.computeRenderShapes(renderNode.id);
         shapes.forEach(shapeData => {
           threeSceneRef.current.addShape(shapeData, layerIndex);

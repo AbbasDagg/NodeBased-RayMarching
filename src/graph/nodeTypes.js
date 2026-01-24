@@ -39,6 +39,19 @@ const multiplyMatrix = (a,b) => {
 };
 const deg2rad = (d) => d * Math.PI / 180;
 
+// Convert color from various formats to number (0xRRGGBB)
+const normalizeColor = (color) => {
+  if (typeof color === 'number') return color;
+  if (typeof color === 'string') {
+    const hex = color.replace('#', '');
+    return parseInt(hex, 16);
+  }
+  if (typeof color === 'object' && color && color.r !== undefined) {
+    return (color.r << 16) | (color.g << 8) | color.b;
+  }
+  return 0xffffff; // default white
+};
+
 const invertMatrix4 = (m) => {
   const inv = new Array(16);
   const a = m;
@@ -182,20 +195,20 @@ export const nodeRegistry = {
   colorNode: {
     compute: (node, gm) => {
       if (!useSdfPipeline()) {
-        return { color: node.data.color };
+        return { color: normalizeColor(node.data.color) };
       }
       
-      // In SDF mode, wrap upstream SDF with color
+      // SDF pipeline: wrap upstream with color override
       const upstreams = gm.getUpstreams(node.id, 'shapes');
       if (upstreams.length) {
         const upstreamOut = gm.computeNode(upstreams[0]);
         if (upstreamOut && upstreamOut.sdf) {
-          return { sdf: new SdfWithColor(upstreamOut.sdf, node.data.color) };
+          return { sdf: new SdfWithColor(upstreamOut.sdf, normalizeColor(node.data.color)) };
         }
       }
       
       // Fallback if no upstream
-      return { color: node.data.color };
+      return { color: normalizeColor(node.data.color) };
     }
   },
   multNode: {
@@ -462,7 +475,7 @@ function shapeCompute(node, gm) {
   let position = node.data.position || { x: 0, y: 0, z: 0 };
   let rotation = node.data.rotation || { x: 0, y: 0, z: 0 };
   let scale = node.data.scale || { x: 1, y: 1, z: 1 };
-  let color = node.data.color || 0xffffff;
+  let color = normalizeColor(node.data.color || 0xffffff);
 
   // Configured pins
   const posSrcs = gm.requireInputs(node.id, 'position-configured');
@@ -472,7 +485,7 @@ function shapeCompute(node, gm) {
   if (posSrcs.length && posSrcs[0].vector) position = posSrcs[0].vector;
   if (rotSrcs.length && rotSrcs[0].vector) rotation = rotSrcs[0].vector;
   if (sizeSrcs.length && sizeSrcs[0].vector) scale = sizeSrcs[0].vector;
-  if (colSrcs.length && colSrcs[0].color !== undefined) color = colSrcs[0].color;
+  if (colSrcs.length && colSrcs[0].color !== undefined) color = normalizeColor(colSrcs[0].color);
 
   let matrix = null;
   if (isModular) {

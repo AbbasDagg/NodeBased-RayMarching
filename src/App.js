@@ -394,10 +394,10 @@ function App() {
       const validConnections = {
         vectorNode: ['position-configured', 'size-configured', 'rotation-configured'],
         colorNode: ['color-configured', 'color-modular'],
-        sphereNode: ['shape1', 'shapes'],
-        torusNode: ['shape1', 'shapes'],
-        boxNode: ['shape1', 'shapes'],
-        capsuleNode: ['shape1', 'shapes'],
+        sphereNode: ['shape1', 'shapes', 'render'],
+        torusNode: ['shape1', 'shapes', 'render'],
+        boxNode: ['shape1', 'shapes', 'render'],
+        capsuleNode: ['shape1', 'shapes', 'render'],
         modeNode: ['shape1', 'shapes', 'render', 'group-transform'],
         motorNode: ['position-configured', 'size-configured', 'rotation-configured'],
         // TERRAIN DISABLED terrainParamsNode: ['terrainParams-configured', 'terrainParams-modular'],
@@ -412,7 +412,9 @@ function App() {
         const validSourceHandles = validConnections[sourceNode.type];
         if (validSourceHandles && validSourceHandles.includes(targetHandle)) {
           // Check if multiple connections are allowed for this specific handle
-          const allowMultipleConnections = (targetNode.type === 'groupNode' && targetHandle === 'shapes');
+          const allowMultipleConnections =
+            (targetNode.type === 'groupNode' && targetHandle === 'shapes') ||
+            (targetNode.type === 'renderNode' && targetHandle === 'render');
           
           const existingConnection = edges.find((edge) => edge.target === target && edge.targetHandle === targetHandle);
           
@@ -449,10 +451,10 @@ const onReconnect = useCallback((oldEdge, newConnection) => {
   const validConnections = {
     vectorNode: ['position-configured', 'size-configured', 'rotation-configured'],
     colorNode: ['color-configured', 'color-modular'],
-    sphereNode: ['shape1', 'shapes'],
-    torusNode: ['shape1', 'shapes'],
-    boxNode: ['shape1', 'shapes'],
-    capsuleNode: ['shape1', 'shapes'],
+    sphereNode: ['shape1', 'shapes', 'render'],
+    torusNode: ['shape1', 'shapes', 'render'],
+    boxNode: ['shape1', 'shapes', 'render'],
+    capsuleNode: ['shape1', 'shapes', 'render'],
     modeNode: ['shape1', 'shapes', 'render', 'group-transform'],
     motorNode: ['position-configured', 'size-configured', 'rotation-configured'],
     // TERRAIN DISABLED terrainParamsNode: ['terrainParams-configured', 'terrainParams-modular'],
@@ -463,7 +465,9 @@ const onReconnect = useCallback((oldEdge, newConnection) => {
   // Ensure validation before reconnecting
   const validSourceHandles = validConnections[sourceNode.type];
   if (sourceNode && targetNode && validSourceHandles && validSourceHandles.includes(newConnection.targetHandle)) {
-    const allowMultiple = (targetNode.type === 'groupNode' && newConnection.targetHandle === 'shapes');
+    const allowMultiple =
+      (targetNode.type === 'groupNode' && newConnection.targetHandle === 'shapes') ||
+      (targetNode.type === 'renderNode' && newConnection.targetHandle === 'render');
     // Allow multiple outgoing but only one incoming edge unless multi is allowed
     const existingIncomingConnection = allowMultiple ? null : edges.find(
       (edge) => edge.target === newConnection.target && edge.targetHandle === newConnection.targetHandle

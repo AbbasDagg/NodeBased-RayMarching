@@ -9,8 +9,12 @@ export class GraphManager {
     this.nodes = nodes;
     this.edges = edges;
     this.outputs = new Map(); // nodeId -> output object
+    this.nodeSnapshots = new Map(); // nodeId -> serialized snapshot used for dirty checks
     this.visiting = new Set();
     this.order = []; // evaluation order log
+    this.frameId = 0;
+    this.dynamicNodeTypes = new Set(['motorNode']);
+    this.dynamicNodes = new Set();
     // Build an incoming adjacency index: targetId -> (targetHandle -> [sourceIds])
     this.incoming = new Map();
     // Build an outgoing adjacency index: sourceId -> [{ target, targetHandle }]
@@ -27,6 +31,25 @@ export class GraphManager {
       const outList = this.outgoing.get(e.source) || [];
       outList.push({ target: e.target, targetHandle: e.targetHandle });
       this.outgoing.set(e.source, outList);
+    }
+    this._refreshDynamicNodes();
+    // First run should compute all nodes lazily from render roots.
+    this.nodes.forEach((n) => {
+      this.nodeSnapshots.set(n.id, this._snapshotNode(n));
+    });
+  }
+
+  _snapshotNode(node) {
+    const data = node && node.data ? node.data : {};
+    return `${node.type}|${JSON.stringify(data)}`;
+  }
+
+  _refreshDynamicNodes() {
+    this.dynamicNodes.clear();
+    for (const n of this.nodes) {
+      if (this.dynamicNodeTypes.has(n.type)) {
+        this.dynamicNodes.add(n.id);
+      }
     }
   }
 
@@ -92,19 +115,51 @@ export class GraphManager {
   }
 
   // Begin a new frame: clear memoized outputs so dynamic nodes (e.g., motors)
-  // recompute and propagate fresh values. Adjacency index remains intact.
+  // recompute and propagate fresh values. Static subgraphs stay cached.
   beginFrame() {
-    this.outputs.clear();
+    this.frameId += 1;
+    // Only invalidate dynamic roots and their downstream dependents.
+    this.dynamicNodes.forEach((id) => this.invalidateFrom(id));
     this.visiting.clear();
     this.order = [];
   }
 
   // Update nodes/edges incrementally without rebuilding the GraphManager instance
   setNodes(nodes) {
+    const prevById = new Map(this.nodes.map((n) => [n.id, n]));
+    const nextById = new Map(nodes.map((n) => [n.id, n]));
+
+    // Removed nodes: clear their cached outputs.
+    prevById.forEach((prevNode, id) => {
+      if (!nextById.has(id)) {
+        this.outputs.delete(id);
+        this.nodeSnapshots.delete(id);
+      }
+    });
+
     this.nodes = nodes;
+    this._refreshDynamicNodes();
+
+    // Added/changed nodes invalidate their downstream chain.
+    nodes.forEach((node) => {
+      const prevNode = prevById.get(node.id);
+      const nextSnap = this._snapshotNode(node);
+      if (!prevNode) {
+        this.nodeSnapshots.set(node.id, nextSnap);
+        this.invalidateFrom(node.id);
+        return;
+      }
+
+      const prevSnap = this.nodeSnapshots.get(node.id) || this._snapshotNode(prevNode);
+      if (prevSnap !== nextSnap) {
+        this.nodeSnapshots.set(node.id, nextSnap);
+        this.invalidateFrom(node.id);
+      }
+    });
   }
 
   setEdges(edges) {
+    const prevEdges = this.edges || [];
     this.edges = edges;
     // Rebuild adjacency indices quickly
     this.incoming = new Map();
@@ -123,8 +178,30 @@ export class GraphManager {
       outList.push({ target: e.target, targetHandle: e.targetHandle });
       this.outgoing.set(e.source, outList);
     }
-    // Clear outputs for safety; next frame will recompute as needed
-    this.beginFrame();
+
+    // Invalidate only targets affected by edge topology changes.
+    const prevSet = new Set(prevEdges.map((e) => `${e.source}|${e.sourceHandle}|${e.target}|${e.targetHandle}`));
+    const nextSet = new Set(edges.map((e) => `${e.source}|${e.sourceHandle}|${e.target}|${e.targetHandle}`));
+    const changedTargets = new Set();
+
+    prevEdges.forEach((e) => {
+      const k = `${e.source}|${e.sourceHandle}|${e.target}|${e.targetHandle}`;
+      if (!nextSet.has(k)) changedTargets.add(e.target);
+    });
+    edges.forEach((e) => {
+      const k = `${e.source}|${e.sourceHandle}|${e.target}|${e.targetHandle}`;
+      if (!prevSet.has(k)) changedTargets.add(e.target);
+    });
+
+    if (changedTargets.size === 0) {
+      // Fallback safety for unknown topology edits.
+      this.outputs.clear();
+    } else {
+      changedTargets.forEach((id) => this.invalidateFrom(id));
+    }
+
+    this.visiting.clear();
+    this.order = [];
   }
 
   // Invalidate downstream outputs starting from a node (optional optimization)

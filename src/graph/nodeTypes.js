@@ -108,7 +108,9 @@ function createShapeSdf(shapeType, position, rotation, scale, color) {
   const rot = new THREE.Vector3(rotation.x, rotation.y, rotation.z);
   const scl = new THREE.Vector3(scale.x, scale.y, scale.z);
   
-  console.log(`[createShapeSdf] Creating ${shapeType} with color: 0x${color.toString(16).padStart(6, '0')}`);
+  if (SDF_VERBOSE_DEBUG) {
+    console.log(`[createShapeSdf] Creating ${shapeType} with color: 0x${color.toString(16).padStart(6, '0')}`);
+  }
   
   try {
     // Handle both string and numeric shape types
@@ -136,6 +138,7 @@ function createShapeSdf(shapeType, position, rotation, scale, color) {
 
 const USE_AST_PIPELINE = true;
 const AST_DEBUG = (typeof window !== 'undefined') && !!window.__SDF_AST_DEBUG__;
+const SDF_VERBOSE_DEBUG = (typeof window !== 'undefined') && !!window.__SDF_DEBUG_VERBOSE__;
 
 // Apply a matrix only to modular primitives (matches the legacy behavior where
 // group/mode transforms only affect shapes with explicit matrices).
@@ -427,21 +430,24 @@ export const nodeRegistry = {
 
       // SDF pipeline: generate GLSL
       if (useSdfPipeline() && sdfs.length) {
-        console.log('=== PROOF: Using Function Objects ===');
-        console.log('Number of Sdf objects collected:', sdfs.length);
-        sdfs.forEach((sdf, i) => {
-          console.log(`  [${i}] Class: ${sdf.constructor.name}`);
-          console.log(`      Color: 0x${sdf.color.toString(16).padStart(6, '0')}`);
-          console.log(`      Has .evaluate(): ${typeof sdf.evaluate === 'function'}`);
-          console.log(`      Has .toGLSL(): ${typeof sdf.toGLSL === 'function'}`);
-        });
+        if (SDF_VERBOSE_DEBUG) {
+          console.log('=== PROOF: Using Function Objects ===');
+          console.log('Number of Sdf objects collected:', sdfs.length);
+          sdfs.forEach((sdf, i) => {
+            console.log(`  [${i}] Class: ${sdf.constructor.name}`);
+            console.log(`      Color: 0x${sdf.color.toString(16).padStart(6, '0')}`);
+            console.log(`      Has .evaluate(): ${typeof sdf.evaluate === 'function'}`);
+            console.log(`      Has .toGLSL(): ${typeof sdf.toGLSL === 'function'}`);
+          });
+        }
         
         const rootSdf = sdfs.length === 1 ? sdfs[0] : new SdfUnion(sdfs, 0.5);
-        const glslCode = rootSdf.toGLSL('p');
-        
-        console.log('\n=== Generated GLSL ===');
-        console.log(glslCode);
-        console.log('======================\n');
+        if (SDF_VERBOSE_DEBUG) {
+          const glslCode = rootSdf.toGLSL('p');
+          console.log('\n=== Generated GLSL ===');
+          console.log(glslCode);
+          console.log('======================\n');
+        }
         
         // Still return shapes for now (backward compatibility)
         return { shapes, sdf: rootSdf };

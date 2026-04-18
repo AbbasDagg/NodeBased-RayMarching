@@ -144,6 +144,12 @@ const ThreeScene = forwardRef((props, ref) => {
         raymarcherRef.current.setCustomSdfMap(glslCode);
       }
     },
+    getSdfRuntimeStats: () => {
+      if (raymarcherRef.current && typeof raymarcherRef.current.getSdfRuntimeStats === 'function') {
+        return raymarcherRef.current.getSdfRuntimeStats();
+      }
+      return null;
+    },
     clearScene: () => {
       if (raymarcherRef.current) {
         raymarcherRef.current.userData.layers = []; // Clear all layers

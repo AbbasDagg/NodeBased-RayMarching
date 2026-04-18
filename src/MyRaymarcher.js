@@ -702,6 +702,16 @@ class Raymarcher extends Mesh {
       raymarcher: new Mesh(plane, material),
       resolution,
       target,
+      __sdfRuntimeStats: {
+        mode: 'legacy',
+        topologyHash: null,
+        recompiles: 0,
+        uniformUpdates: 0,
+        mapUpdates: 0,
+        uniformCounts: { floats: 0, vec3: 0, vec4: 0, mat4: 0 },
+        lastUpdateAt: 0,
+        lastCompileAt: 0,
+      },
     };
     this.matrixAutoUpdate = this.userData.raymarcher.matrixAutoUpdate = false;
     this.frustumCulled = this.userData.raymarcher.frustumCulled = false;
@@ -955,14 +965,77 @@ class Raymarcher extends Mesh {
   setCustomSdfMap(glslCode) {
     const { userData: { raymarcher } } = this;
     const { material } = raymarcher;
+    const stats = this.userData.__sdfRuntimeStats || (this.userData.__sdfRuntimeStats = {
+      mode: 'legacy',
+      topologyHash: null,
+      recompiles: 0,
+      uniformUpdates: 0,
+      mapUpdates: 0,
+      uniformCounts: { floats: 0, vec3: 0, vec4: 0, mat4: 0 },
+      lastUpdateAt: 0,
+      lastCompileAt: 0,
+    });
+    stats.mapUpdates += 1;
+    stats.lastUpdateAt = Date.now();
+
+    const assignUniformArray = (name, values) => {
+      if (!material.uniforms[name]) {
+        material.uniforms[name] = { value: values };
+      } else {
+        material.uniforms[name].value = values;
+      }
+    };
+
+    const applyRuntimeUniforms = (runtimePacket) => {
+      const values = runtimePacket && runtimePacket.values ? runtimePacket.values : null;
+      if (!values) return;
+      assignUniformArray('uSdfFloat', new Float32Array(values.floats || []));
+      assignUniformArray('uSdfVec3', new Float32Array(values.vec3 || []));
+      assignUniformArray('uSdfVec4', new Float32Array(values.vec4 || []));
+      assignUniformArray('uSdfMat4', new Float32Array(values.mat4 || []));
+      stats.uniformUpdates += 1;
+      stats.uniformCounts = {
+        floats: (values.floats || []).length,
+        vec3: ((values.vec3 || []).length / 3) | 0,
+        vec4: ((values.vec4 || []).length / 4) | 0,
+        mat4: ((values.mat4 || []).length / 16) | 0,
+      };
+    };
+
+    const buildWrappedMapFunction = (runtimePacket) => {
+      const declarations = runtimePacket.declarations ? `${runtimePacket.declarations}\n` : '';
+      return `${declarations}SDF map(const in vec3 p) {\n  return ${runtimePacket.expression};\n}`;
+    };
     
-    if (glslCode) {
+    if (glslCode && typeof glslCode === 'object') {
+      const runtimePacket = glslCode;
+      const wrappedGlsl = buildWrappedMapFunction(runtimePacket);
+      const nextTopology = runtimePacket.topologyHash || 'runtime';
+      const prevTopology = this.userData.__customSdfTopology;
+      stats.mode = 'runtime';
+      stats.topologyHash = nextTopology;
+
+      material.defines.USE_CUSTOM_SDF = 1;
+
+      if (prevTopology !== nextTopology) {
+        const modifiedFragmentShader = raymarcherFragment.replace('__CUSTOM_SDF_MAP__', wrappedGlsl);
+        material.fragmentShader = modifiedFragmentShader;
+        material.needsUpdate = true;
+        this.userData.__customSdfTopology = nextTopology;
+        stats.recompiles += 1;
+        stats.lastCompileAt = Date.now();
+      }
+
+      applyRuntimeUniforms(runtimePacket);
+    } else if (glslCode) {
       // The generated GLSL already returns an SDF struct, so we wrap it in map() that extracts distance
       const wrappedGlsl = `SDF map(const in vec3 p) {
   return ${glslCode};
 }`;
       
-      console.log('Generated map function:', wrappedGlsl);
+      if (typeof window !== 'undefined' && window.__SDF_DEBUG_VERBOSE__) {
+        console.log('Generated map function:', wrappedGlsl);
+      }
       
       // Store in defines and trigger rebuild
       material.defines.USE_CUSTOM_SDF = 1;
@@ -972,6 +1045,11 @@ class Raymarcher extends Mesh {
       
       material.fragmentShader = modifiedFragmentShader;
       material.needsUpdate = true;
+      this.userData.__customSdfTopology = null;
+      stats.mode = 'legacy-custom-map';
+      stats.topologyHash = null;
+      stats.recompiles += 1;
+      stats.lastCompileAt = Date.now();
     } else {
       // Disable custom SDF mode - restore original shader
       if (material.defines.USE_CUSTOM_SDF) {
@@ -979,7 +1057,19 @@ class Raymarcher extends Mesh {
         material.fragmentShader = raymarcherFragment;
         material.needsUpdate = true;
       }
+      this.userData.__customSdfTopology = null;
+      stats.mode = 'legacy-descriptor';
+      stats.topologyHash = null;
     }
+  }
+
+  getSdfRuntimeStats() {
+    const stats = this.userData.__sdfRuntimeStats;
+    if (!stats) return null;
+    return {
+      ...stats,
+      uniformCounts: { ...stats.uniformCounts },
+    };
   }
 
   static getLayerBounds(layer) {

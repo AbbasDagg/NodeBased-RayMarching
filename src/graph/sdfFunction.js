@@ -26,7 +26,7 @@ export function useSdfPipeline() {
  * - .evaluate(point): return signed distance at a 3D point (for CPU validation/testing)
  * - .toDescriptor(): convert to shader entity descriptor (backward compatibility)
  */
-export class Sdf {z
+export class Sdf {
   constructor() {
     this.color = 0xffffff;
   }

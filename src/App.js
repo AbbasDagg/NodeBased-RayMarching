@@ -9,6 +9,7 @@ import { reconnectEdge } from 'reactflow';
 import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the custom edge and connection line
 import { GraphManager } from './graph/GraphManager';
 import { runSdfTests } from './graph/testSdfFunction';
+import { buildSdfRuntimePacket } from './graph/sdfRuntime';
 
 // Make test function available in console
 if (typeof window !== 'undefined') {
@@ -170,8 +171,10 @@ function App() {
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, nodeId: null });
   const [renderSquareSize, setRenderSquareSize] = useState({ width: 300, height: 300 });
   const [isResizing, setIsResizing] = useState(false);
+  const [sdfDebugStats, setSdfDebugStats] = useState(null);
   const fullscreenTimeoutRef = useRef(null);
   const gmRef = useRef(null);
+  const sdfRuntimeCacheRef = useRef(null);
 
   // Initialize GraphManager once with initial graph; future updates are incremental
   useEffect(() => {
@@ -306,8 +309,9 @@ function App() {
       if (allSdfs.length > 0 && window.USE_SDF_PIPELINE) {
         const { SdfUnion } = require('./graph/sdfFunction');
         const combinedSdf = allSdfs.length === 1 ? allSdfs[0] : new SdfUnion(allSdfs, 0.5);
-        const glslCode = combinedSdf.toGLSL('p');
-        threeSceneRef.current.setCustomSdfMap(glslCode);
+        const runtimePacket = buildSdfRuntimePacket(combinedSdf, sdfRuntimeCacheRef.current);
+        sdfRuntimeCacheRef.current = runtimePacket;
+        threeSceneRef.current.setCustomSdfMap(runtimePacket);
         
         // Add one dummy bounding sphere for all SDFs
         threeSceneRef.current.addShape({
@@ -321,6 +325,7 @@ function App() {
         
         return; // Skip legacy rendering
       } else {
+        sdfRuntimeCacheRef.current = null;
         threeSceneRef.current.setCustomSdfMap(null);
       }
       
@@ -348,6 +353,15 @@ function App() {
   useEffect(() => {
     handleRenderScene();
   }, [nodes, edges, handleRenderScene]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!threeSceneRef.current || typeof threeSceneRef.current.getSdfRuntimeStats !== 'function') return;
+      const stats = threeSceneRef.current.getSdfRuntimeStats();
+      if (stats) setSdfDebugStats(stats);
+    }, 250);
+    return () => clearInterval(timer);
+  }, []);
 
   const onNodesChange = useCallback(
     (changes) => {
@@ -761,6 +775,38 @@ const onReconnectEnd = useCallback((_, edge) => {
 
         {/* ThreeScene Component */}
         <ThreeScene ref={threeSceneRef} />
+
+        {/* SDF runtime debug overlay */}
+        {window.USE_SDF_PIPELINE && sdfDebugStats && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '10px',
+              left: '10px',
+              zIndex: 25,
+              background: 'rgba(8, 12, 16, 0.82)',
+              color: '#d8fbe4',
+              border: '1px solid rgba(95, 220, 150, 0.45)',
+              borderRadius: '8px',
+              padding: '8px 10px',
+              fontSize: '11px',
+              lineHeight: 1.35,
+              pointerEvents: 'none',
+              minWidth: '220px',
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace',
+            }}
+          >
+            <div><strong>SDF Runtime</strong></div>
+            <div>mode: {sdfDebugStats.mode}</div>
+            <div>recompiles: {sdfDebugStats.recompiles}</div>
+            <div>uniform updates: {sdfDebugStats.uniformUpdates}</div>
+            <div>map updates: {sdfDebugStats.mapUpdates}</div>
+            <div>
+              slots: f={sdfDebugStats.uniformCounts?.floats || 0}, v3={sdfDebugStats.uniformCounts?.vec3 || 0}, v4={sdfDebugStats.uniformCounts?.vec4 || 0}, m4={sdfDebugStats.uniformCounts?.mat4 || 0}
+            </div>
+            <div>hash: {(sdfDebugStats.topologyHash || 'n/a').slice(0, 40)}</div>
+          </div>
+        )}
         
         {/* Fullscreen Toggle Button for Rendering Area */}
         <div

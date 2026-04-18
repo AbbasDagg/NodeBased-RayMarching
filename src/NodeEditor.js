@@ -5,10 +5,11 @@ import { generateSimpleScene, generateComplexScene, generateVariations, generate
 //import { add } from 'three/webgpu';
 //import { add } from 'three/webgpu';
 
-function NodeEditor({ setNodes, isFullscreen }) {
+function NodeEditor({ setNodes, setEdges, isFullscreen }) {
   const [nodeCount, setNodeCount] = useState(3); // Starts at 3 because of initial nodes
   const [availableIds, setAvailableIds] = useState([]);
   const reactFlowInstance = useReactFlow();
+  const importInputRef = useRef(null);
   const [showShapeMenu, setShowShapeMenu] = useState(false);
   const [showOperatorMenu, setShowOperatorMenu] = useState(false);
   const shapeMenuRef = useRef(null);
@@ -158,12 +159,18 @@ function NodeEditor({ setNodes, isFullscreen }) {
     setHistoryIndex(newHistory.length - 1);
   };
 
+  const applyGraph = (nextNodes, nextEdges) => {
+    if (typeof setNodes === 'function') setNodes(nextNodes);
+    if (typeof setEdges === 'function') setEdges(nextEdges);
+    reactFlowInstance.setNodes(nextNodes);
+    reactFlowInstance.setEdges(nextEdges);
+  };
+
   // Undo function
   const undoLastAction = () => {
     if (historyIndex > 0) {
       const previousState = history[historyIndex - 1];
-      reactFlowInstance.setNodes(previousState.nodes);
-      reactFlowInstance.setEdges(previousState.edges);
+      applyGraph(previousState.nodes, previousState.edges);
       setHistoryIndex(historyIndex - 1);
       setNodeCount(previousState.nodes.length);
     }
@@ -177,7 +184,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
     const currentIds = reactFlowInstance.getNodes().map(node => node.id);
 
     // Clear nodes
-    reactFlowInstance.setNodes([]);
+    applyGraph([], []);
 
     // Reset node count
     setNodeCount(0);
@@ -185,8 +192,6 @@ function NodeEditor({ setNodes, isFullscreen }) {
     // Add all IDs back to the available list
     setAvailableIds((prev) => [...prev, ...currentIds]);
     
-    // Reset edges
-    reactFlowInstance.setEdges([]);
   };
 
   // Procedural Generation Functions
@@ -198,8 +203,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
       console.log('Simple scene generated, setting nodes and edges...');
       console.log('Nodes:', nodes);
       console.log('Edges:', edges);
-      reactFlowInstance.setNodes(nodes);
-      reactFlowInstance.setEdges(edges);
+      applyGraph(nodes, edges);
       setNodeCount(nodes.length);
       console.log('Simple scene applied successfully');
     } catch (error) {
@@ -215,8 +219,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
       console.log('Complex scene generated, setting nodes and edges...');
       console.log('Nodes:', nodes);
       console.log('Edges:', edges);
-      reactFlowInstance.setNodes(nodes);
-      reactFlowInstance.setEdges(edges);
+      applyGraph(nodes, edges);
       setNodeCount(nodes.length);
       console.log('Complex scene applied successfully');
     } catch (error) {
@@ -232,8 +235,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
       console.log('Single shape generated, setting nodes and edges...');
       console.log('Nodes:', nodes);
       console.log('Edges:', edges);
-      reactFlowInstance.setNodes(nodes);
-      reactFlowInstance.setEdges(edges);
+      applyGraph(nodes, edges);
       setNodeCount(nodes.length);
       console.log('Single shape applied successfully');
     } catch (error) {
@@ -249,8 +251,7 @@ function NodeEditor({ setNodes, isFullscreen }) {
       console.log('Terrain generated, setting nodes and edges...');
       console.log('Nodes:', nodes);
       console.log('Edges:', edges);
-      reactFlowInstance.setNodes(nodes);
-      reactFlowInstance.setEdges(edges);
+      applyGraph(nodes, edges);
       setNodeCount(nodes.length);
       console.log('Procedural terrain applied successfully');
     } catch (error) {
@@ -269,9 +270,157 @@ function NodeEditor({ setNodes, isFullscreen }) {
     
     saveToHistory(); // Save current state before generating variations
     const variatedNodes = generateVariations(currentNodes);
-    reactFlowInstance.setNodes(variatedNodes);
-    // Keep the same edges
-    reactFlowInstance.setEdges(currentEdges);
+    applyGraph(variatedNodes, currentEdges);
+  };
+
+  const stripUndefined = (obj) => {
+    return Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined));
+  };
+
+  const toMinimalNode = (node) => {
+    const normalizedData = { ...(node.data || {}) };
+    if (node.type === 'modeNode') {
+      const validModes = ['union', 'subtraction', 'intersection'];
+      if (!validModes.includes(normalizedData.mode)) {
+        normalizedData.mode = 'union';
+      }
+    }
+
+    return stripUndefined({
+      id: node.id,
+      type: node.type,
+      position: {
+        x: typeof node.position?.x === 'number' ? node.position.x : 0,
+        y: typeof node.position?.y === 'number' ? node.position.y : 0,
+      },
+      data: normalizedData,
+    });
+  };
+
+  const toMinimalEdge = (edge) => {
+    return stripUndefined({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle,
+      targetHandle: edge.targetHandle,
+      type: edge.type,
+      data: edge.data,
+    });
+  };
+
+  const normalizeId = (value) => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+    return null;
+  };
+
+  const validateImportIdsOrThrow = (nodes, edges) => {
+    const seenNodeIds = new Set();
+    for (let i = 0; i < nodes.length; i += 1) {
+      const id = normalizeId(nodes[i]?.id);
+      if (!id) {
+        throw new Error(`Invalid node id at nodes[${i}].`);
+      }
+      if (seenNodeIds.has(id)) {
+        throw new Error(`Duplicate node id: ${id}`);
+      }
+      seenNodeIds.add(id);
+    }
+
+    const seenEdgeIds = new Set();
+    for (let i = 0; i < edges.length; i += 1) {
+      const edgeId = normalizeId(edges[i]?.id);
+      if (!edgeId) {
+        throw new Error(`Invalid edge id at edges[${i}].`);
+      }
+      if (seenEdgeIds.has(edgeId)) {
+        throw new Error(`Duplicate edge id: ${edgeId}`);
+      }
+      seenEdgeIds.add(edgeId);
+    }
+  };
+
+  const exportGraphJson = () => {
+    try {
+      const exportNodes = reactFlowInstance.getNodes().map(toMinimalNode);
+      const exportEdges = reactFlowInstance.getEdges().map(toMinimalEdge).map((edge, index) => ({
+        ...edge,
+        id: `e${index + 1}`,
+      }));
+
+      const payload = {
+        nodes: exportNodes,
+        edges: exportEdges,
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `graph-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting graph JSON:', error);
+      alert('Failed to export graph JSON.');
+    }
+  };
+
+  const triggerImportJson = () => {
+    if (importInputRef.current) {
+      importInputRef.current.value = '';
+      importInputRef.current.click();
+    }
+  };
+
+  const importGraphJson = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+
+      if (!parsed || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
+        alert('Invalid graph JSON. Expected an object with nodes and edges arrays.');
+        return;
+      }
+
+      validateImportIdsOrThrow(parsed.nodes, parsed.edges);
+
+      const cleanedNodes = parsed.nodes.map(toMinimalNode).filter((node) => node.id && node.type);
+      const nodeIds = new Set(cleanedNodes.map((node) => String(node.id)));
+      const cleanedEdges = parsed.edges
+        .map(toMinimalEdge)
+        .filter((edge) => edge.source && edge.target)
+        .filter((edge) => nodeIds.has(String(edge.source)) && nodeIds.has(String(edge.target)));
+
+      if (cleanedNodes.length === 0) {
+        alert('Import failed: no valid nodes found.');
+        return;
+      }
+
+      saveToHistory();
+      applyGraph(cleanedNodes, cleanedEdges);
+      setNodeCount(cleanedNodes.length);
+
+      requestAnimationFrame(() => {
+        if (typeof reactFlowInstance.fitView === 'function') {
+          reactFlowInstance.fitView({ padding: 0.2, duration: 250 });
+        }
+      });
+    } catch (error) {
+      console.error('Error importing graph JSON:', error);
+      alert('Failed to import graph JSON. Please check the file format.');
+    }
   };
 
   useEffect(() => {
@@ -360,6 +509,30 @@ function NodeEditor({ setNodes, isFullscreen }) {
             <path d="M135.2 17.7C140.6 6.8 151.7 0 163.8 0H284.2c12.1 0 23.2 6.8 28.6 17.7L320 32h96c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 96 0 81.7 0 64S14.3 32 32 32h96l7.2-14.3zM32 128H416L394.8 467c-1.6 25.3-22.6 45-47.9 45H101.1c-25.3 0-46.3-19.7-47.9-45L32 128z" fill="#ffffff"></path>
           </svg>
         </button>
+      </div>
+
+      <div className={`node-editor-buttons ${isFullscreen ? 'hidden' : ''}`} style={{ width: 'calc(100% - 320px)', padding: '0px', display: 'flex', justifyContent: 'flex-start', gap: '5px', position: 'relative', marginTop: '10px' }}>
+        <button
+          className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`}
+          onClick={exportGraphJson}
+          style={{ flex: '1 1 50%' }}
+        >
+          Export Graph JSON
+        </button>
+        <button
+          className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`}
+          onClick={triggerImportJson}
+          style={{ flex: '1 1 50%' }}
+        >
+          Import Graph JSON
+        </button>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json,.json"
+          onChange={importGraphJson}
+          style={{ display: 'none' }}
+        />
       </div>
 
       {/* Undo button in bottom corner */}

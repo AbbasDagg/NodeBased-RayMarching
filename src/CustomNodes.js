@@ -127,12 +127,20 @@ export function ModeNode({ id, data }) {
 
 export function VectorNode({ id, data, isConnectable }) {
   const [inputData, setInputData] = useState({
-    x: data.x || 0,
-    y: data.y || 0,
-    z: data.z || 0,
+    x: data.x ?? 0,
+    y: data.y ?? 0,
+    z: data.z ?? 0,
   });
   const [range, setRange] = useState({ min: -100, max: 100, step: 1 });
   const reactFlowInstance = useReactFlow();
+
+  useEffect(() => {
+    setInputData({
+      x: data.x ?? 0,
+      y: data.y ?? 0,
+      z: data.z ?? 0,
+    });
+  }, [data.x, data.y, data.z, id]);
 
   const adjustRangeForRotation = () => {
     const nodeId = id || data.id;
@@ -203,20 +211,49 @@ export function VectorNode({ id, data, isConnectable }) {
 
 export function MotorNode({ id, data, isConnectable }) {
   const [xRange, setXRange] = useState({
-    min: data.xRange?.min || 0,
-    max: data.xRange?.max || 10,
-    step: data.xRange?.step || 1,
+    min: data.xRange?.min ?? 0,
+    max: data.xRange?.max ?? 10,
+    step: data.xRange?.step ?? 1,
   });
   const [yRange, setYRange] = useState({
-    min: data.yRange?.min || 0,
-    max: data.yRange?.max || 10,
-    step: data.yRange?.step || 1,
+    min: data.yRange?.min ?? 0,
+    max: data.yRange?.max ?? 10,
+    step: data.yRange?.step ?? 1,
   });
   const [zRange, setZRange] = useState({
-    min: data.zRange?.min || 0,
-    max: data.zRange?.max || 10,
-    step: data.zRange?.step || 1,
+    min: data.zRange?.min ?? 0,
+    max: data.zRange?.max ?? 10,
+    step: data.zRange?.step ?? 1,
   });
+
+  useEffect(() => {
+    setXRange({
+      min: data.xRange?.min ?? 0,
+      max: data.xRange?.max ?? 10,
+      step: data.xRange?.step ?? 1,
+    });
+    setYRange({
+      min: data.yRange?.min ?? 0,
+      max: data.yRange?.max ?? 10,
+      step: data.yRange?.step ?? 1,
+    });
+    setZRange({
+      min: data.zRange?.min ?? 0,
+      max: data.zRange?.max ?? 10,
+      step: data.zRange?.step ?? 1,
+    });
+  }, [
+    data.xRange?.min,
+    data.xRange?.max,
+    data.xRange?.step,
+    data.yRange?.min,
+    data.yRange?.max,
+    data.yRange?.step,
+    data.zRange?.min,
+    data.zRange?.max,
+    data.zRange?.step,
+    id,
+  ]);
 
   const handleChange = (axis, name, value) => {
     const newValue = parseFloat(value);

@@ -999,7 +999,7 @@ const onReconnectEnd = useCallback((_, edge) => {
             zIndex: 1,
           }}
         >
-          <NodeEditor setNodes={setNodes} isFullscreen={isFullscreen} />
+          <NodeEditor setNodes={setNodes} setEdges={setEdges} isFullscreen={isFullscreen} />
           <div style={{ width: '100%', height: '100%' }}>
             <ReactFlow
               nodes={nodes}

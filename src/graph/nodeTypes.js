@@ -123,7 +123,7 @@ function createShapeSdf(shapeType, position, rotation, scale, color) {
       case 1: // sphere
         return new SdfSphere({ position: pos, rotation: rot, scale: scl, color });
       case 2: // torus
-        return new SdfTorus({ position: pos, majorRadius: 1.0, minorRadius: 0.25, rotation: rot, color });
+        return new SdfTorus({ position: pos, rotation: rot, scale: scl, color });
       case 3: // capsule
         return new SdfCapsule({ position: pos, radius: 0.5, height: 1.5, rotation: rot, color });
       default:

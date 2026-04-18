@@ -219,4 +219,9 @@ export class GraphManager {
       }
     }
   }
+
+  // Debug utility: return a shallow snapshot of currently computed node outputs.
+  getOutputsSnapshot() {
+    return new Map(this.outputs);
+  }
 }

@@ -15,6 +15,59 @@ const modeHandleOffset = "-14px"
 const modeHandleStyleRight = { right: modeHandleOffset, backgroundColor: 'black', margin: 0, padding: 0, width: r, height: r };
 const modeHandleStyleLeft = { left: modeHandleOffset, backgroundColor: 'black', margin: 0, padding: 0 , width: r, height: r };
 
+function NodeOutputDebug({ nodeId }) {
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onUpdate = () => setTick((v) => v + 1);
+    window.addEventListener('node-output-debug-updated', onUpdate);
+    return () => window.removeEventListener('node-output-debug-updated', onUpdate);
+  }, []);
+
+  if (typeof window === 'undefined') return null;
+  if (!window.__NODE_OUTPUT_DEBUG__) return null;
+  const mode = window.__NODE_OUTPUT_DEBUG_MODE__ === 'compact' ? 'compact' : 'full';
+  const isFull = mode === 'full';
+  const map = window.__NODE_OUTPUT_DEBUG_MAP__ || {};
+  const rawText = map[nodeId];
+  const text = rawText
+    ? String(rawText)
+    : `Node ${String(nodeId)}\n(no computed output yet)`;
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: '-10px',
+        right: '12px',
+        width: isFull ? '420px' : '300px',
+        maxHeight: isFull ? '320px' : '210px',
+        overflow: 'auto',
+        pointerEvents: 'auto',
+        zIndex: 20,
+        background: 'rgba(5, 7, 10, 0.92)',
+        color: '#d7f5ff',
+        border: '1px solid rgba(75, 180, 255, 0.55)',
+        borderRadius: '6px',
+        padding: '6px 7px',
+        fontSize: '10px',
+        whiteSpace: 'pre-wrap',
+        lineHeight: 1.25,
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace',
+      }}
+      className="nodrag"
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      title={text}
+    >
+      {text}
+    </div>
+  );
+}
+
 
 
 export function ModeNode({ id, data }) {
@@ -65,13 +118,14 @@ export function ModeNode({ id, data }) {
         <Handle key="shapes" type="target" position={Position.Left} id="shapes" style={{ top: '85%', ...modeHandleStyleLeft }} />
         {/* Render output mid-right aligned with transform */}
         <div style={{ position: 'absolute', right: '18px', top: '63%', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>Render</div>
+        <NodeOutputDebug nodeId={id} />
         <Handle key="render" type="source" position={Position.Right} id="render" style={{ top: '68%', ...modeHandleStyleRight }} />
       </div>
     </div>
   );
 }
 
-export function VectorNode({ data, isConnectable }) {
+export function VectorNode({ id, data, isConnectable }) {
   const [inputData, setInputData] = useState({
     x: data.x || 0,
     y: data.y || 0,
@@ -81,8 +135,9 @@ export function VectorNode({ data, isConnectable }) {
   const reactFlowInstance = useReactFlow();
 
   const adjustRangeForRotation = () => {
+    const nodeId = id || data.id;
     const connectedEdges = reactFlowInstance.getEdges().filter(
-      (edge) => edge.source === data.id && edge.targetHandle === 'rotation'
+      (edge) => edge.source === nodeId && edge.targetHandle === 'rotation'
     );
     if (connectedEdges.length > 0) {
       setRange({ min: -360, max: 360, step: 5 });
@@ -93,10 +148,11 @@ export function VectorNode({ data, isConnectable }) {
 
   const handleChange = (name, value) => {
     setInputData((prev) => {
+      const nodeId = id || data.id;
       const next = { ...prev, [name]: value };
       data[name] = value;
       reactFlowInstance.setNodes(nodes => nodes.map(node => {
-        const relevantEdges = reactFlowInstance.getEdges().filter(e => e.source === data.id);
+        const relevantEdges = reactFlowInstance.getEdges().filter(e => e.source === nodeId);
         const isConnected = relevantEdges.some(e => e.target === node.id && e.targetHandle === name && e.sourceHandle === 'vector');
         if (isConnected) return { ...node, data: { ...node.data, [name]: value } };
         return node;
@@ -112,8 +168,8 @@ export function VectorNode({ data, isConnectable }) {
   }, [reactFlowInstance]);
 
   return (
-    <div className="card vectorNode" style={{ width: '200px', height: '200px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #ffcc00', borderRadius: '8px' }}>
-      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="card vectorNode" style={{ width: '200px', height: '200px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #ffcc00', borderRadius: '8px', position: 'relative' }}>
+      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
         <div style={{ marginBottom: '5px', fontWeight: 'bold', fontSize: '14px', color: '#ffcc00', textTransform: 'uppercase', letterSpacing: '1px' }}>Vector</div>
         {['x','y','z'].map(axis => (
           <React.Fragment key={axis}>
@@ -137,6 +193,7 @@ export function VectorNode({ data, isConnectable }) {
             />
           </React.Fragment>
         ))}
+        <NodeOutputDebug nodeId={id || data.id} />
         <Handle key="vector" type="source" position={Position.Right} id="vector" style={handleStyleRight} isConnectable={isConnectable} />
       </div>
     </div>
@@ -144,7 +201,7 @@ export function VectorNode({ data, isConnectable }) {
 }
 
 
-export function MotorNode({ data, isConnectable }) {
+export function MotorNode({ id, data, isConnectable }) {
   const [xRange, setXRange] = useState({
     min: data.xRange?.min || 0,
     max: data.xRange?.max || 10,
@@ -170,8 +227,8 @@ export function MotorNode({ data, isConnectable }) {
   };
 
   return (
-    <div className="card motorNode" style={{ width: '175px', height: '170px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #ffcc00', borderRadius: '8px', padding: '10px' }}>
-      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="card motorNode" style={{ width: '175px', height: '170px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #ffcc00', borderRadius: '8px', padding: '10px', position: 'relative' }}>
+      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
         <div style={{ fontWeight: 'bold', color: '#ffcc00', fontSize: '16px', marginBottom: '20px', marginTop: '5px', textTransform: 'uppercase', letterSpacing: '1px' }}>Motor</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '57%', marginBottom: '5px', paddingLeft: '18px', paddingRight: '15px', fontSize: '14px', color: '#ffcc00' }}>
           <span>From</span>
@@ -184,6 +241,7 @@ export function MotorNode({ data, isConnectable }) {
             <input type="number" value={eval(`${axis.toLowerCase()}Range`).max} onChange={(e) => handleChange(`${axis.toLowerCase()}Range`, 'max', e.target.value)} className="nodrag" style={{ width: '40%', marginLeft: '10px', padding: '3px', borderRadius: '4px', border: '1px solid #ffcc00', background: '#1b1f22', color: '#ffcc00' }} />
           </div>
         ))}
+        <NodeOutputDebug nodeId={id || data.id} />
         <Handle key="vector" type="source" position={Position.Right} id="vector" style={handleStyleRight} isConnectable={isConnectable} />
       </div>
     </div>
@@ -242,6 +300,7 @@ export function MultNode({ id, data }) {
         </div>
       </div>
       <Handle type="target" position={Position.Left} id="matrix-in" style={{ ...handleStyleLeft, top: '50%' }} />
+      <NodeOutputDebug nodeId={id} />
       <Handle type="source" position={Position.Right} id="matrix" style={{ ...handleStyleRight, top: '50%' }} />
     </div>
   );
@@ -347,6 +406,7 @@ export function SphereNode({ id, data }) {
             */}
           </>
         )}
+        <NodeOutputDebug nodeId={id} />
         <Handle type="source" position={Position.Right} id="render" isConnectable={true} style={{ ...handleStyleRight, top: '65%' }} />
       </div>
     </div>
@@ -453,6 +513,7 @@ export function TorusNode({ id, data }) {
             */}
           </>
         )}
+        <NodeOutputDebug nodeId={id} />
         <Handle type="source" position={Position.Right} id="render" isConnectable={true} style={{ ...handleStyleRight, top: '65%' }} />
       </div>
     </div>
@@ -557,6 +618,7 @@ export function BoxNode({ id, data }) {
             */}
           </>
         )}
+        <NodeOutputDebug nodeId={id} />
         <Handle type="source" position={Position.Right} id="render" isConnectable={true} style={{ ...handleStyleRight, top: '65%' }} />
       </div>
     </div>
@@ -661,6 +723,7 @@ export function CapsuleNode({ id, data }) {
             */}
           </>
         )}
+        <NodeOutputDebug nodeId={id} />
         <Handle type="source" position={Position.Right} id="render" isConnectable={true} style={{ ...handleStyleRight, top: '65%' }} />
       </div>
     </div>
@@ -1114,18 +1177,19 @@ export function TerrainParamsNode({ data }) {
 // END TERRAIN DISABLED
 */
 
-export function ColorNode({ data, isConnectable }) {
+export function ColorNode({ id, data, isConnectable }) {
   const [color, setColor] = useState(data.color || '#ffffff');
   const reactFlowInstance = useReactFlow();
 
   const handleChange = event => {
+    const nodeId = id || data.id;
     const newColor = event.target.value;
     setColor(newColor);
     data.color = newColor;
 
     reactFlowInstance.setNodes(nodes =>
       nodes.map(node => {
-        if (node.id === data.id) {
+        if (node.id === nodeId) {
           return { ...node, data: { ...node.data, color: newColor } };
         }
         return node;
@@ -1134,28 +1198,30 @@ export function ColorNode({ data, isConnectable }) {
   };
 
   return (
-    <div className="card colorNode" style={{ width: '120px', height: '90px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #3aafa9', borderRadius: '8px' }}>
-      <div style={{ padding: '12px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="card colorNode" style={{ width: '120px', height: '90px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #3aafa9', borderRadius: '8px', position: 'relative' }}>
+      <div style={{ padding: '12px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
         <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '16px', color: '#3aafa9', textTransform: 'uppercase', letterSpacing: '1px' }}>Color</div>
         <input type="color" value={color} onChange={handleChange} className="nodrag" style={{ cursor: 'pointer', width: '60%', height: '30px', border: '1px solid #3aafa9', padding: '0' }} />
+        <NodeOutputDebug nodeId={id || data.id} />
         <Handle key="color" type="source" position={Position.Right} id="color" style={{ ...handleStyleRight, backgroundColor: '#3aafa9' }} isConnectable={isConnectable} />
       </div>
     </div>
   );
 }
 
-export function RenderNode({ data }) {
+export function RenderNode({ id, data }) {
   return (
     <div className="card renderNode" style={{ width: '120px', height: 'auto', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #ff4d4d', borderRadius: '8px' }}>
-      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
         <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px', color: '#ff4d4d', textTransform: 'uppercase', letterSpacing: '1px' }}>Render</div>
+        <NodeOutputDebug nodeId={id || data?.id} />
         <Handle key="render" type="target" position={Position.Left} id="render" style={{ ...handleStyleLeft, top: '50%', backgroundColor: '#ff4d4d' }} />
       </div>
     </div>
   );
 }
 
-export function GroupNode({ data }) {
+export function GroupNode({ id, data }) {
   const accent = '#4a9eff';
   return (
     <div className="card groupNode" style={{ width: '210px', height: '170px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px' }}>
@@ -1168,6 +1234,7 @@ export function GroupNode({ data }) {
         <Handle key="shapes" type="target" position={Position.Left} id="shapes" style={{ top: '73%', ...handleStyleLeft }} />
         {/* Right handle: render out */}
         <div style={{ position: 'absolute', right: '18px', top: '68%', fontSize: '13px', color: '#fff', fontWeight: 'bold' }}>Render</div>
+        <NodeOutputDebug nodeId={id || data.id} />
         <Handle key="render" type="source" position={Position.Right} id="render" style={{ top: '73%', ...handleStyleRight }} />
       </div>
     </div>

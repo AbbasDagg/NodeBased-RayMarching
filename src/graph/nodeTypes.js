@@ -108,7 +108,7 @@ function createShapeSdf(shapeType, position, rotation, scale, color) {
   const rot = new THREE.Vector3(rotation.x, rotation.y, rotation.z);
   const scl = new THREE.Vector3(scale.x, scale.y, scale.z);
   
-  if (SDF_VERBOSE_DEBUG) {
+  if (isSdfVerboseDebugEnabled()) {
     console.log(`[createShapeSdf] Creating ${shapeType} with color: 0x${color.toString(16).padStart(6, '0')}`);
   }
   
@@ -137,8 +137,8 @@ function createShapeSdf(shapeType, position, rotation, scale, color) {
 }
 
 const USE_AST_PIPELINE = true;
-const AST_DEBUG = (typeof window !== 'undefined') && !!window.__SDF_AST_DEBUG__;
-const SDF_VERBOSE_DEBUG = (typeof window !== 'undefined') && !!window.__SDF_DEBUG_VERBOSE__;
+const isAstDebugEnabled = () => (typeof window !== 'undefined') && !!window.__SDF_AST_DEBUG__;
+const isSdfVerboseDebugEnabled = () => (typeof window !== 'undefined') && !!window.__SDF_DEBUG_VERBOSE__;
 
 // Apply a matrix only to modular primitives (matches the legacy behavior where
 // group/mode transforms only affect shapes with explicit matrices).
@@ -430,7 +430,7 @@ export const nodeRegistry = {
 
       // SDF pipeline: generate GLSL
       if (useSdfPipeline() && sdfs.length) {
-        if (SDF_VERBOSE_DEBUG) {
+        if (isSdfVerboseDebugEnabled()) {
           console.log('=== PROOF: Using Function Objects ===');
           console.log('Number of Sdf objects collected:', sdfs.length);
           sdfs.forEach((sdf, i) => {
@@ -442,7 +442,7 @@ export const nodeRegistry = {
         }
         
         const rootSdf = sdfs.length === 1 ? sdfs[0] : new SdfUnion(sdfs, 0.5);
-        if (SDF_VERBOSE_DEBUG) {
+        if (isSdfVerboseDebugEnabled()) {
           const glslCode = rootSdf.toGLSL('p');
           console.log('\n=== Generated GLSL ===');
           console.log(glslCode);
@@ -457,8 +457,8 @@ export const nodeRegistry = {
         // Union all upstream ASTs under a single fold.
         const ast = astFold(asts[0], asts.slice(1).map(a => ({ op: 'union', ast: a })));
         try {
-          const shapesCompiled = compileAstToShapes(ast, { debug: AST_DEBUG });
-          if (AST_DEBUG) {
+          const shapesCompiled = compileAstToShapes(ast, { debug: isAstDebugEnabled() });
+          if (isAstDebugEnabled()) {
             // eslint-disable-next-line no-console
             console.log('[renderNode] compiled order:', shapesCompiled.map(s => `${s.operation}:${s.shape}`));
           }

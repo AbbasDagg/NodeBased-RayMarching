@@ -160,6 +160,210 @@ const edgeTypes = {
   default: CustomEdge, // Use CustomEdge for default edge
 };
 
+function safeLiteral(value, depth = 0) {
+  if (depth > 3) return '[MaxDepth]';
+  if (value === null) return null;
+  if (value === undefined) return '[Undefined]';
+  if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'function') return `[Function ${value.name || 'anonymous'}]`;
+  if (Array.isArray(value)) return value.map(v => safeLiteral(v, depth + 1));
+  if (value && typeof value.toArray === 'function') {
+    try {
+      return { __type: value.constructor?.name || 'ArrayLike', values: value.toArray() };
+    } catch {
+      return `[${value.constructor?.name || 'Object'} toArray() failed]`;
+    }
+  }
+  if (typeof value === 'object') {
+    const out = { __type: value.constructor?.name || 'Object' };
+    Object.keys(value).forEach((k) => {
+      try {
+        out[k] = safeLiteral(value[k], depth + 1);
+      } catch {
+        out[k] = '[Unreadable]';
+      }
+    });
+    return out;
+  }
+  return String(value);
+}
+
+function detectSdfPrimitiveName(sdf) {
+  if (!sdf) return null;
+  const className = String(sdf.constructor?.name || '');
+  const classChecks = [
+    ['box', /Box/i],
+    ['sphere', /Sphere/i],
+    ['torus', /Torus/i],
+    ['capsule', /Capsule/i],
+    ['cylinder', /Cylinder/i],
+    ['plane', /Plane/i],
+  ];
+  for (const [label, pattern] of classChecks) {
+    if (pattern.test(className)) return label;
+  }
+
+  if (typeof sdf.toGLSL === 'function') {
+    try {
+      const code = String(sdf.toGLSL('p'));
+      if (/sdBox\s*\(/.test(code)) return 'box';
+      if (/sdSphere\s*\(/.test(code)) return 'sphere';
+      if (/sdTorus\s*\(/.test(code)) return 'torus';
+      if (/sdCapsule\s*\(/.test(code)) return 'capsule';
+      if (/sdCylinder\s*\(/.test(code)) return 'cylinder';
+      if (/sdPlane\s*\(/.test(code)) return 'plane';
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function buildLiteralNodeOutput(node, output, mode = 'full', options = {}) {
+  const nodeId = node?.id ?? '?';
+  const nodeType = node?.type ?? 'unknown';
+  const isFull = mode === 'full';
+  const preferSdf = !!options.preferSdf;
+
+  if (output == null) {
+    return `Node ${nodeId} (${nodeType})\nno output`;
+  }
+
+  const f = (n) => (typeof n === 'number' && Number.isFinite(n) ? Number(n).toFixed(4) : String(n));
+  const lines = [];
+  lines.push(`Node ${nodeId} (${nodeType})`);
+  lines.push(`keys: ${Object.keys(output).join(', ') || '(none)'}`);
+
+  if (output.vector) {
+    lines.push('');
+    lines.push('vector');
+    lines.push(`x: ${f(output.vector.x)}`);
+    lines.push(`y: ${f(output.vector.y)}`);
+    lines.push(`z: ${f(output.vector.z)}`);
+  }
+
+  if (output.color !== undefined) {
+    const colorNum = Number(output.color);
+    const colorHex = Number.isFinite(colorNum)
+      ? `0x${Math.max(0, colorNum).toString(16).padStart(6, '0')}`
+      : String(output.color);
+    lines.push('');
+    lines.push(`color: ${colorHex}`);
+  }
+
+  if (Array.isArray(output.matrix)) {
+    lines.push('');
+    lines.push('matrix (row-major)');
+    for (let r = 0; r < 4; r += 1) {
+      const row = output.matrix.slice(r * 4, r * 4 + 4).map(f).join(', ');
+      lines.push(`[${row}]`);
+    }
+  }
+
+  if (Array.isArray(output.shapes) && !(preferSdf && output.sdf)) {
+    lines.push('');
+    if (output.shapes.length === 1) {
+      const s = output.shapes[0] || {};
+      lines.push(`shape: ${s.shape || '?'}`);
+      lines.push(`operation: ${s.operation || '?'}`);
+      lines.push(`color: ${s.color !== undefined ? `0x${Number(s.color).toString(16).padStart(6, '0')}` : 'n/a'}`);
+    } else {
+      lines.push(`shapes: ${output.shapes.length}`);
+      output.shapes.slice(0, 4).forEach((s, i) => {
+        lines.push(`#${i} ${s.shape || '?'} op=${s.operation || '?'} color=${s.color !== undefined ? `0x${Number(s.color).toString(16).padStart(6, '0')}` : 'n/a'}`);
+      });
+    }
+    if (output.shapes.length > 4) lines.push(`... +${output.shapes.length - 4} more shapes`);
+  }
+
+  if (output.sdf) {
+    const sdfType = output.sdf.constructor?.name || typeof output.sdf;
+    const primitiveName = detectSdfPrimitiveName(output.sdf);
+    lines.push('');
+    lines.push(`SDF type: ${sdfType}`);
+    if (primitiveName) {
+      lines.push(`primitive: ${primitiveName}`);
+    }
+    lines.push(`evaluate(point): ${typeof output.sdf.evaluate === 'function' ? 'yes' : 'no'}`);
+    lines.push(`toGLSL(point): ${typeof output.sdf.toGLSL === 'function' ? 'yes' : 'no'}`);
+    if (isFull && typeof output.sdf.toGLSL === 'function') {
+      try {
+        lines.push('');
+        lines.push("sdf.toGLSL('p'):");
+        lines.push(String(output.sdf.toGLSL('p')));
+      } catch (e) {
+        lines.push(`toGLSL error: ${e?.message || String(e)}`);
+      }
+    }
+  }
+
+  if (output.ast && !(preferSdf && output.sdf)) {
+    lines.push('');
+    lines.push(`ast kind: ${output.ast.kind || 'unknown'}`);
+  }
+
+  if (lines.length <= 2) {
+    lines.push('');
+    lines.push(JSON.stringify(safeLiteral(output), null, 2));
+  }
+
+  return lines.join('\n');
+}
+
+function fmtNumber(n) {
+  return Number.isFinite(Number(n)) ? Number(n).toFixed(4) : String(n);
+}
+
+function readPathFromRoot(root, path) {
+  let cur = root;
+  for (let i = 0; i < path.length; i += 1) {
+    if (cur == null) return null;
+    cur = cur[path[i]];
+  }
+  return cur;
+}
+
+function formatShaderOutput(node, runtimePacket, mode = 'full') {
+  const nodeId = node?.id ?? '?';
+  const nodeType = node?.type ?? 'unknown';
+
+  const isFull = mode === 'full';
+  const lines = [];
+  lines.push(`Node ${nodeId} (${nodeType})`);
+  lines.push('channel: shader');
+
+  if (!runtimePacket || !runtimePacket.expression || !runtimePacket.declarations) {
+    lines.push('');
+    lines.push('no runtime packet yet');
+    return lines.join('\n');
+  }
+
+  const declarations = String(runtimePacket.declarations || '').trim();
+  const expression = String(runtimePacket.expression || '').trim();
+  const wrappedMap = `SDF map(const in vec3 p) {\n  return ${expression};\n}`;
+
+  const addBlockTitle = (title) => {
+    lines.push('');
+    lines.push(title);
+  };
+
+  lines.push('');
+  lines.push('uniform declarations');
+  lines.push(declarations || '(none)');
+
+  lines.push('');
+  lines.push('generated map function');
+  lines.push(wrappedMap);
+
+  if (isFull && runtimePacket.topologyHash) {
+    lines.push('');
+    lines.push(`topology hash: ${runtimePacket.topologyHash}`);
+  }
+
+  return lines.join('\n');
+}
+
 function App() {
   const threeSceneRef = useRef();
   const [nodes, setNodes] = useState(initialNodes);
@@ -172,9 +376,166 @@ function App() {
   const [renderSquareSize, setRenderSquareSize] = useState({ width: 300, height: 300 });
   const [isResizing, setIsResizing] = useState(false);
   const [sdfDebugStats, setSdfDebugStats] = useState(null);
+  const [sdfPipelineEnabled, setSdfPipelineEnabled] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !!window.USE_SDF_PIPELINE;
+  });
+  const [sdfRuntimeOverlayEnabled, setSdfRuntimeOverlayEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.__SDF_RUNTIME_OVERLAY__ !== false;
+  });
+  const [sdfVerboseDebugEnabled, setSdfVerboseDebugEnabled] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !!window.__SDF_DEBUG_VERBOSE__;
+  });
+  const [nodeOutputDebugEnabled, setNodeOutputDebugEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.__NODE_OUTPUT_DEBUG__ !== false;
+  });
+  const [nodeOutputDebugMode, setNodeOutputDebugMode] = useState(() => {
+    if (typeof window === 'undefined') return 'full';
+    const mode = window.__NODE_OUTPUT_DEBUG_MODE__;
+    return mode === 'compact' || mode === 'full' ? mode : 'full';
+  });
+  const [nodeOutputChannel, setNodeOutputChannel] = useState(() => {
+    if (typeof window === 'undefined') return 'values';
+    return window.__NODE_OUTPUT_CHANNEL__ === 'shader' ? 'shader' : 'values';
+  });
+  const debugCaptureLastAtRef = useRef(0);
   const fullscreenTimeoutRef = useRef(null);
   const gmRef = useRef(null);
   const sdfRuntimeCacheRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.USE_SDF_PIPELINE = !!sdfPipelineEnabled;
+    window.__SDF_RUNTIME_OVERLAY__ = !!sdfRuntimeOverlayEnabled;
+    window.__SDF_DEBUG_VERBOSE__ = !!sdfVerboseDebugEnabled;
+
+    window.setSdfPipelineEnabled = (enabled) => {
+      const next = !!enabled;
+      window.USE_SDF_PIPELINE = next;
+      setSdfPipelineEnabled(next);
+      return next;
+    };
+    window.toggleSdfPipeline = () => {
+      const next = !window.USE_SDF_PIPELINE;
+      window.USE_SDF_PIPELINE = next;
+      setSdfPipelineEnabled(next);
+      return next;
+    };
+
+    window.setSdfRuntimeOverlayEnabled = (enabled) => {
+      const next = !!enabled;
+      window.__SDF_RUNTIME_OVERLAY__ = next;
+      setSdfRuntimeOverlayEnabled(next);
+      return next;
+    };
+    window.toggleSdfRuntimeOverlay = () => {
+      const next = !window.__SDF_RUNTIME_OVERLAY__;
+      window.__SDF_RUNTIME_OVERLAY__ = next;
+      setSdfRuntimeOverlayEnabled(next);
+      return next;
+    };
+
+    window.setSdfVerboseDebug = (enabled) => {
+      const next = !!enabled;
+      window.__SDF_DEBUG_VERBOSE__ = next;
+      setSdfVerboseDebugEnabled(next);
+      return next;
+    };
+    window.toggleSdfVerboseDebug = () => {
+      const next = !window.__SDF_DEBUG_VERBOSE__;
+      window.__SDF_DEBUG_VERBOSE__ = next;
+      setSdfVerboseDebugEnabled(next);
+      return next;
+    };
+  }, [sdfPipelineEnabled, sdfRuntimeOverlayEnabled, sdfVerboseDebugEnabled]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.__NODE_OUTPUT_DEBUG__ = !!nodeOutputDebugEnabled;
+    window.__NODE_OUTPUT_DEBUG_MODE__ = nodeOutputDebugMode;
+    window.__NODE_OUTPUT_CHANNEL__ = nodeOutputChannel;
+    if (!window.__NODE_OUTPUT_DEBUG_MAP__) {
+      window.__NODE_OUTPUT_DEBUG_MAP__ = {};
+    }
+    window.setNodeOutputDebug = (enabled) => {
+      const next = !!enabled;
+      window.__NODE_OUTPUT_DEBUG__ = next;
+      setNodeOutputDebugEnabled(next);
+      return next;
+    };
+    window.toggleNodeOutputDebug = () => {
+      const next = !window.__NODE_OUTPUT_DEBUG__;
+      window.__NODE_OUTPUT_DEBUG__ = next;
+      setNodeOutputDebugEnabled(next);
+      return next;
+    };
+    // Simple one-shot commands for direct console usage.
+    // Usage:
+    //   nodeOutputs()            -> logs all node outputs
+    //   nodeOutputs('10')        -> logs only node id "10"
+    //   nodeOutputsOn()          -> turn on floating bubbles
+    //   nodeOutputsOff()         -> turn off floating bubbles
+    window.nodeOutputs = (nodeId) => {
+      window.__NODE_OUTPUT_DEBUG__ = true;
+      setNodeOutputDebugEnabled(true);
+      const map = window.__NODE_OUTPUT_DEBUG_MAP__ || {};
+      if (nodeId !== undefined && nodeId !== null) {
+        const key = String(nodeId);
+        const val = map[key];
+        console.log(`[nodeOutputs] node ${key}:`);
+        console.log(val || '(no computed output yet)');
+        return val;
+      }
+      console.log('[nodeOutputs] all nodes:');
+      console.log(map);
+      return map;
+    };
+    window.nodeOutputsOn = () => {
+      window.__NODE_OUTPUT_DEBUG__ = true;
+      setNodeOutputDebugEnabled(true);
+      return true;
+    };
+    window.nodeOutputsOff = () => {
+      window.__NODE_OUTPUT_DEBUG__ = false;
+      setNodeOutputDebugEnabled(false);
+      return false;
+    };
+    window.nodeOutputsMode = (mode) => {
+      const next = mode === 'compact' ? 'compact' : 'full';
+      window.__NODE_OUTPUT_DEBUG_MODE__ = next;
+      setNodeOutputDebugMode(next);
+      return next;
+    };
+    window.nodeOutputsCompact = () => {
+      window.__NODE_OUTPUT_DEBUG_MODE__ = 'compact';
+      setNodeOutputDebugMode('compact');
+      return 'compact';
+    };
+    window.nodeOutputsFull = () => {
+      window.__NODE_OUTPUT_DEBUG_MODE__ = 'full';
+      setNodeOutputDebugMode('full');
+      return 'full';
+    };
+    window.nodeOutputsChannel = (channel) => {
+      const next = channel === 'shader' ? 'shader' : 'values';
+      window.__NODE_OUTPUT_CHANNEL__ = next;
+      setNodeOutputChannel(next);
+      return next;
+    };
+    window.nodeOutputsShader = () => {
+      window.__NODE_OUTPUT_CHANNEL__ = 'shader';
+      setNodeOutputChannel('shader');
+      return 'shader';
+    };
+    window.nodeOutputsValues = () => {
+      window.__NODE_OUTPUT_CHANNEL__ = 'values';
+      setNodeOutputChannel('values');
+      return 'values';
+    };
+  }, [nodeOutputDebugEnabled, nodeOutputDebugMode, nodeOutputChannel]);
 
   // Initialize GraphManager once with initial graph; future updates are incremental
   useEffect(() => {
@@ -304,14 +665,39 @@ function App() {
           allSdfs.push(renderOutput.sdf);
         }
       });
-      
-      // If we have SDFs, combine them and set once
-      if (allSdfs.length > 0 && window.USE_SDF_PIPELINE) {
+
+      let runtimePacket = null;
+      if (allSdfs.length > 0 && sdfPipelineEnabled) {
         const { SdfUnion } = require('./graph/sdfFunction');
         const combinedSdf = allSdfs.length === 1 ? allSdfs[0] : new SdfUnion(allSdfs, 0.5);
-        const runtimePacket = buildSdfRuntimePacket(combinedSdf, sdfRuntimeCacheRef.current);
-        sdfRuntimeCacheRef.current = runtimePacket;
-        threeSceneRef.current.setCustomSdfMap(runtimePacket);
+        runtimePacket = buildSdfRuntimePacket(combinedSdf, sdfRuntimeCacheRef.current);
+        if (runtimePacket) {
+          runtimePacket.rootSdf = combinedSdf;
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        const now = Date.now();
+        if (now - debugCaptureLastAtRef.current > 180) {
+          const snap = gm.getOutputsSnapshot();
+          const out = {};
+          nodes.forEach((n) => {
+            out[n.id] = buildLiteralNodeOutput(n, snap.get(n.id), nodeOutputDebugMode, {
+              preferSdf: sdfPipelineEnabled,
+            });
+          });
+          window.__NODE_OUTPUT_DEBUG_MAP__ = out;
+          window.dispatchEvent(new CustomEvent('node-output-debug-updated', { detail: { at: now } }));
+          debugCaptureLastAtRef.current = now;
+        }
+      }
+      
+      // If we have SDFs, combine them and set once
+      if (allSdfs.length > 0 && sdfPipelineEnabled) {
+        const nextPacket = runtimePacket;
+        if (!nextPacket) return;
+        sdfRuntimeCacheRef.current = nextPacket;
+        threeSceneRef.current.setCustomSdfMap(nextPacket);
         
         // Add one dummy bounding sphere for all SDFs
         threeSceneRef.current.addShape({
@@ -339,7 +725,7 @@ function App() {
         });
       });
     }
-  }, [nodes, edges]);
+  }, [nodes, edges, nodeOutputDebugMode, nodeOutputChannel, sdfPipelineEnabled]);
   
   
   useEffect(() => {
@@ -781,11 +1167,11 @@ const onReconnectEnd = useCallback((_, edge) => {
         <ThreeScene ref={threeSceneRef} />
 
         {/* SDF runtime debug overlay */}
-        {window.USE_SDF_PIPELINE && sdfDebugStats && (
+        {sdfPipelineEnabled && sdfRuntimeOverlayEnabled && sdfDebugStats && (
           <div
             style={{
               position: 'absolute',
-              top: '10px',
+              top: '150px',
               left: '10px',
               zIndex: 25,
               background: 'rgba(8, 12, 16, 0.82)',
@@ -811,7 +1197,126 @@ const onReconnectEnd = useCallback((_, edge) => {
             <div>hash: {(sdfDebugStats.topologyHash || 'n/a').slice(0, 40)}</div>
           </div>
         )}
-        
+
+        {/* SDF pipeline toggle */}
+        <button
+          className="nodrag"
+          onClick={(e) => {
+            e.stopPropagation();
+            const next = !sdfPipelineEnabled;
+            if (typeof window !== 'undefined') {
+              window.USE_SDF_PIPELINE = next;
+            }
+            setSdfPipelineEnabled(next);
+          }}
+          style={{
+            position: 'absolute',
+            top: '10px',
+            left: '10px',
+            zIndex: 30,
+            background: sdfPipelineEnabled ? 'rgba(35, 125, 85, 0.9)' : 'rgba(80, 80, 80, 0.9)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.35)',
+            borderRadius: '6px',
+            padding: '6px 10px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+          title="Toggle SDF pipeline backend"
+        >
+          SDF Pipeline: {sdfPipelineEnabled ? 'ON' : 'OFF'}
+        </button>
+
+        {/* SDF runtime overlay toggle */}
+        <button
+          className="nodrag"
+          onClick={(e) => {
+            e.stopPropagation();
+            const next = !sdfRuntimeOverlayEnabled;
+            if (typeof window !== 'undefined') {
+              window.__SDF_RUNTIME_OVERLAY__ = next;
+            }
+            setSdfRuntimeOverlayEnabled(next);
+          }}
+          style={{
+            position: 'absolute',
+            top: '44px',
+            left: '10px',
+            zIndex: 30,
+            background: sdfRuntimeOverlayEnabled ? 'rgba(110, 75, 35, 0.9)' : 'rgba(80, 80, 80, 0.9)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.35)',
+            borderRadius: '6px',
+            padding: '6px 10px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+          title="Toggle SDF runtime debug panel in render view"
+        >
+          SDF Runtime Panel: {sdfRuntimeOverlayEnabled ? 'ON' : 'OFF'}
+        </button>
+
+        {/* Node output panel toggle */}
+        <button
+          className="nodrag"
+          onClick={(e) => {
+            e.stopPropagation();
+            const next = !nodeOutputDebugEnabled;
+            if (typeof window !== 'undefined') {
+              window.__NODE_OUTPUT_DEBUG__ = next;
+            }
+            setNodeOutputDebugEnabled(next);
+          }}
+          style={{
+            position: 'absolute',
+            top: '78px',
+            left: '10px',
+            zIndex: 30,
+            background: nodeOutputDebugEnabled ? 'rgba(35, 125, 85, 0.9)' : 'rgba(80, 80, 80, 0.9)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.35)',
+            borderRadius: '6px',
+            padding: '6px 10px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+          title="Toggle per-node output panels"
+        >
+          Node Outputs: {nodeOutputDebugEnabled ? 'ON' : 'OFF'}
+        </button>
+
+        <button
+          className="nodrag"
+          onClick={(e) => {
+            e.stopPropagation();
+            const next = nodeOutputDebugMode === 'full' ? 'compact' : 'full';
+            if (typeof window !== 'undefined') {
+              window.__NODE_OUTPUT_DEBUG_MODE__ = next;
+            }
+            setNodeOutputDebugMode(next);
+          }}
+          style={{
+            position: 'absolute',
+            top: '112px',
+            left: '10px',
+            zIndex: 30,
+            background: nodeOutputDebugMode === 'full' ? 'rgba(35, 85, 125, 0.9)' : 'rgba(80, 80, 80, 0.9)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.35)',
+            borderRadius: '6px',
+            padding: '6px 10px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+          title="Switch node output detail level"
+        >
+          Output Mode: {nodeOutputDebugMode === 'full' ? 'FULL' : 'COMPACT'}
+        </button>
+
         {/* Fullscreen Toggle Button for Rendering Area */}
         <div
           onClick={toggleFullscreen}

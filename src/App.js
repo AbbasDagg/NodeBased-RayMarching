@@ -10,6 +10,7 @@ import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the c
 import { GraphManager } from './graph/GraphManager';
 import { runSdfTests } from './graph/testSdfFunction';
 import { buildSdfRuntimePacket } from './graph/sdfRuntime';
+import { buildGravitasRuntimePacketFromShapes } from './graph/gravitasAdapter';
 
 // Make test function available in console
 if (typeof window !== 'undefined') {
@@ -401,6 +402,11 @@ function App() {
     if (typeof window === 'undefined') return 'values';
     return window.__NODE_OUTPUT_CHANNEL__ === 'shader' ? 'shader' : 'values';
   });
+  // Gravitas texture-backed compiler toggle
+  const [useGravitasCompiler, setUseGravitasCompiler] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !!window.USE_GRAVITAS_ENGINE;
+  });
   const debugCaptureLastAtRef = useRef(0);
   const fullscreenTimeoutRef = useRef(null);
   const gmRef = useRef(null);
@@ -409,20 +415,44 @@ function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.USE_SDF_PIPELINE = !!sdfPipelineEnabled;
+    window.USE_GRAVITAS_ENGINE = !!useGravitasCompiler;
     window.__SDF_RUNTIME_OVERLAY__ = !!sdfRuntimeOverlayEnabled;
     window.__SDF_DEBUG_VERBOSE__ = !!sdfVerboseDebugEnabled;
 
     window.setSdfPipelineEnabled = (enabled) => {
       const next = !!enabled;
       window.USE_SDF_PIPELINE = next;
+      if (next) {
+        window.USE_GRAVITAS_ENGINE = false;
+        setUseGravitasCompiler(false);
+      }
       setSdfPipelineEnabled(next);
       return next;
     };
     window.toggleSdfPipeline = () => {
       const next = !window.USE_SDF_PIPELINE;
       window.USE_SDF_PIPELINE = next;
+      if (next) {
+        window.USE_GRAVITAS_ENGINE = false;
+        setUseGravitasCompiler(false);
+      }
       setSdfPipelineEnabled(next);
       return next;
+    };
+
+    window.setGravitasCompiler = (enabled) => {
+      const next = !!enabled;
+      window.USE_GRAVITAS_ENGINE = next;
+      if (next) {
+        window.USE_SDF_PIPELINE = false;
+        setSdfPipelineEnabled(false);
+      }
+      setUseGravitasCompiler(next);
+      return next;
+    };
+    window.toggleGravitasCompiler = () => {
+      const next = !window.USE_GRAVITAS_ENGINE;
+      return window.setGravitasCompiler(next);
     };
 
     window.setSdfRuntimeOverlayEnabled = (enabled) => {
@@ -450,7 +480,7 @@ function App() {
       setSdfVerboseDebugEnabled(next);
       return next;
     };
-  }, [sdfPipelineEnabled, sdfRuntimeOverlayEnabled, sdfVerboseDebugEnabled]);
+  }, [sdfPipelineEnabled, useGravitasCompiler, sdfRuntimeOverlayEnabled, sdfVerboseDebugEnabled]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -667,7 +697,19 @@ function App() {
       });
 
       let runtimePacket = null;
-      if (allSdfs.length > 0 && sdfPipelineEnabled) {
+      if (useGravitasCompiler) {
+        // Build gravitas-style packet from shapes (texture-backed path)
+        const allShapes = [];
+        renderNodes.forEach((renderNode) => {
+          const s = gm.computeRenderShapes(renderNode.id);
+          if (s && s.length) allShapes.push(...s);
+        });
+        if (allShapes.length > 0) {
+          const gravPacket = buildGravitasRuntimePacketFromShapes(allShapes, sdfRuntimeCacheRef.current);
+          // Disabled logging for performance
+          runtimePacket = gravPacket;
+        }
+      } else if (sdfPipelineEnabled && allSdfs.length > 0) {
         const { SdfUnion } = require('./graph/sdfFunction');
         const combinedSdf = allSdfs.length === 1 ? allSdfs[0] : new SdfUnion(allSdfs, 0.5);
         runtimePacket = buildSdfRuntimePacket(combinedSdf, sdfRuntimeCacheRef.current);
@@ -692,14 +734,12 @@ function App() {
         }
       }
       
-      // If we have SDFs, combine them and set once
-      if (allSdfs.length > 0 && sdfPipelineEnabled) {
-        const nextPacket = runtimePacket;
-        if (!nextPacket) return;
-        sdfRuntimeCacheRef.current = nextPacket;
-        threeSceneRef.current.setCustomSdfMap(nextPacket);
-        
-        // Add one dummy bounding sphere for all SDFs
+      // If a runtime packet was produced (either gravitas texture path or SDF pipeline), apply it
+      if (runtimePacket) {
+        sdfRuntimeCacheRef.current = runtimePacket;
+        threeSceneRef.current.setCustomSdfMap(runtimePacket);
+
+        // Add one dummy bounding sphere for all SDFs so scene bounds are covered
         threeSceneRef.current.addShape({
           shape: 'sphere',
           operation: 'union',
@@ -708,8 +748,8 @@ function App() {
           scale: { x: 100, y: 100, z: 100 },
           color: 0xffffff,
         }, 0);
-        
-        return; // Skip legacy rendering
+
+        return; // Skip legacy rendering when runtime packet applied
       } else {
         sdfRuntimeCacheRef.current = null;
         threeSceneRef.current.setCustomSdfMap(null);
@@ -725,7 +765,7 @@ function App() {
         });
       });
     }
-  }, [nodes, edges, nodeOutputDebugMode, nodeOutputChannel, sdfPipelineEnabled]);
+  }, [nodes, edges, nodeOutputDebugMode, nodeOutputChannel, sdfPipelineEnabled, useGravitasCompiler]);
   
   
   useEffect(() => {
@@ -986,6 +1026,14 @@ const onReconnectEnd = useCallback((_, edge) => {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }} onClick={closeContextMenu}>
+      {/* Explicit mode indicator so the three paths are obvious */}
+      <div style={{ position: 'absolute', left: 8, top: 8, zIndex: 9999, background: 'rgba(0,0,0,0.6)', padding: '6px 8px', borderRadius: 6, pointerEvents: 'auto' }}>
+        <div style={{ color: '#fff', fontSize: 12, marginBottom: 4 }}>Mode: {useGravitasCompiler ? 'Gravitas texture' : (sdfPipelineEnabled ? 'Legacy SDF' : 'Legacy descriptor')}</div>
+        <label style={{ color: '#fff', fontSize: 13, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input type="checkbox" checked={useGravitasCompiler} onChange={(e) => window.setGravitasCompiler ? window.setGravitasCompiler(e.target.checked) : setUseGravitasCompiler(e.target.checked)} />
+          <span style={{ userSelect: 'none' }}>Use Gravitas (texture)</span>
+        </label>
+      </div>
       <ReactFlowProvider>
         {/* Main Node Editor Area - Full Screen */}
         <div
@@ -1206,6 +1254,10 @@ const onReconnectEnd = useCallback((_, edge) => {
             const next = !sdfPipelineEnabled;
             if (typeof window !== 'undefined') {
               window.USE_SDF_PIPELINE = next;
+              if (next) {
+                window.USE_GRAVITAS_ENGINE = false;
+                setUseGravitasCompiler(false);
+              }
             }
             setSdfPipelineEnabled(next);
           }}

@@ -1,4 +1,4 @@
-import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, Mesh, Frustum, Vector3, Matrix4, Vector2, Sphere, PlaneGeometry, WebGLRenderTarget, DepthTexture, UnsignedShortType, RawShaderMaterial, GLSL3, MathUtils, TorusGeometry, ShaderChunk } from 'three';
+import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, Mesh, Frustum, Vector3, Matrix4, Vector2, Sphere, PlaneGeometry, WebGLRenderTarget, DepthTexture, UnsignedShortType, RawShaderMaterial, GLSL3, MathUtils, TorusGeometry, ShaderChunk, DataTexture, RGBAFormat, FloatType, NearestFilter, ClampToEdgeWrapping } from 'three';
 
 var lighting = "#ifdef ENVMAP_TYPE_CUBE_UV\n\n#define PI 3.141592653589793\n#define RECIPROCAL_PI 0.3183098861837907\n\nstruct GeometricContext {\n  vec3 normal;\n  vec3 viewDir;\n};\n\nstruct PhysicalMaterial {\n  vec3 diffuseColor;\n  float roughness;\n  vec3 specularColor;\n  float specularF90;\n};\n\nstruct ReflectedLight {\n  vec3 indirectDiffuse;\n  vec3 indirectSpecular;\n};\n\nvec3 BRDF_Lambert(const in vec3 diffuseColor) {\n  return RECIPROCAL_PI * diffuseColor;\n}\n\nvec2 DFGApprox(const in vec3 normal, const in vec3 viewDir, const in float roughness) {\n  float dotNV = saturate(dot(normal, viewDir));\n  const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);\n  const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);\n  vec4 r = roughness * c0 + c1;\n  float a004 = min(r.x * r.x, exp2(-9.28 * dotNV)) * r.x + r.y;\n  vec2 fab = vec2(-1.04, 1.04) * a004 + r.zw;\n  return fab;\n}\n\nvoid computeMultiscattering(const in vec3 normal, const in vec3 viewDir, const in vec3 specularColor, const in float specularF90, const in float roughness, inout vec3 singleScatter, inout vec3 multiScatter) {\n  vec2 fab = DFGApprox(normal, viewDir, roughness);\n  vec3 FssEss = specularColor * fab.x + specularF90 * fab.y;\n  float Ess = fab.x + fab.y;\n  float Ems = 1.0 - Ess;\n  vec3 Favg = specularColor + (1.0 - specularColor) * 0.047619;\n  vec3 Fms = FssEss * Favg / (1.0 - Ems * Favg);\n  singleScatter += FssEss;\n  multiScatter += Fms * Ems;\n}\n\nvoid RE_IndirectDiffuse(const in vec3 irradiance, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {\n  reflectedLight.indirectDiffuse += irradiance * BRDF_Lambert(material.diffuseColor);\n}\n\nvoid RE_IndirectSpecular(const in vec3 radiance, const in vec3 irradiance, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {\n  vec3 singleScattering = vec3(0.0);\n  vec3 multiScattering = vec3(0.0);\n  vec3 cosineWeightedIrradiance = irradiance * RECIPROCAL_PI;\n  computeMultiscattering(geometry.normal, geometry.viewDir, material.specularColor, material.specularF90, material.roughness, singleScattering, multiScattering);\n  vec3 diffuse = material.diffuseColor * (1.0 - (singleScattering + multiScattering));\n  reflectedLight.indirectSpecular += radiance * singleScattering;\n  reflectedLight.indirectSpecular += multiScattering * cosineWeightedIrradiance;\n  reflectedLight.indirectDiffuse += diffuse * cosineWeightedIrradiance;\n}\n\nvec3 getIBLRadiance(const in vec3 viewDir, const in vec3 normal, const in float roughness) {\n  vec3 reflectVec = reflect(-viewDir, normal);\n  reflectVec = normalize(mix(reflectVec, normal, roughness * roughness));\n  vec4 envMapColor = textureCubeUV(envMap, reflectVec, roughness);\n  return envMapColor.rgb * envMapIntensity;\n}\n\nvec3 getIBLIrradiance(const in vec3 normal) {\n  vec3 envMapColor = textureCubeUV(envMap, normal, 1.0).rgb;\n  return PI * envMapColor * envMapIntensity;\n}\n\nvec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse) {\n  GeometricContext geometry;\n  geometry.normal = normal;\n  geometry.viewDir = normalize(cameraPosition - position);\n\n  PhysicalMaterial material;\n  material.diffuseColor = diffuse * (1.0 - metalness);\n  material.roughness = max(min(roughness, 1.0), 0.0525);\n  material.specularColor = mix(vec3(0.04), diffuse, metalness);\n  material.specularF90 = 1.0;\n\n  ReflectedLight reflectedLight = ReflectedLight(vec3(0.0), vec3(0.0));\n  vec3 radiance = getIBLRadiance(geometry.viewDir, geometry.normal, material.roughness);\n  vec3 irradiance = getIBLIrradiance(geometry.normal);\n  RE_IndirectDiffuse(irradiance, geometry, material, reflectedLight);\n  RE_IndirectSpecular(radiance, irradiance, geometry, material, reflectedLight);\n\n  return reflectedLight.indirectDiffuse + reflectedLight.indirectSpecular;\n}\n\n#else\n\nvec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse) {\n  return diffuse * envMapIntensity;\n}\n\n#endif\n";
 
@@ -816,6 +816,8 @@ class Raymarcher extends Mesh {
       uniforms.bounds.value.center.copy(bounds.center);
       uniforms.bounds.value.radius = bounds.radius;
       uniforms.numEntities.value = entities.length;
+      // Debug logging disabled for performance
+      // Per-frame logging disabled for performance; uncomment for debugging
     entities.forEach(({ color, operation, position, rotation, scale, shape, invMatrix, hasMatrix/* TERRAIN DISABLED , octaves, amplitude, clampYMin, clampYMax, offsetX, offsetZ, seed, dispClampMin, dispClampMax, peakGain, valleyGain, useColorRamp, smoothingStrength, dispApplyMinY, dispApplyMaxY, dispFeather */ }, i) => {
         const uniform = uniforms.entities.value[i];
         uniform.color.copy(color);
@@ -866,10 +868,18 @@ class Raymarcher extends Mesh {
         */
       });
       // minimal one-time log is kept above when MAX_ENTITIES updates
-      renderer.render(raymarcher, camera);
+      try {
+        renderer.render(raymarcher, camera);
+      } catch (e) {
+        console.error('[Raymarcher] error during raymarch render:', e);
+      }
     });
 
-    renderer.autoClear = currentAutoClear;
+    try {
+      renderer.autoClear = currentAutoClear;
+    } catch (e) {
+      console.warn('[Raymarcher] failed to restore renderer.autoClear', e);
+    }
     renderer.shadowMap.autoUpdate = currentShadowAutoUpdate;
     renderer.xr.enabled = currentXrEnabled;
     renderer.setClearAlpha(currentClearAlpha);
@@ -1009,21 +1019,116 @@ class Raymarcher extends Mesh {
     
     if (glslCode && typeof glslCode === 'object') {
       const runtimePacket = glslCode;
-      const wrappedGlsl = buildWrappedMapFunction(runtimePacket);
-      const nextTopology = runtimePacket.topologyHash || 'runtime';
+      const forceDebugSphere = typeof window !== 'undefined' && !!window.FORCE_DEBUG_SDF;
+      const forceDebugFirstObject = typeof window !== 'undefined' && !!window.DEBUG_DRAW_FIRST_SCENE_OBJECT;
+      const forceSolidColor = typeof window !== 'undefined' && !!window.DEBUG_SOLID_COLOR;
+      const forceShowSceneTexel = typeof window !== 'undefined' && !!window.DEBUG_SHOW_SCENE_TEXEL;
+      let nextTopology = runtimePacket.topologyHash || 'runtime';
+      let wrappedGlsl = '';
+
+      if (forceSolidColor) {
+        nextTopology = 'debug-solid-color';
+        wrappedGlsl = 'SDF map(const in vec3 p) { return SDF(0.0, vec3(0.0, 0.0, 1.0)); }';
+      } else
+      if (forceShowSceneTexel) {
+        nextTopology = 'debug-show-scene-texel';
+        wrappedGlsl = 'uniform sampler2D uSceneData; SDF map(const in vec3 p) { vec4 t0 = texelFetch(uSceneData, ivec2(0,0), 0); vec4 t1 = texelFetch(uSceneData, ivec2(1,0), 0); vec3 c = clamp(vec3(abs(t0.x) / 10.0, abs(t0.y) / 10.0, max(t1.w, 0.0) / 4.0), 0.0, 1.0); return SDF(0.0, c); }';
+      } else
+      if (forceDebugSphere || forceDebugFirstObject) {
+        nextTopology = forceDebugFirstObject ? 'debug-first-scene-object' : 'debug-test-sphere';
+        wrappedGlsl = forceDebugFirstObject
+          ? 'uniform sampler2D uSceneData; SDF map(const in vec3 p) { vec4 d0 = texelFetch(uSceneData, ivec2(0,0), 0); vec4 d1 = texelFetch(uSceneData, ivec2(1,0), 0); vec3 pos = d0.xyz; float r = d1.w; return SDF(sdSphere(p - pos, max(r, 0.001)), vec3(0.0, 1.0, 0.0)); }'
+          : 'SDF map(const in vec3 p) { return SDF(sdSphere(p, 2.0), vec3(1.0, 0.0, 0.0)); }';
+      }
+
+      // Support gravitas-style texture-backed packet (contains mapGLSL + sceneData)
+      if (!wrappedGlsl && runtimePacket.mapGLSL) {
+        // Ensure sampler declaration exists and wrap the adapter's map(vec3)->vec2 into the expected SDF map() function
+        const decls = runtimePacket.declarations ? `${runtimePacket.declarations}\n` : '';
+        const sceneMap = runtimePacket.mapGLSL;
+        // Extended wrapper: read color from texel [6*material_index + 1]
+        const wrapper = `\n// Adapter wrapper: convert generated vec2 grav_map -> SDF map with color lookup\nSDF map(const in vec3 p) {\n  vec2 m = grav_map(p);\n  int matIdx = int(round(m.y));\n  // Read color from texel [6*matIdx + 1] (color stored in first 3 components)\n  vec4 colorData = texelFetch(uSceneData, ivec2(matIdx * 6 + 1, 0), 0);\n  vec3 color = colorData.rgb;\n  return SDF(m.x, color);\n}`;
+        wrappedGlsl = decls + 'uniform sampler2D uSceneData;\n' + sceneMap + wrapper;
+
+        // Debug override already handled above before gravitas code generation.
+      } else {
+        wrappedGlsl = buildWrappedMapFunction(runtimePacket);
+      }
       const prevTopology = this.userData.__customSdfTopology;
       stats.mode = 'runtime';
       stats.topologyHash = nextTopology;
 
       material.defines.USE_CUSTOM_SDF = 1;
 
-      if (prevTopology !== nextTopology) {
-        const modifiedFragmentShader = raymarcherFragment.replace('__CUSTOM_SDF_MAP__', wrappedGlsl);
+      const debugForce = forceSolidColor || forceShowSceneTexel || forceDebugSphere || forceDebugFirstObject;
+      if (prevTopology !== nextTopology || debugForce) {
+        const modifiedFragmentShader = forceSolidColor
+          ? `precision highp float;
+out vec4 fragColor;
+void main() {
+  fragColor = vec4(0.0, 0.0, 1.0, 1.0);
+  gl_FragDepth = 0.0;
+}`
+          : raymarcherFragment.replace('__CUSTOM_SDF_MAP__', wrappedGlsl).replace('#include <lighting>', lighting);
         material.fragmentShader = modifiedFragmentShader;
         material.needsUpdate = true;
         this.userData.__customSdfTopology = nextTopology;
         stats.recompiles += 1;
         stats.lastCompileAt = Date.now();
+        try {
+          if (typeof window !== 'undefined' && window.__SDF_DEBUG_VERBOSE__) {
+            console.log('[Raymarcher] Applied modified fragment shader');
+          }
+        } catch (e) {
+          /* noop */
+        }
+      }
+
+      // If packet contains a sceneData Float32Array, upload as DataTexture
+      if (runtimePacket.sceneData && runtimePacket.sceneData.length) {
+        try {
+          const floats = runtimePacket.sceneData;
+          // New layout: 6 texels per object, so width = floats.length / 4
+          const texelsTotal = floats.length / 4;
+          try {
+            if (typeof window !== 'undefined' && window.__SDF_DEBUG_VERBOSE__) {
+              const first = Array.from(floats.slice ? floats.slice(0,4) : floats.slice(0,4));
+              const second = Array.from(floats.slice ? floats.slice(4,8) : floats.slice(4,8));
+              const third = Array.from(floats.slice ? floats.slice(8,12) : floats.slice(8,12));
+              console.log('[Raymarcher] sceneData preview:', { first, second, third });
+            }
+          } catch (e) {
+            /* noop */
+          }
+          const tex = new DataTexture(new Float32Array(floats), texelsTotal, 1, RGBAFormat, FloatType);
+          tex.magFilter = NearestFilter;
+          tex.minFilter = NearestFilter;
+          tex.wrapS = ClampToEdgeWrapping;
+          tex.wrapT = ClampToEdgeWrapping;
+          tex.generateMipmaps = false;
+          tex.flipY = false;
+          tex.needsUpdate = true;
+          if (!material.uniforms.uSceneData) {
+            material.uniforms.uSceneData = { value: tex };
+          } else {
+            const prevTex = material.uniforms.uSceneData.value;
+            if (prevTex && prevTex !== tex && typeof prevTex.dispose === 'function') {
+              prevTex.dispose();
+            }
+            material.uniforms.uSceneData.value = tex;
+          }
+          if (typeof window !== 'undefined' && window.__SDF_DEBUG_VERBOSE__) {
+            console.log('[Raymarcher] Uploaded uSceneData texture', {
+              width: tex.image.width,
+              height: tex.image.height,
+              totalTexels: texelsTotal,
+              objectCount: runtimePacket.nodeCount || (texelsTotal / 6),
+            });
+          }
+          stats.mode = 'gravitas-texture-with-matrices';
+        } catch (e) {
+          console.warn('Failed to build uSceneData texture:', e);
+        }
       }
 
       applyRuntimeUniforms(runtimePacket);
@@ -1041,7 +1146,7 @@ class Raymarcher extends Mesh {
       material.defines.USE_CUSTOM_SDF = 1;
       
       // Replace the placeholder
-      const modifiedFragmentShader = raymarcherFragment.replace('__CUSTOM_SDF_MAP__', wrappedGlsl);
+      const modifiedFragmentShader = raymarcherFragment.replace('__CUSTOM_SDF_MAP__', wrappedGlsl).replace('#include <lighting>', lighting);
       
       material.fragmentShader = modifiedFragmentShader;
       material.needsUpdate = true;
@@ -1056,6 +1161,12 @@ class Raymarcher extends Mesh {
         delete material.defines.USE_CUSTOM_SDF;
         material.fragmentShader = raymarcherFragment;
         material.needsUpdate = true;
+      }
+      // Release texture-backed runtime uniform when leaving custom map mode.
+      if (material.uniforms.uSceneData && material.uniforms.uSceneData.value) {
+        const tex = material.uniforms.uSceneData.value;
+        if (typeof tex.dispose === 'function') tex.dispose();
+        delete material.uniforms.uSceneData;
       }
       this.userData.__customSdfTopology = null;
       stats.mode = 'legacy-descriptor';

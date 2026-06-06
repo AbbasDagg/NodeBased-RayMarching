@@ -34,7 +34,7 @@ const isIdentityMatrix = (m) => {
   return true;
 };
 
-const composePRS = ({ position, rotation, scale }) => {
+export const composePRS = ({ position, rotation, scale }) => {
   const p = position || { x: 0, y: 0, z: 0 };
   const r = rotation || { x: 0, y: 0, z: 0 };
   const s = scale || { x: 1, y: 1, z: 1 };

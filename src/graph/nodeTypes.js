@@ -6,7 +6,7 @@
 // - shapes: array of shapeData { shape, operation, position, rotation, scale, color, matrix, inverseMatrix, hasMatrix }
 // - sdf: Sdf function object (when USE_SDF_PIPELINE is true)
 
-import { astFold, astPrimitive, compileAstToShapes } from './sdfAst';
+import { astFold, astPrimitive, compileAstToShapes, composePRS } from './sdfAst';
 import { 
   useSdfPipeline, 
   SdfBox, 
@@ -503,6 +503,9 @@ function shapeCompute(node, gm) {
     position = dec.position;
     rotation = dec.rotation;
     scale = dec.scale;
+  } else {
+    // Configured mode: compose matrix from position, rotation, scale
+    matrix = composePRS({ position, rotation, scale });
   }
 
   const shapeData = {

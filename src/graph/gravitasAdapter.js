@@ -128,9 +128,11 @@ function generateMapGLSL(nodes, layout) {
   lines.push('vec2 grav_map(vec3 p) {');
   lines.push('  vec2 res = vec2(1e10, 0.0);');
   lines.push('  float blendK = 0.5;');
+  let previousGroupId = null;
   nodes.forEach((n, i) => {
     const baseTexel = i * 6;
     const op = getOperationCode(n.operation);
+    const groupId = n.groupId;
     lines.push(`  // Object ${i}`);
     lines.push(`  vec4 posAndShape_${i} = texelFetch(uSceneData, ivec2(${baseTexel}, 0), 0);`);
     lines.push(`  vec4 colorAndRadius_${i} = texelFetch(uSceneData, ivec2(${baseTexel + 1}, 0), 0);`);
@@ -164,20 +166,35 @@ function generateMapGLSL(nodes, layout) {
     lines.push('  } else {');
     lines.push(`    dist_${i} = sdSphere(p_local_${i}, radius_${i});`);
     lines.push('  }');
-    if (i === 0) {
-      lines.push(`  res = vec2(dist_${i}, 0.0);`);
-    } else {
-      lines.push(`  float before_${i} = res.x;`);
-      if (op === OP_SUBTRACTION) {
-        lines.push(`  res.x = gravOpSub(res.x, dist_${i}, blendK);`);
-      } else if (op === OP_INTERSECTION) {
-        lines.push(`  res.x = gravOpInter(res.x, dist_${i}, blendK);`);
-      } else {
-        lines.push(`  res.x = gravOpUnion(res.x, dist_${i}, blendK);`);
+    if (i === 0 || groupId !== previousGroupId) {
+      if (i > 0) {
+        lines.push(`  if (groupDist_${i - 1} < res.x) {`);
+        lines.push(`    res = vec2(groupDist_${i - 1}, groupMat_${i - 1});`);
+        lines.push('  }');
       }
-      lines.push(`  if (abs(dist_${i}) <= abs(before_${i})) res.y = ${i}.0;`);
+      lines.push(`  float groupDist_${i} = dist_${i};`);
+      lines.push(`  float groupMat_${i} = ${i}.0;`);
+    } else {
+      lines.push(`  float groupDist_${i} = groupDist_${i - 1};`);
+      lines.push(`  float groupMat_${i} = groupMat_${i - 1};`);
+      lines.push(`  float before_${i} = groupDist_${i};`);
+      if (op === OP_SUBTRACTION) {
+        lines.push(`  groupDist_${i} = gravOpSub(groupDist_${i}, dist_${i}, blendK);`);
+      } else if (op === OP_INTERSECTION) {
+        lines.push(`  groupDist_${i} = gravOpInter(groupDist_${i}, dist_${i}, blendK);`);
+      } else {
+        lines.push(`  groupDist_${i} = gravOpUnion(groupDist_${i}, dist_${i}, blendK);`);
+      }
+      lines.push(`  if (abs(dist_${i}) <= abs(before_${i})) groupMat_${i} = ${i}.0;`);
     }
+    previousGroupId = groupId;
   });
+  if (nodes.length > 0) {
+    const lastIndex = nodes.length - 1;
+    lines.push(`  if (groupDist_${lastIndex} < res.x) {`);
+    lines.push(`    res = vec2(groupDist_${lastIndex}, groupMat_${lastIndex});`);
+    lines.push('  }');
+  }
   lines.push('  return res;');
   lines.push('}');
   return lines.join('\n');
@@ -197,6 +214,7 @@ export function buildGravitasRuntimePacketFromShapes(shapes, previousPacket = nu
     color: s.color ?? 0xffffff,
     operation: s.operation ?? 'union',
     inverseMatrix: s.inverseMatrix || null,
+    groupId: s.renderGroup ?? s.__renderGroup ?? 0,
   }));
 
   const layout = buildLayout(nodes);
@@ -215,7 +233,7 @@ export function buildGravitasRuntimePacketFromShapes(shapes, previousPacket = nu
     // Keep the shader key stable across parameter and motor updates.
     // The texture already carries shape, transform, and color data.
     // Only structural changes should force a recompilation.
-    topologyHash: nodes.map((n, index) => `${index}:${n.id}:${n.type}:${n.operation}`).join('|'),
+    topologyHash: nodes.map((n, index) => `${index}:${n.id}:${n.type}:${n.operation}:g${n.groupId}`).join('|'),
   };
 }
 

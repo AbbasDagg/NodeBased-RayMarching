@@ -382,16 +382,16 @@ function App() {
     return !!window.USE_SDF_PIPELINE;
   });
   const [sdfRuntimeOverlayEnabled, setSdfRuntimeOverlayEnabled] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return window.__SDF_RUNTIME_OVERLAY__ !== false;
+    if (typeof window === 'undefined') return false;
+    return window.__SDF_RUNTIME_OVERLAY__ === true;
   });
   const [sdfVerboseDebugEnabled, setSdfVerboseDebugEnabled] = useState(() => {
     if (typeof window === 'undefined') return false;
     return !!window.__SDF_DEBUG_VERBOSE__;
   });
   const [nodeOutputDebugEnabled, setNodeOutputDebugEnabled] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return window.__NODE_OUTPUT_DEBUG__ !== false;
+    if (typeof window === 'undefined') return false;
+    return window.__NODE_OUTPUT_DEBUG__ === true;
   });
   const [nodeOutputDebugMode, setNodeOutputDebugMode] = useState(() => {
     if (typeof window === 'undefined') return 'full';
@@ -407,6 +407,7 @@ function App() {
     if (typeof window === 'undefined') return false;
     return !!window.USE_GRAVITAS_ENGINE;
   });
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const debugCaptureLastAtRef = useRef(0);
   const fullscreenTimeoutRef = useRef(null);
   const gmRef = useRef(null);
@@ -418,6 +419,9 @@ function App() {
     window.USE_GRAVITAS_ENGINE = !!useGravitasCompiler;
     window.__SDF_RUNTIME_OVERLAY__ = !!sdfRuntimeOverlayEnabled;
     window.__SDF_DEBUG_VERBOSE__ = !!sdfVerboseDebugEnabled;
+    window.__NODE_OUTPUT_DEBUG__ = !!nodeOutputDebugEnabled;
+    window.__NODE_OUTPUT_DEBUG_MODE__ = nodeOutputDebugMode;
+    window.__NODE_OUTPUT_CHANNEL__ = nodeOutputChannel;
 
     window.setSdfPipelineEnabled = (enabled) => {
       const next = !!enabled;
@@ -480,7 +484,7 @@ function App() {
       setSdfVerboseDebugEnabled(next);
       return next;
     };
-  }, [sdfPipelineEnabled, useGravitasCompiler, sdfRuntimeOverlayEnabled, sdfVerboseDebugEnabled]);
+  }, [sdfPipelineEnabled, useGravitasCompiler, sdfRuntimeOverlayEnabled, sdfVerboseDebugEnabled, nodeOutputDebugEnabled, nodeOutputDebugMode, nodeOutputChannel]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -700,9 +704,14 @@ function App() {
       if (useGravitasCompiler) {
         // Build gravitas-style packet from shapes (texture-backed path)
         const allShapes = [];
-        renderNodes.forEach((renderNode) => {
+        renderNodes.forEach((renderNode, renderGroupIndex) => {
           const s = gm.computeRenderShapes(renderNode.id);
-          if (s && s.length) allShapes.push(...s);
+          if (s && s.length) {
+            allShapes.push(...s.map((shapeData) => ({
+              ...shapeData,
+              __renderGroup: renderGroupIndex,
+            })));
+          }
         });
         if (allShapes.length > 0) {
           const gravPacket = buildGravitasRuntimePacketFromShapes(allShapes, sdfRuntimeCacheRef.current);
@@ -1119,6 +1128,125 @@ const onReconnectEnd = useCallback((_, edge) => {
           overflow: 'hidden',
         }}
       >
+        {/* Settings dropdown */}
+        <div
+          className="nodrag"
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            zIndex: 40,
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsSettingsOpen((prev) => !prev);
+            }}
+            style={{
+              background: 'rgba(30, 30, 30, 0.92)',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.28)',
+              borderRadius: '8px',
+              padding: '8px 12px',
+              fontSize: '12px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+            }}
+          >
+            Settings ▾
+          </button>
+          {isSettingsOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '42px',
+                right: 0,
+                minWidth: '240px',
+                background: 'rgba(20, 20, 20, 0.96)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.16)',
+                borderRadius: '10px',
+                padding: '8px',
+                boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
+              }}
+            >
+              <div style={{ padding: '6px 8px', fontSize: '11px', color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Render Mode</div>
+              {[
+                { key: 'gravitas', label: 'Gravitas texture' },
+                { key: 'sdf', label: 'Legacy SDF' },
+                { key: 'legacy', label: 'Legacy descriptor' },
+              ].map((item) => {
+                const active = (item.key === 'gravitas' && useGravitasCompiler) || (item.key === 'sdf' && sdfPipelineEnabled && !useGravitasCompiler) || (item.key === 'legacy' && !sdfPipelineEnabled && !useGravitasCompiler);
+                return (
+                  <button
+                    key={item.key}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (item.key === 'gravitas') {
+                        window.setGravitasCompiler?.(true);
+                      } else if (item.key === 'sdf') {
+                        window.setGravitasCompiler?.(false);
+                        window.setSdfPipelineEnabled?.(true);
+                      } else {
+                        window.setGravitasCompiler?.(false);
+                        window.setSdfPipelineEnabled?.(false);
+                      }
+                      setIsSettingsOpen(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      background: active ? 'rgba(66, 135, 245, 0.28)' : 'transparent',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '8px 10px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', margin: '8px 0' }} />
+              <div style={{ padding: '6px 8px', fontSize: '11px', color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Debug</div>
+              {[
+                { key: 'nodeOutputs', label: `Node Outputs: ${nodeOutputDebugEnabled ? 'ON' : 'OFF'}`, onClick: () => setNodeOutputDebugEnabled((v) => !v) },
+                { key: 'runtimePanel', label: `Runtime Panel: ${sdfRuntimeOverlayEnabled ? 'ON' : 'OFF'}`, onClick: () => setSdfRuntimeOverlayEnabled((v) => !v) },
+                { key: 'verbose', label: `Verbose Shader Debug: ${sdfVerboseDebugEnabled ? 'ON' : 'OFF'}`, onClick: () => setSdfVerboseDebugEnabled((v) => !v) },
+                { key: 'outMode', label: `Output Mode: ${nodeOutputDebugMode === 'full' ? 'FULL' : 'COMPACT'}`, onClick: () => setNodeOutputDebugMode((v) => (v === 'full' ? 'compact' : 'full')) },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    item.onClick();
+                  }}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    background: 'transparent',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '8px 10px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    marginBottom: '4px',
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* TERRAIN DISABLED - Debug Toggle Button (hidden)
         {false && !isFullscreen && (
           <button
@@ -1245,129 +1373,6 @@ const onReconnectEnd = useCallback((_, edge) => {
             <div>hash: {(sdfDebugStats.topologyHash || 'n/a').slice(0, 40)}</div>
           </div>
         )}
-
-        {/* SDF pipeline toggle */}
-        <button
-          className="nodrag"
-          onClick={(e) => {
-            e.stopPropagation();
-            const next = !sdfPipelineEnabled;
-            if (typeof window !== 'undefined') {
-              window.USE_SDF_PIPELINE = next;
-              if (next) {
-                window.USE_GRAVITAS_ENGINE = false;
-                setUseGravitasCompiler(false);
-              }
-            }
-            setSdfPipelineEnabled(next);
-          }}
-          style={{
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            zIndex: 30,
-            background: sdfPipelineEnabled ? 'rgba(35, 125, 85, 0.9)' : 'rgba(80, 80, 80, 0.9)',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.35)',
-            borderRadius: '6px',
-            padding: '6px 10px',
-            fontSize: '12px',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
-          title="Toggle SDF pipeline backend"
-        >
-          SDF Pipeline: {sdfPipelineEnabled ? 'ON' : 'OFF'}
-        </button>
-
-        {/* SDF runtime overlay toggle */}
-        <button
-          className="nodrag"
-          onClick={(e) => {
-            e.stopPropagation();
-            const next = !sdfRuntimeOverlayEnabled;
-            if (typeof window !== 'undefined') {
-              window.__SDF_RUNTIME_OVERLAY__ = next;
-            }
-            setSdfRuntimeOverlayEnabled(next);
-          }}
-          style={{
-            position: 'absolute',
-            top: '44px',
-            left: '10px',
-            zIndex: 30,
-            background: sdfRuntimeOverlayEnabled ? 'rgba(110, 75, 35, 0.9)' : 'rgba(80, 80, 80, 0.9)',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.35)',
-            borderRadius: '6px',
-            padding: '6px 10px',
-            fontSize: '12px',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
-          title="Toggle SDF runtime debug panel in render view"
-        >
-          SDF Runtime Panel: {sdfRuntimeOverlayEnabled ? 'ON' : 'OFF'}
-        </button>
-
-        {/* Node output panel toggle */}
-        <button
-          className="nodrag"
-          onClick={(e) => {
-            e.stopPropagation();
-            const next = !nodeOutputDebugEnabled;
-            if (typeof window !== 'undefined') {
-              window.__NODE_OUTPUT_DEBUG__ = next;
-            }
-            setNodeOutputDebugEnabled(next);
-          }}
-          style={{
-            position: 'absolute',
-            top: '78px',
-            left: '10px',
-            zIndex: 30,
-            background: nodeOutputDebugEnabled ? 'rgba(35, 125, 85, 0.9)' : 'rgba(80, 80, 80, 0.9)',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.35)',
-            borderRadius: '6px',
-            padding: '6px 10px',
-            fontSize: '12px',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
-          title="Toggle per-node output panels"
-        >
-          Node Outputs: {nodeOutputDebugEnabled ? 'ON' : 'OFF'}
-        </button>
-
-        <button
-          className="nodrag"
-          onClick={(e) => {
-            e.stopPropagation();
-            const next = nodeOutputDebugMode === 'full' ? 'compact' : 'full';
-            if (typeof window !== 'undefined') {
-              window.__NODE_OUTPUT_DEBUG_MODE__ = next;
-            }
-            setNodeOutputDebugMode(next);
-          }}
-          style={{
-            position: 'absolute',
-            top: '112px',
-            left: '10px',
-            zIndex: 30,
-            background: nodeOutputDebugMode === 'full' ? 'rgba(35, 85, 125, 0.9)' : 'rgba(80, 80, 80, 0.9)',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.35)',
-            borderRadius: '6px',
-            padding: '6px 10px',
-            fontSize: '12px',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
-          title="Switch node output detail level"
-        >
-          Output Mode: {nodeOutputDebugMode === 'full' ? 'FULL' : 'COMPACT'}
-        </button>
 
         {/* Fullscreen Toggle Button for Rendering Area */}
         <div

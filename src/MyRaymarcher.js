@@ -1046,9 +1046,9 @@ class Raymarcher extends Mesh {
         // Ensure sampler declaration exists and wrap the adapter's map(vec3)->vec2 into the expected SDF map() function
         const decls = runtimePacket.declarations ? `${runtimePacket.declarations}\n` : '';
         const sceneMap = runtimePacket.mapGLSL;
-        // Extended wrapper: read color from texel [6*material_index + 1]
-        const wrapper = `\n// Adapter wrapper: convert generated vec2 grav_map -> SDF map with color lookup\nSDF map(const in vec3 p) {\n  vec2 m = grav_map(p);\n  int matIdx = int(round(m.y));\n  // Read color from texel [6*matIdx + 1] (color stored in first 3 components)\n  vec4 colorData = texelFetch(uSceneData, ivec2(matIdx * 6 + 1, 0), 0);\n  vec3 color = colorData.rgb;\n  return SDF(m.x, color);\n}`;
-        wrappedGlsl = decls + 'uniform sampler2D uSceneData;\n' + sceneMap + wrapper;
+        // PBR format: 2 texels per material — texel (matIdx*2) = [r,g,b,metalness]
+        const wrapper = `\nSDF map(const in vec3 p) {\n  vec2 m = grav_map(p);\n  int matIdx = int(round(m.y));\n  vec4 colorData = texelFetch(uMaterialData, ivec2(matIdx * 2, 0), 0);\n  vec3 color = colorData.rgb;\n  return SDF(m.x, color);\n}`;
+        wrappedGlsl = decls + 'uniform sampler2D uSceneData;\nuniform sampler2D uMaterialData;\n' + sceneMap + wrapper;
 
         // Debug override already handled above before gravitas code generation.
       } else {
@@ -1131,6 +1131,33 @@ void main() {
         }
       }
 
+      // Upload material color texture (one texel per leaf: [r, g, b, 1])
+      if (runtimePacket.materialData && runtimePacket.materialData.length) {
+        try {
+          const mFloats = runtimePacket.materialData;
+          const mTexels = Math.max(mFloats.length / 4, 1);
+          const mTex = new DataTexture(new Float32Array(mFloats), mTexels, 1, RGBAFormat, FloatType);
+          mTex.magFilter = NearestFilter;
+          mTex.minFilter = NearestFilter;
+          mTex.wrapS = ClampToEdgeWrapping;
+          mTex.wrapT = ClampToEdgeWrapping;
+          mTex.generateMipmaps = false;
+          mTex.flipY = false;
+          mTex.needsUpdate = true;
+          if (!material.uniforms.uMaterialData) {
+            material.uniforms.uMaterialData = { value: mTex };
+          } else {
+            const prevTex = material.uniforms.uMaterialData.value;
+            if (prevTex && prevTex !== mTex && typeof prevTex.dispose === 'function') {
+              prevTex.dispose();
+            }
+            material.uniforms.uMaterialData.value = mTex;
+          }
+        } catch (e) {
+          console.warn('Failed to build uMaterialData texture:', e);
+        }
+      }
+
       applyRuntimeUniforms(runtimePacket);
     } else if (glslCode) {
       // The generated GLSL already returns an SDF struct, so we wrap it in map() that extracts distance
@@ -1162,11 +1189,16 @@ void main() {
         material.fragmentShader = raymarcherFragment;
         material.needsUpdate = true;
       }
-      // Release texture-backed runtime uniform when leaving custom map mode.
+      // Release texture-backed runtime uniforms when leaving custom map mode.
       if (material.uniforms.uSceneData && material.uniforms.uSceneData.value) {
         const tex = material.uniforms.uSceneData.value;
         if (typeof tex.dispose === 'function') tex.dispose();
         delete material.uniforms.uSceneData;
+      }
+      if (material.uniforms.uMaterialData && material.uniforms.uMaterialData.value) {
+        const tex = material.uniforms.uMaterialData.value;
+        if (typeof tex.dispose === 'function') tex.dispose();
+        delete material.uniforms.uMaterialData;
       }
       this.userData.__customSdfTopology = null;
       stats.mode = 'legacy-descriptor';

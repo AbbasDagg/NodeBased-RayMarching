@@ -78,7 +78,7 @@ class RuntimeCompiler {
 function compileSdfExpression(node, path, c, varName = 'p') {
 	if (!node) {
 		c.signature('null');
-		return 'SDF(1e9, vec3(1.0, 0.0, 1.0))';
+		return 'mkSDF(1e9, vec3(1.0, 0.0, 1.0))';
 	}
 
 	const type = node.constructor ? node.constructor.name : 'UnknownSdf';
@@ -95,7 +95,7 @@ function compileSdfExpression(node, path, c, varName = 'p') {
 		});
 		const color = c.allocVec3([...path], (n) => colorToVec3(n.color));
 		const pLocal = `applyQuaternion(${varName} - ${pos}, normalize(${quat}))`;
-		return `SDF(sdBox(${pLocal}, ${half}) - 0.1, ${color})`;
+		return `mkSDF(sdBox(${pLocal}, ${half}) - 0.1, ${color})`;
 	}
 
 	if (type === 'SdfSphere') {
@@ -109,7 +109,7 @@ function compileSdfExpression(node, path, c, varName = 'p') {
 		});
 		const color = c.allocVec3([...path], (n) => colorToVec3(n.color));
 		const pLocal = `applyQuaternion(${varName} - ${pos}, normalize(${quat}))`;
-		return `SDF(sdEllipsoid(${pLocal}, ${rad}), ${color})`;
+		return `mkSDF(sdEllipsoid(${pLocal}, ${rad}), ${color})`;
 	}
 
 	if (type === 'SdfCapsule') {
@@ -123,7 +123,7 @@ function compileSdfExpression(node, path, c, varName = 'p') {
 		});
 		const color = c.allocVec3([...path], (n) => colorToVec3(n.color));
 		const pLocal = `applyQuaternion(${varName} - ${pos}, normalize(${quat}))`;
-		return `SDF(sdCapsule(${pLocal}, ${r}), ${color})`;
+		return `mkSDF(sdCapsule(${pLocal}, ${r}), ${color})`;
 	}
 
 	if (type === 'SdfTorus') {
@@ -137,7 +137,7 @@ function compileSdfExpression(node, path, c, varName = 'p') {
 		});
 		const color = c.allocVec3([...path], (n) => colorToVec3(n.color));
 		const pLocal = `applyQuaternion(${varName} - ${pos}, normalize(${quat}))`;
-		return `SDF(sdTorus(${pLocal}, (${t}).xy), ${color})`;
+		return `mkSDF(sdTorus(${pLocal}, (${t}).xy), ${color})`;
 	}
 
 	if (type === 'SdfTransform') {
@@ -149,13 +149,13 @@ function compileSdfExpression(node, path, c, varName = 'p') {
 	if (type === 'SdfWithColor') {
 		const childExpr = compileSdfExpression(node.sdf, [...path, 'sdf'], c, varName);
 		const color = c.allocVec3([...path], (n) => colorToVec3(n.color));
-		return `SDF((${childExpr}).distance, ${color})`;
+		return `mkSDF((${childExpr}).distance, ${color})`;
 	}
 
 	if (type === 'SdfUnion') {
 		const children = node.children || [];
 		c.signature(`u${children.length}`);
-		if (children.length === 0) return 'SDF(1e9, vec3(1.0, 0.0, 1.0))';
+		if (children.length === 0) return 'mkSDF(1e9, vec3(1.0, 0.0, 1.0))';
 		let result = compileSdfExpression(children[0], [...path, 'children', 0], c, varName);
 		const k = c.allocFloat([...path], (n) => n.blending);
 		for (let i = 1; i < children.length; i++) {
@@ -180,7 +180,7 @@ function compileSdfExpression(node, path, c, varName = 'p') {
 	if (type === 'SdfIntersection') {
 		const children = node.children || [];
 		c.signature(`i${children.length}`);
-		if (children.length === 0) return 'SDF(1e9, vec3(1.0, 0.0, 1.0))';
+		if (children.length === 0) return 'mkSDF(1e9, vec3(1.0, 0.0, 1.0))';
 		let result = compileSdfExpression(children[0], [...path, 'children', 0], c, varName);
 		const k = c.allocFloat([...path], (n) => n.blending);
 		for (let i = 1; i < children.length; i++) {

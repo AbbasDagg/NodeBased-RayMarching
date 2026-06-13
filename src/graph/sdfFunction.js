@@ -120,7 +120,7 @@ export class SdfBox extends Sdf {
     const g = ((this.color >> 8) & 255) / 255;
     const b = (this.color & 255) / 255;
     
-    return `SDF(${dist}, vec3(${r.toFixed(4)}, ${g.toFixed(4)}, ${b.toFixed(4)}))`;
+    return `mkSDF(${dist}, vec3(${r.toFixed(4)}, ${g.toFixed(4)}, ${b.toFixed(4)}))`;
   }
 }
 
@@ -198,7 +198,7 @@ export class SdfSphere extends Sdf {
     const gCol = ((this.color >> 8) & 255) / 255;
     const bCol = (this.color & 255) / 255;
     
-    return `SDF(${dist}, vec3(${rCol.toFixed(4)}, ${gCol.toFixed(4)}, ${bCol.toFixed(4)}))`;
+    return `mkSDF(${dist}, vec3(${rCol.toFixed(4)}, ${gCol.toFixed(4)}, ${bCol.toFixed(4)}))`;
   }
 }
 
@@ -264,7 +264,7 @@ export class SdfCapsule extends Sdf {
     const gCol = ((this.color >> 8) & 255) / 255;
     const bCol = (this.color & 255) / 255;
     
-    return `SDF(sdCapsule(${transformedP}, vec3(${r.x}, ${r.y}, ${r.z})), vec3(${rCol.toFixed(4)}, ${gCol.toFixed(4)}, ${bCol.toFixed(4)}))`;
+    return `mkSDF(sdCapsule(${transformedP}, vec3(${r.x}, ${r.y}, ${r.z})), vec3(${rCol.toFixed(4)}, ${gCol.toFixed(4)}, ${bCol.toFixed(4)}))`;
   }
 }
 
@@ -330,7 +330,7 @@ export class SdfTorus extends Sdf {
     const gCol = ((this.color >> 8) & 255) / 255;
     const bCol = (this.color & 255) / 255;
     
-    return `SDF(${dist}, vec3(${rCol.toFixed(4)}, ${gCol.toFixed(4)}, ${bCol.toFixed(4)}))`;
+    return `mkSDF(${dist}, vec3(${rCol.toFixed(4)}, ${gCol.toFixed(4)}, ${bCol.toFixed(4)}))`;
   }
 }
 
@@ -621,7 +621,7 @@ export class SdfWithColor extends Sdf {
   }
 
   toGLSL(varName = 'p') {
-    // Get child's GLSL expression which returns SDF(dist, childColor)
+    // Get child's GLSL expression which returns mkSDF(dist, childColor)
     // We need to extract the distance and combine with our color
     const childGlsl = this.sdf.toGLSL(varName);
     
@@ -631,9 +631,9 @@ export class SdfWithColor extends Sdf {
     const b = (this.color & 255) / 255;
     
     // Wrap child SDF: extract distance, apply our color
-    // child returns SDF(dist, color), we want SDF(dist, ourColor)
+    // child returns mkSDF(dist, color), we want mkSDF(dist, ourColor)
     // Use a temporary variable to get child result, then reconstruct with our color
-    return `SDF((${childGlsl}).distance, vec3(${r.toFixed(4)}, ${g.toFixed(4)}, ${b.toFixed(4)}))`;
+    return `mkSDF((${childGlsl}).distance, vec3(${r.toFixed(4)}, ${g.toFixed(4)}, ${b.toFixed(4)}))`;
   }
 }
 

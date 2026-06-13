@@ -137,7 +137,7 @@ export const decomposeMatrix = (m) => {
 
 // ===== AST constructors =====
 
-export const astPrimitive = ({ shape, color, position, rotation, scale, mode, matrix }) => ({
+export const astPrimitive = ({ shape, color, position, rotation, scale, mode, matrix, metalness, roughness, emissive }) => ({
   kind: 'primitive',
   shape,
   color,
@@ -149,6 +149,11 @@ export const astPrimitive = ({ shape, color, position, rotation, scale, mode, ma
   scale,
   // modular payload
   matrix,
+  // PBR material (from a Material node). Carried through the AST so the compiled
+  // shape descriptors keep per-shape material instead of falling back to defaults.
+  metalness,
+  roughness,
+  emissive,
 });
 
 export const astTransform = (matrix, child) => ({ kind: 'transform', matrix, child });
@@ -178,6 +183,9 @@ export const compileAstToShapes = (ast, { debug = false } = {}) => {
         matrix,
         inverseMatrix: inv,
         hasMatrix: true,
+        metalness: prim.metalness,
+        roughness: prim.roughness,
+        emissive: prim.emissive,
       });
     } else {
       out.push({
@@ -188,6 +196,9 @@ export const compileAstToShapes = (ast, { debug = false } = {}) => {
         rotation: prim.rotation,
         scale: prim.scale,
         matrix: null,
+        metalness: prim.metalness,
+        roughness: prim.roughness,
+        emissive: prim.emissive,
       });
     }
   };

@@ -546,8 +546,8 @@ function shapeCompute(node, gm) {
   }
 
   const ast = isModular
-    ? astPrimitive({ shape: node.data.shape, color, mode: 'modular', matrix })
-    : astPrimitive({ shape: node.data.shape, color, mode: 'configured', position, rotation, scale });
+    ? astPrimitive({ shape: node.data.shape, color, mode: 'modular', matrix, metalness, roughness, emissive })
+    : astPrimitive({ shape: node.data.shape, color, mode: 'configured', position, rotation, scale, metalness, roughness, emissive });
 
   // SDF pipeline
   let sdf = null;

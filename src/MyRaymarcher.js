@@ -1,4 +1,4 @@
-import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, Mesh, Frustum, Vector3, Matrix4, Vector2, Sphere, PlaneGeometry, WebGLRenderTarget, DepthTexture, UnsignedShortType, RawShaderMaterial, GLSL3, MathUtils, TorusGeometry, ShaderChunk, DataTexture, RGBAFormat, FloatType, NearestFilter, ClampToEdgeWrapping } from 'three';
+import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, Mesh, Frustum, Vector3, Matrix4, Vector2, Sphere, PlaneGeometry, WebGLRenderTarget, DepthTexture, UnsignedShortType, RawShaderMaterial, GLSL3, MathUtils, TorusGeometry, ShaderChunk, DataTexture, RGBAFormat, FloatType, NearestFilter, ClampToEdgeWrapping, Color } from 'three';
 
 var lighting = "#ifdef ENVMAP_TYPE_CUBE_UV\n\n#define PI 3.141592653589793\n#define RECIPROCAL_PI 0.3183098861837907\n\nstruct GeometricContext {\n  vec3 normal;\n  vec3 viewDir;\n};\n\nstruct PhysicalMaterial {\n  vec3 diffuseColor;\n  float roughness;\n  vec3 specularColor;\n  float specularF90;\n};\n\nstruct ReflectedLight {\n  vec3 indirectDiffuse;\n  vec3 indirectSpecular;\n};\n\nvec3 BRDF_Lambert(const in vec3 diffuseColor) {\n  return RECIPROCAL_PI * diffuseColor;\n}\n\nvec2 DFGApprox(const in vec3 normal, const in vec3 viewDir, const in float roughness) {\n  float dotNV = saturate(dot(normal, viewDir));\n  const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);\n  const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);\n  vec4 r = roughness * c0 + c1;\n  float a004 = min(r.x * r.x, exp2(-9.28 * dotNV)) * r.x + r.y;\n  vec2 fab = vec2(-1.04, 1.04) * a004 + r.zw;\n  return fab;\n}\n\nvoid computeMultiscattering(const in vec3 normal, const in vec3 viewDir, const in vec3 specularColor, const in float specularF90, const in float roughness, inout vec3 singleScatter, inout vec3 multiScatter) {\n  vec2 fab = DFGApprox(normal, viewDir, roughness);\n  vec3 FssEss = specularColor * fab.x + specularF90 * fab.y;\n  float Ess = fab.x + fab.y;\n  float Ems = 1.0 - Ess;\n  vec3 Favg = specularColor + (1.0 - specularColor) * 0.047619;\n  vec3 Fms = FssEss * Favg / (1.0 - Ems * Favg);\n  singleScatter += FssEss;\n  multiScatter += Fms * Ems;\n}\n\nvoid RE_IndirectDiffuse(const in vec3 irradiance, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {\n  reflectedLight.indirectDiffuse += irradiance * BRDF_Lambert(material.diffuseColor);\n}\n\nvoid RE_IndirectSpecular(const in vec3 radiance, const in vec3 irradiance, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {\n  vec3 singleScattering = vec3(0.0);\n  vec3 multiScattering = vec3(0.0);\n  vec3 cosineWeightedIrradiance = irradiance * RECIPROCAL_PI;\n  computeMultiscattering(geometry.normal, geometry.viewDir, material.specularColor, material.specularF90, material.roughness, singleScattering, multiScattering);\n  vec3 diffuse = material.diffuseColor * (1.0 - (singleScattering + multiScattering));\n  reflectedLight.indirectSpecular += radiance * singleScattering;\n  reflectedLight.indirectSpecular += multiScattering * cosineWeightedIrradiance;\n  reflectedLight.indirectDiffuse += diffuse * cosineWeightedIrradiance;\n}\n\nvec3 getIBLRadiance(const in vec3 viewDir, const in vec3 normal, const in float roughness) {\n  vec3 reflectVec = reflect(-viewDir, normal);\n  reflectVec = normalize(mix(reflectVec, normal, roughness * roughness));\n  vec4 envMapColor = textureCubeUV(envMap, reflectVec, roughness);\n  return envMapColor.rgb * envMapIntensity;\n}\n\nvec3 getIBLIrradiance(const in vec3 normal) {\n  vec3 envMapColor = textureCubeUV(envMap, normal, 1.0).rgb;\n  return PI * envMapColor * envMapIntensity;\n}\n\nvec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse) {\n  GeometricContext geometry;\n  geometry.normal = normal;\n  geometry.viewDir = normalize(cameraPosition - position);\n\n  PhysicalMaterial material;\n  material.diffuseColor = diffuse * (1.0 - metalness);\n  material.roughness = max(min(roughness, 1.0), 0.0525);\n  material.specularColor = mix(vec3(0.04), diffuse, metalness);\n  material.specularF90 = 1.0;\n\n  ReflectedLight reflectedLight = ReflectedLight(vec3(0.0), vec3(0.0));\n  vec3 radiance = getIBLRadiance(geometry.viewDir, geometry.normal, material.roughness);\n  vec3 irradiance = getIBLIrradiance(geometry.normal);\n  RE_IndirectDiffuse(irradiance, geometry, material, reflectedLight);\n  RE_IndirectSpecular(radiance, irradiance, geometry, material, reflectedLight);\n\n  return reflectedLight.indirectDiffuse + reflectedLight.indirectSpecular;\n}\n\n#else\n\nvec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse) {\n  return diffuse * envMapIntensity;\n}\n\n#endif\n";
 
@@ -25,6 +25,9 @@ struct Entity {
   int shape;
   mat4 invMatrix; // full inverse transform (used when hasMatrix==1)
   float hasMatrix; // 1.0 => use invMatrix path
+  float metalness; // per-shape PBR metalness (from Material node)
+  float roughness; // per-shape PBR roughness (from Material node)
+  vec3 emissive;   // per-shape emissive color (from Material node)
   /* TERRAIN DISABLED - Terrain parameters
   float octaves;
   float amplitude;
@@ -53,6 +56,9 @@ struct Entity {
 struct SDF {
   float distance;
   vec3 color;
+  float metalness;
+  float roughness;
+  vec3 emissive;
 };
 
 out vec4 fragColor;
@@ -78,12 +84,11 @@ uniform float roughness;
 #include <encodings_pars_fragment>
 #include <lighting>
 
-#ifdef USE_CUSTOM_SDF
-float g_metalness = 0.0;
-float g_roughness = 0.5;
-vec3 g_emissive = vec3(0.0);
+// Per-shape PBR lighting. metalness/roughness arrive per-fragment from the hit
+// SDF struct (Material node → entity/texture), NOT from a global uniform. Defined
+// unconditionally so every pipeline (legacy + custom SDF) uses the same path.
 #ifdef ENVMAP_TYPE_CUBE_UV
-vec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse, const in float met, const in float rough) {
+vec3 getLightPBR(const in vec3 position, const in vec3 normal, const in vec3 diffuse, const in float met, const in float rough) {
   GeometricContext geometry;
   geometry.normal = normal;
   geometry.viewDir = normalize(cameraPosition - position);
@@ -100,10 +105,9 @@ vec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffus
   return reflectedLight.indirectDiffuse + reflectedLight.indirectSpecular;
 }
 #else
-vec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse, const in float met, const in float rough) {
+vec3 getLightPBR(const in vec3 position, const in vec3 normal, const in vec3 diffuse, const in float met, const in float rough) {
   return diffuse * envMapIntensity;
 }
-#endif
 #endif
 
 vec3 applyQuaternion(const in vec3 p, const in vec4 q) {
@@ -279,8 +283,8 @@ SDF sdTerrainWithColor(const in vec3 p, const in vec3 plocal, const in Entity e)
   // Create terrain as heightfield: distance to surface is (y - height)
   // Use WORLD coordinates for distance calculation (p.y not plocal.y)
   float distance = p.y - height;
-  
-  return SDF(distance, color);
+
+  return SDF(distance, color, e.metalness, e.roughness, e.emissive);
 }
 
 // Apply terrain displacement to any shape's surface
@@ -428,14 +432,17 @@ SDF sdEntity(in vec3 p, const in Entity e) {
   }
   // END TERRAIN DISABLED */
   
-  return SDF(distance, outColor);
+  return SDF(distance, outColor, e.metalness, e.roughness, e.emissive);
 }
 
 SDF opSmoothUnion(const in SDF a, const in SDF b, const in float k) {
   float h = saturate(0.5 + 0.5 * (b.distance - a.distance) / k);
   return SDF(
     mix(b.distance, a.distance, h) - k * h * (1.0 - h),
-    mix(b.color, a.color, h)
+    mix(b.color, a.color, h),
+    mix(b.metalness, a.metalness, h),
+    mix(b.roughness, a.roughness, h),
+    mix(b.emissive, a.emissive, h)
   );
 }
 
@@ -443,7 +450,10 @@ SDF opSmoothSubtraction(const in SDF a, const in SDF b, const in float k) {
   float h = saturate(0.5 - 0.5 * (a.distance + b.distance) / k);
   return SDF(
     mix(a.distance, -b.distance, h) + k * h * (1.0 - h),
-    mix(a.color, b.color, h)
+    mix(a.color, b.color, h),
+    mix(a.metalness, b.metalness, h),
+    mix(a.roughness, b.roughness, h),
+    mix(a.emissive, b.emissive, h)
   );
 }
 
@@ -451,7 +461,10 @@ SDF opSmoothIntersection(const in SDF a, const in SDF b, const in float k) {
   float h = saturate(0.5 + 0.5 * (b.distance - a.distance) / k);
   return SDF(
     mix(a.distance, b.distance, h) + k * h * (1.0 - h),
-    mix(a.color, b.color, h)
+    mix(a.color, b.color, h),
+    mix(a.metalness, b.metalness, h),
+    mix(a.roughness, b.roughness, h),
+    mix(a.emissive, b.emissive, h)
   );
 }
 
@@ -511,11 +524,7 @@ void march(inout vec4 color, inout float distance) {
           closest = distance;
         }
         float alpha = smoothstep(cone, -cone, step.distance);
-        #ifdef USE_CUSTOM_SDF
-        vec3 pixel = getLight(position, getNormal(position, step.distance), step.color, g_metalness, g_roughness);
-        #else
-        vec3 pixel = getLight(position, getNormal(position, step.distance), step.color);
-        #endif
+        vec3 pixel = getLightPBR(position, getNormal(position, step.distance), step.color, step.metalness, step.roughness) + step.emissive;
         color.rgb += coverage * (alpha * pixel);
         coverage *= (1.0 - alpha);
         if (coverage <= MIN_COVERAGE) {
@@ -538,11 +547,7 @@ void march(inout vec4 color, inout float distance) {
     } else {
       SDF step = map(position);
       if (step.distance <= MIN_DISTANCE) {
-        #ifdef USE_CUSTOM_SDF
-        color = vec4(getLight(position, getNormal(position, step.distance), step.color, g_metalness, g_roughness), 1.0);
-        #else
-        color = vec4(getLight(position, getNormal(position, step.distance), step.color), 1.0);
-        #endif
+        color = vec4(getLightPBR(position, getNormal(position, step.distance), step.color, step.metalness, step.roughness) + step.emissive, 1.0);
         break;
       }
       distance += max(abs(step.distance) * SAFETY_STEP, MIN_DISTANCE);
@@ -651,6 +656,9 @@ class Raymarcher extends Mesh {
             shape: {},
             invMatrix: {},
             hasMatrix: {},
+            metalness: {},
+            roughness: {},
+            emissive: {},
             octaves: {},
             amplitude: {},
             clampYMin: {},
@@ -854,7 +862,7 @@ class Raymarcher extends Mesh {
       uniforms.numEntities.value = entities.length;
       // Debug logging disabled for performance
       // Per-frame logging disabled for performance; uncomment for debugging
-    entities.forEach(({ color, operation, position, rotation, scale, shape, invMatrix, hasMatrix/* TERRAIN DISABLED , octaves, amplitude, clampYMin, clampYMax, offsetX, offsetZ, seed, dispClampMin, dispClampMax, peakGain, valleyGain, useColorRamp, smoothingStrength, dispApplyMinY, dispApplyMaxY, dispFeather */ }, i) => {
+    entities.forEach(({ color, operation, position, rotation, scale, shape, invMatrix, hasMatrix, metalness, roughness, emissive/* TERRAIN DISABLED , octaves, amplitude, clampYMin, clampYMax, offsetX, offsetZ, seed, dispClampMin, dispClampMax, peakGain, valleyGain, useColorRamp, smoothingStrength, dispApplyMinY, dispApplyMaxY, dispFeather */ }, i) => {
         const uniform = uniforms.entities.value[i];
         uniform.color.copy(color);
         uniform.operation = operation;
@@ -864,6 +872,9 @@ class Raymarcher extends Mesh {
         uniform.shape = shape;
       uniform.invMatrix.copy(invMatrix);
       uniform.hasMatrix = hasMatrix;
+      uniform.metalness = (metalness !== undefined ? metalness : 0.0);
+      uniform.roughness = (roughness !== undefined ? roughness : 0.5);
+      if (uniform.emissive && uniform.emissive.copy && emissive) uniform.emissive.copy(emissive);
         /* TERRAIN DISABLED
         // If debugForce is on, override terrain uniforms to strong values
         if (debugForce) {
@@ -939,7 +950,7 @@ class Raymarcher extends Mesh {
     }));
   }
 
-  static cloneEntity({ color, operation, position, rotation, scale, shape/* TERRAIN DISABLED , terrainParams */ }) {
+  static cloneEntity({ color, operation, position, rotation, scale, shape, metalness, roughness, emissive/* TERRAIN DISABLED , terrainParams */ }) {
     const entity = {
       color: color.clone(),
       operation,
@@ -949,6 +960,9 @@ class Raymarcher extends Mesh {
       shape,
       invMatrix: new Matrix4(),
       hasMatrix: 0.0,
+      metalness: metalness !== undefined ? metalness : 0.0,
+      roughness: roughness !== undefined ? roughness : 0.5,
+      emissive: emissive && emissive.clone ? emissive.clone() : new Color(0x000000),
       /* TERRAIN DISABLED
       // Default terrain parameters - octaves=0 means NO terrain displacement
       octaves: 0,
@@ -1050,7 +1064,10 @@ class Raymarcher extends Mesh {
 
     const buildWrappedMapFunction = (runtimePacket) => {
       const declarations = runtimePacket.declarations ? `${runtimePacket.declarations}\n` : '';
-      return `${declarations}SDF map(const in vec3 p) {\n  return ${runtimePacket.expression};\n}`;
+      // Helper so the SDF-runtime generators can build an SDF from just distance+color;
+      // material fields take neutral defaults (this pipeline has no per-shape material yet).
+      const mk = 'SDF mkSDF(float d, vec3 c) { return SDF(d, c, 0.0, 0.5, vec3(0.0)); }\n';
+      return `${declarations}${mk}SDF map(const in vec3 p) {\n  return ${runtimePacket.expression};\n}`;
     };
     
     if (glslCode && typeof glslCode === 'object') {
@@ -1064,17 +1081,17 @@ class Raymarcher extends Mesh {
 
       if (forceSolidColor) {
         nextTopology = 'debug-solid-color';
-        wrappedGlsl = 'SDF map(const in vec3 p) { return SDF(0.0, vec3(0.0, 0.0, 1.0)); }';
+        wrappedGlsl = 'SDF map(const in vec3 p) { return SDF(0.0, vec3(0.0, 0.0, 1.0), 0.0, 0.5, vec3(0.0)); }';
       } else
       if (forceShowSceneTexel) {
         nextTopology = 'debug-show-scene-texel';
-        wrappedGlsl = 'uniform sampler2D uSceneData; SDF map(const in vec3 p) { vec4 t0 = texelFetch(uSceneData, ivec2(0,0), 0); vec4 t1 = texelFetch(uSceneData, ivec2(1,0), 0); vec3 c = clamp(vec3(abs(t0.x) / 10.0, abs(t0.y) / 10.0, max(t1.w, 0.0) / 4.0), 0.0, 1.0); return SDF(0.0, c); }';
+        wrappedGlsl = 'uniform sampler2D uSceneData; SDF map(const in vec3 p) { vec4 t0 = texelFetch(uSceneData, ivec2(0,0), 0); vec4 t1 = texelFetch(uSceneData, ivec2(1,0), 0); vec3 c = clamp(vec3(abs(t0.x) / 10.0, abs(t0.y) / 10.0, max(t1.w, 0.0) / 4.0), 0.0, 1.0); return SDF(0.0, c, 0.0, 0.5, vec3(0.0)); }';
       } else
       if (forceDebugSphere || forceDebugFirstObject) {
         nextTopology = forceDebugFirstObject ? 'debug-first-scene-object' : 'debug-test-sphere';
         wrappedGlsl = forceDebugFirstObject
-          ? 'uniform sampler2D uSceneData; SDF map(const in vec3 p) { vec4 d0 = texelFetch(uSceneData, ivec2(0,0), 0); vec4 d1 = texelFetch(uSceneData, ivec2(1,0), 0); vec3 pos = d0.xyz; float r = d1.w; return SDF(sdSphere(p - pos, max(r, 0.001)), vec3(0.0, 1.0, 0.0)); }'
-          : 'SDF map(const in vec3 p) { return SDF(sdSphere(p, 2.0), vec3(1.0, 0.0, 0.0)); }';
+          ? 'uniform sampler2D uSceneData; SDF map(const in vec3 p) { vec4 d0 = texelFetch(uSceneData, ivec2(0,0), 0); vec4 d1 = texelFetch(uSceneData, ivec2(1,0), 0); vec3 pos = d0.xyz; float r = d1.w; return SDF(sdSphere(p - pos, max(r, 0.001)), vec3(0.0, 1.0, 0.0), 0.0, 0.5, vec3(0.0)); }'
+          : 'SDF map(const in vec3 p) { return SDF(sdSphere(p, 2.0), vec3(1.0, 0.0, 0.0), 0.0, 0.5, vec3(0.0)); }';
       }
 
       // Support gravitas-style texture-backed packet (contains mapGLSL + sceneData)
@@ -1082,8 +1099,10 @@ class Raymarcher extends Mesh {
         // Ensure sampler declaration exists and wrap the adapter's map(vec3)->vec2 into the expected SDF map() function
         const decls = runtimePacket.declarations ? `${runtimePacket.declarations}\n` : '';
         const sceneMap = runtimePacket.mapGLSL;
-        // PBR format: 2 texels per material — texel (matIdx*2) = [r,g,b,metalness]
-        const wrapper = `\nSDF map(const in vec3 p) {\n  vec2 m = grav_map(p);\n  int matIdx = int(round(m.y));\n  vec4 colorData = texelFetch(uMaterialData, ivec2(matIdx * 2,     0), 0);\n  vec4 pbrData   = texelFetch(uMaterialData, ivec2(matIdx * 2 + 1, 0), 0);\n  g_metalness = colorData.a;\n  g_roughness = pbrData.r;\n  g_emissive  = pbrData.gba;\n  return SDF(m.x, colorData.rgb);\n}`;
+        // PBR format: 2 texels per material — texel (matIdx*2) = [r,g,b,metalness],
+        // texel (matIdx*2+1) = [roughness, emR, emG, emB]. Material rides in the
+        // SDF struct so it survives getNormal()'s repeated map() calls.
+        const wrapper = `\nSDF map(const in vec3 p) {\n  vec2 m = grav_map(p);\n  int matIdx = int(round(m.y));\n  vec4 colorData = texelFetch(uMaterialData, ivec2(matIdx * 2,     0), 0);\n  vec4 pbrData   = texelFetch(uMaterialData, ivec2(matIdx * 2 + 1, 0), 0);\n  return SDF(m.x, colorData.rgb, colorData.a, pbrData.r, pbrData.gba);\n}`;
         wrappedGlsl = decls + 'uniform sampler2D uSceneData;\nuniform sampler2D uMaterialData;\n' + sceneMap + wrapper;
 
         // Debug override already handled above before gravitas code generation.

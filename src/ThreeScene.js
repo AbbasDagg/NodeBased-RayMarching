@@ -55,6 +55,15 @@ const ThreeScene = forwardRef((props, ref) => {
           colorValue = shapeData.color || 0xffffff;
         }
         
+        // Per-shape PBR material (from a Material node on this shape's handle).
+        // emissive arrives as a hex string; convert to a THREE.Color (vec3 in GLSL).
+        let emissiveColor;
+        if (typeof shapeData.emissive === 'string') {
+          emissiveColor = new THREE.Color(parseInt(shapeData.emissive.replace('#', ''), 16));
+        } else {
+          emissiveColor = new THREE.Color(0x000000);
+        }
+
         // Build the entity object
         const entity = {
           color: new THREE.Color(colorValue),
@@ -62,7 +71,10 @@ const ThreeScene = forwardRef((props, ref) => {
           position: new THREE.Vector3(shapeData.position.x * SCALING_FACTOR, shapeData.position.y * SCALING_FACTOR, shapeData.position.z * SCALING_FACTOR),
           rotation: quaternion, // Apply the quaternion for rotation
           scale: new THREE.Vector3(shapeData.scale.x * SCALING_FACTOR, shapeData.scale.y * SCALING_FACTOR, shapeData.scale.z * SCALING_FACTOR),
-          shape: Raymarcher.shapes[shapeData.shape]
+          shape: Raymarcher.shapes[shapeData.shape],
+          metalness: shapeData.metalness ?? 0.0,
+          roughness: shapeData.roughness ?? 0.5,
+          emissive: emissiveColor,
         };
         // Direct matrix path for modular shapes
         if (shapeData.hasMatrix && shapeData.inverseMatrix) {
@@ -264,9 +276,7 @@ const ThreeScene = forwardRef((props, ref) => {
     gui.close();
     gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
     gui.add(raymarcher.userData, 'blending', 0, 2, 0.01);
-    gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);
-    gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);
-    gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);
+    gui.add(raymarcher.userData, 'envMapIntensity', 0, 2, 0.01);
     gui.add({ envMap: 'RoomEnvironment' }, 'envMap', Object.keys(environments)).onChange(loadEnvironment);
 
     const animate = () => {

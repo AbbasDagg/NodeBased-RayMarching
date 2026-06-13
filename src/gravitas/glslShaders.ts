@@ -24,6 +24,22 @@ float sdBox(float x, float y, float z, float hx, float hy, float hz) {
     return sqrt(ox*ox + oy*oy + oz*oz) + min(max(dx, max(dy, dz)), 0.0);
 }
 
+// Torus in the XZ plane (hole axis = Y). R = ring radius, r = tube radius.
+// Matches the legacy raymarcher's sdTorus(vec3, vec2).
+float sdTorus(float x, float y, float z, float R, float r) {
+    float q = length(vec2(x, z)) - R;
+    return length(vec2(q, y)) - r;
+}
+
+// Capsule aligned to the Y axis. radius = tube radius, halfHeight = half the
+// total height. The straight segment spans ±(halfHeight - radius).
+// Matches the legacy raymarcher's sdCapsule(vec3, vec3) with r.x=radius, r.y=halfHeight.
+float sdCapsule(float x, float y, float z, float radius, float halfHeight) {
+    float seg = max(halfHeight - radius, 0.0);
+    float cy = y - clamp(y, -seg, seg);
+    return length(vec3(x, cy, z)) - radius;
+}
+
 vec3 opDeformation(float x, float y, float z, float frequency, float amplitude) {
     return vec3(x, y + amplitude * sin(frequency * x), z);
 }

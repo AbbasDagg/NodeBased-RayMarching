@@ -202,6 +202,42 @@ export class SmoothSubtractionNode extends SDFSmoothOperatorNode {
     }
 }
 
+// TorusNode — lies in the XZ plane (hole axis = Y). majorRadius is the ring
+// radius, minorRadius is the tube radius. Non-symmetric, so it visibly rotates
+// when wrapped in a TransformNode.
+export class TorusNode extends SDFShapeNode {
+    readonly type = 'torus';
+    public majorRadius: number;
+    public minorRadius: number;
+
+    constructor(id: string, position: Vector3Array, majorRadius: number, minorRadius: number) {
+        super(id, position);
+        this.majorRadius = majorRadius;
+        this.minorRadius = minorRadius;
+    }
+    toJSON() {
+        return { type: this.type, id: this.id, position: this.position, majorRadius: this.majorRadius, minorRadius: this.minorRadius, material: this.material };
+    }
+}
+
+// CapsuleNode — pill aligned to the Y axis. radius is the tube radius,
+// halfHeight is the distance from origin to each hemisphere centre's far end
+// (the straight segment spans ±(halfHeight − radius)).
+export class CapsuleNode extends SDFShapeNode {
+    readonly type = 'capsule';
+    public radius: number;
+    public halfHeight: number;
+
+    constructor(id: string, position: Vector3Array, radius: number, halfHeight: number) {
+        super(id, position);
+        this.radius = radius;
+        this.halfHeight = halfHeight;
+    }
+    toJSON() {
+        return { type: this.type, id: this.id, position: this.position, radius: this.radius, halfHeight: this.halfHeight, material: this.material };
+    }
+}
+
 // TransformNode — backend only, no UI node. Applies a 4×4 row-major inverse
 // matrix to the query point before evaluating the child SDF, enabling rotation,
 // non-uniform scale, and shear passed down from the MULT node chain.
@@ -230,6 +266,16 @@ export class SDFNodeFactory {
             }
             case 'box': {
                 const n = new BoxNode(data.id, data.position, data.halfExtents);
+                if (data.material) n.material = data.material;
+                return n;
+            }
+            case 'torus': {
+                const n = new TorusNode(data.id, data.position, data.majorRadius, data.minorRadius);
+                if (data.material) n.material = data.material;
+                return n;
+            }
+            case 'capsule': {
+                const n = new CapsuleNode(data.id, data.position, data.radius, data.halfHeight);
                 if (data.material) n.material = data.material;
                 return n;
             }

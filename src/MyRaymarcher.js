@@ -78,6 +78,34 @@ uniform float roughness;
 #include <encodings_pars_fragment>
 #include <lighting>
 
+#ifdef USE_CUSTOM_SDF
+float g_metalness = 0.0;
+float g_roughness = 0.5;
+vec3 g_emissive = vec3(0.0);
+#ifdef ENVMAP_TYPE_CUBE_UV
+vec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse, const in float met, const in float rough) {
+  GeometricContext geometry;
+  geometry.normal = normal;
+  geometry.viewDir = normalize(cameraPosition - position);
+  PhysicalMaterial material;
+  material.diffuseColor = diffuse * (1.0 - met);
+  material.roughness = max(min(rough, 1.0), 0.0525);
+  material.specularColor = mix(vec3(0.04), diffuse, met);
+  material.specularF90 = 1.0;
+  ReflectedLight reflectedLight = ReflectedLight(vec3(0.0), vec3(0.0));
+  vec3 radiance = getIBLRadiance(geometry.viewDir, geometry.normal, material.roughness);
+  vec3 irradiance = getIBLIrradiance(geometry.normal);
+  RE_IndirectDiffuse(irradiance, geometry, material, reflectedLight);
+  RE_IndirectSpecular(radiance, irradiance, geometry, material, reflectedLight);
+  return reflectedLight.indirectDiffuse + reflectedLight.indirectSpecular;
+}
+#else
+vec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse, const in float met, const in float rough) {
+  return diffuse * envMapIntensity;
+}
+#endif
+#endif
+
 vec3 applyQuaternion(const in vec3 p, const in vec4 q) {
   return p + 2.0 * cross(-q.xyz, cross(-q.xyz, p) + q.w * p);
 }
@@ -483,7 +511,11 @@ void march(inout vec4 color, inout float distance) {
           closest = distance;
         }
         float alpha = smoothstep(cone, -cone, step.distance);
+        #ifdef USE_CUSTOM_SDF
+        vec3 pixel = getLight(position, getNormal(position, step.distance), step.color, g_metalness, g_roughness);
+        #else
         vec3 pixel = getLight(position, getNormal(position, step.distance), step.color);
+        #endif
         color.rgb += coverage * (alpha * pixel);
         coverage *= (1.0 - alpha);
         if (coverage <= MIN_COVERAGE) {
@@ -506,7 +538,11 @@ void march(inout vec4 color, inout float distance) {
     } else {
       SDF step = map(position);
       if (step.distance <= MIN_DISTANCE) {
+        #ifdef USE_CUSTOM_SDF
+        color = vec4(getLight(position, getNormal(position, step.distance), step.color, g_metalness, g_roughness), 1.0);
+        #else
         color = vec4(getLight(position, getNormal(position, step.distance), step.color), 1.0);
+        #endif
         break;
       }
       distance += max(abs(step.distance) * SAFETY_STEP, MIN_DISTANCE);
@@ -1047,7 +1083,7 @@ class Raymarcher extends Mesh {
         const decls = runtimePacket.declarations ? `${runtimePacket.declarations}\n` : '';
         const sceneMap = runtimePacket.mapGLSL;
         // PBR format: 2 texels per material — texel (matIdx*2) = [r,g,b,metalness]
-        const wrapper = `\nSDF map(const in vec3 p) {\n  vec2 m = grav_map(p);\n  int matIdx = int(round(m.y));\n  vec4 colorData = texelFetch(uMaterialData, ivec2(matIdx * 2, 0), 0);\n  vec3 color = colorData.rgb;\n  return SDF(m.x, color);\n}`;
+        const wrapper = `\nSDF map(const in vec3 p) {\n  vec2 m = grav_map(p);\n  int matIdx = int(round(m.y));\n  vec4 colorData = texelFetch(uMaterialData, ivec2(matIdx * 2,     0), 0);\n  vec4 pbrData   = texelFetch(uMaterialData, ivec2(matIdx * 2 + 1, 0), 0);\n  g_metalness = colorData.a;\n  g_roughness = pbrData.r;\n  g_emissive  = pbrData.gba;\n  return SDF(m.x, colorData.rgb);\n}`;
         wrappedGlsl = decls + 'uniform sampler2D uSceneData;\nuniform sampler2D uMaterialData;\n' + sceneMap + wrapper;
 
         // Debug override already handled above before gravitas code generation.

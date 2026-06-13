@@ -22,6 +22,8 @@ function topologyHash(nodes: SDFNode[]): string {
         switch (n.type) {
             case 'sphere':
             case 'box':
+            case 'torus':
+            case 'capsule':
                 return `${n.id}:${n.type}`;
             case 'smoothUnion':
             case 'smoothSubtraction':

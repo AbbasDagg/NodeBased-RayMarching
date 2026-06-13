@@ -145,7 +145,7 @@ export function VectorNode({ id, data, isConnectable }) {
   const adjustRangeForRotation = () => {
     const nodeId = id || data.id;
     const connectedEdges = reactFlowInstance.getEdges().filter(
-      (edge) => edge.source === nodeId && edge.targetHandle === 'rotation'
+      (edge) => edge.source === nodeId && edge.targetHandle === 'rotation-configured'
     );
     if (connectedEdges.length > 0) {
       setRange({ min: -360, max: 360, step: 5 });
@@ -155,18 +155,10 @@ export function VectorNode({ id, data, isConnectable }) {
   };
 
   const handleChange = (name, value) => {
-    setInputData((prev) => {
-      const nodeId = id || data.id;
-      const next = { ...prev, [name]: value };
-      data[name] = value;
-      reactFlowInstance.setNodes(nodes => nodes.map(node => {
-        const relevantEdges = reactFlowInstance.getEdges().filter(e => e.source === nodeId);
-        const isConnected = relevantEdges.some(e => e.target === node.id && e.targetHandle === name && e.sourceHandle === 'vector');
-        if (isConnected) return { ...node, data: { ...node.data, [name]: value } };
-        return node;
-      }));
-      return next;
-    });
+    // Mutate in place so nodes[i].data always reflects current slider values.
+    // handleRenderScene calls gm.setNodes(nodes) every frame and detects this.
+    data[name] = value;
+    setInputData(prev => ({ ...prev, [name]: value }));
   };
 
   useEffect(() => {
@@ -368,7 +360,9 @@ export function SphereNode({ id, data }) {
         if (edge.source === id && edge.sourceHandle === 'render') return true;
         if (edge.target === id) {
           if (newMode === 'configured' && edge.targetHandle === 'color-configured') return true;
+          if (newMode === 'configured' && edge.targetHandle === 'material-configured') return true;
           if (newMode === 'modular' && edge.targetHandle === 'color-modular') return true;
+          if (newMode === 'modular' && edge.targetHandle === 'material-modular') return true;
           return false; // drop other incoming edges on toggle
         }
         if (edge.source === id) return false; // drop outgoing edges from old mode
@@ -426,10 +420,8 @@ export function SphereNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
             <Handle type="target" position={Position.Left} id="rotation-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '80%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '80%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-            {/* TERRAIN DISABLED
-            <Handle type="target" position={Position.Left} id="terrainParams-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '94%', backgroundColor: '#ff9500' }} />
-            <span style={{ position: 'absolute', left: '40px', top: '94%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
-            */}
+            <Handle type="target" position={Position.Left} id="material-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '92%', backgroundColor: '#e67e22' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '92%', color: '#e67e22', fontSize: '15px', transform: 'translateY(-50%)' }}>Material</span>
           </>
         ) : (
           <>
@@ -437,10 +429,8 @@ export function SphereNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Transform</span>
             <Handle type="target" position={Position.Left} id="color-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '75%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '75%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
-            {/* TERRAIN DISABLED
-            <Handle type="target" position={Position.Left} id="terrainParams-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#ff9500' }} />
-            <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
-            */}
+            <Handle type="target" position={Position.Left} id="material-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#e67e22' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#e67e22', fontSize: '15px', transform: 'translateY(-50%)' }}>Material</span>
           </>
         )}
         <NodeOutputDebug nodeId={id} />
@@ -533,10 +523,8 @@ export function TorusNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
             <Handle type="target" position={Position.Left} id="rotation-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '80%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '80%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-            {/* TERRAIN DISABLED
-            <Handle type="target" position={Position.Left} id="terrainParams-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '94%', backgroundColor: '#ff9500' }} />
-            <span style={{ position: 'absolute', left: '40px', top: '94%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
-            */}
+            <Handle type="target" position={Position.Left} id="material-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '92%', backgroundColor: '#e67e22' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '92%', color: '#e67e22', fontSize: '15px', transform: 'translateY(-50%)' }}>Material</span>
           </>
         ) : (
           <>
@@ -544,10 +532,8 @@ export function TorusNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Transform</span>
             <Handle type="target" position={Position.Left} id="color-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '75%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '75%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
-            {/* TERRAIN DISABLED
-            <Handle type="target" position={Position.Left} id="terrainParams-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#ff9500' }} />
-            <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
-            */}
+            <Handle type="target" position={Position.Left} id="material-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#e67e22' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#e67e22', fontSize: '15px', transform: 'translateY(-50%)' }}>Material</span>
           </>
         )}
         <NodeOutputDebug nodeId={id} />
@@ -638,10 +624,8 @@ export function BoxNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
             <Handle type="target" position={Position.Left} id="rotation-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '80%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '80%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-            {/* TERRAIN DISABLED
-            <Handle type="target" position={Position.Left} id="terrainParams-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '94%', backgroundColor: '#ff9500' }} />
-            <span style={{ position: 'absolute', left: '40px', top: '94%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
-            */}
+            <Handle type="target" position={Position.Left} id="material-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '92%', backgroundColor: '#e67e22' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '92%', color: '#e67e22', fontSize: '15px', transform: 'translateY(-50%)' }}>Material</span>
           </>
         ) : (
           <>
@@ -649,10 +633,8 @@ export function BoxNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Transform</span>
             <Handle type="target" position={Position.Left} id="color-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '75%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '75%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
-            {/* TERRAIN DISABLED
-            <Handle type="target" position={Position.Left} id="terrainParams-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#ff9500' }} />
-            <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
-            */}
+            <Handle type="target" position={Position.Left} id="material-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#e67e22' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#e67e22', fontSize: '15px', transform: 'translateY(-50%)' }}>Material</span>
           </>
         )}
         <NodeOutputDebug nodeId={id} />
@@ -743,10 +725,8 @@ export function CapsuleNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '66%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
             <Handle type="target" position={Position.Left} id="rotation-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '80%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '80%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Rotation</span>
-            {/* TERRAIN DISABLED
-            <Handle type="target" position={Position.Left} id="terrainParams-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '94%', backgroundColor: '#ff9500' }} />
-            <span style={{ position: 'absolute', left: '40px', top: '94%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
-            */}
+            <Handle type="target" position={Position.Left} id="material-configured" isConnectable={true} style={{ ...handleStyleLeft, top: '92%', backgroundColor: '#e67e22' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '92%', color: '#e67e22', fontSize: '15px', transform: 'translateY(-50%)' }}>Material</span>
           </>
         ) : (
           <>
@@ -754,10 +734,8 @@ export function CapsuleNode({ id, data }) {
             <span style={{ position: 'absolute', left: '40px', top: '55%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Transform</span>
             <Handle type="target" position={Position.Left} id="color-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '75%' }} />
             <span style={{ position: 'absolute', left: '40px', top: '75%', color: 'white', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Color</span>
-            {/* TERRAIN DISABLED
-            <Handle type="target" position={Position.Left} id="terrainParams-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#ff9500' }} />
-            <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#ff9500', fontSize: '15px', transform: 'translateY(-50%)', WebkitTextStroke: `0.1px ${outlineColor}` }}>Terrain</span>
-            */}
+            <Handle type="target" position={Position.Left} id="material-modular" isConnectable={true} style={{ ...handleStyleLeft, top: '90%', backgroundColor: '#e67e22' }} />
+            <span style={{ position: 'absolute', left: '40px', top: '90%', color: '#e67e22', fontSize: '15px', transform: 'translateY(-50%)' }}>Material</span>
           </>
         )}
         <NodeOutputDebug nodeId={id} />
@@ -1213,6 +1191,56 @@ export function TerrainParamsNode({ data }) {
 }
 // END TERRAIN DISABLED
 */
+
+export function MaterialNode({ id, data }) {
+  const accent = '#e67e22';
+  const { setNodes } = useReactFlow();
+
+  const [metalness, setMetalness] = useState(data.metalness ?? 0.0);
+  const [roughness, setRoughness] = useState(data.roughness ?? 0.5);
+  const [emissive, setEmissive] = useState(data.emissive ?? '#000000');
+
+  useEffect(() => {
+    setMetalness(data.metalness ?? 0.0);
+    setRoughness(data.roughness ?? 0.5);
+    setEmissive(data.emissive ?? '#000000');
+  }, [data.metalness, data.roughness, data.emissive, id]);
+
+  const update = (key, value) => {
+    data[key] = value;
+    setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, [key]: value } } : n));
+  };
+
+  return (
+    <div className="card materialNode" style={{ width: '200px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: `2px solid ${accent}`, borderRadius: '8px', padding: '10px', position: 'relative' }}>
+      <div style={{ color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+        <div style={{ fontWeight: 'bold', color: accent, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>
+          Material
+        </div>
+        <div style={{ width: '100%' }}>
+          <label style={{ fontSize: '11px', color: '#aaa' }}>Metalness: <span style={{ color: accent }}>{metalness.toFixed(2)}</span></label>
+          <input type="range" min="0" max="1" step="0.01" value={metalness}
+            onChange={e => { const v = parseFloat(e.target.value); setMetalness(v); update('metalness', v); }}
+            className="nodrag" style={{ width: '100%', accentColor: accent }} />
+        </div>
+        <div style={{ width: '100%' }}>
+          <label style={{ fontSize: '11px', color: '#aaa' }}>Roughness: <span style={{ color: accent }}>{roughness.toFixed(2)}</span></label>
+          <input type="range" min="0" max="1" step="0.01" value={roughness}
+            onChange={e => { const v = parseFloat(e.target.value); setRoughness(v); update('roughness', v); }}
+            className="nodrag" style={{ width: '100%', accentColor: accent }} />
+        </div>
+        <div style={{ width: '100%' }}>
+          <label style={{ fontSize: '11px', color: '#aaa' }}>Emissive</label>
+          <input type="color" value={emissive}
+            onChange={e => { setEmissive(e.target.value); update('emissive', e.target.value); }}
+            className="nodrag" style={{ width: '100%', height: '28px', cursor: 'pointer', border: `1px solid ${accent}`, padding: 0 }} />
+        </div>
+        <NodeOutputDebug nodeId={id} />
+      </div>
+      <Handle type="source" position={Position.Right} id="material" style={{ ...handleStyleRight, top: '50%', backgroundColor: accent }} />
+    </div>
+  );
+}
 
 export function ColorNode({ id, data, isConnectable }) {
   const [color, setColor] = useState(data.color || '#ffffff');

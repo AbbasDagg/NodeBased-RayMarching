@@ -182,6 +182,15 @@ function computeMatrixChain(gm, startId) {
 }
 
 export const nodeRegistry = {
+  materialNode: {
+    compute: (node) => ({
+      material: {
+        metalness: node.data.metalness ?? 0.0,
+        roughness: node.data.roughness ?? 0.5,
+        emissive: node.data.emissive ?? '#000000',
+      }
+    })
+  },
   vectorNode: {
     compute: (node) => ({ vector: { x: node.data.x, y: node.data.y, z: node.data.z } })
   },
@@ -493,6 +502,17 @@ function shapeCompute(node, gm) {
   if (sizeSrcs.length && sizeSrcs[0].vector) scale = sizeSrcs[0].vector;
   if (colSrcs.length && colSrcs[0].color !== undefined) color = normalizeColor(colSrcs[0].color);
 
+  const matHandle = isModular ? 'material-modular' : 'material-configured';
+  const matSrcs = gm.requireInputs(node.id, matHandle);
+  let metalness = 0.0;
+  let roughness = 0.5;
+  let emissive = '#000000';
+  if (matSrcs.length && matSrcs[0] && matSrcs[0].material) {
+    metalness = matSrcs[0].material.metalness ?? 0.0;
+    roughness = matSrcs[0].material.roughness ?? 0.5;
+    emissive = matSrcs[0].material.emissive ?? '#000000';
+  }
+
   let matrix = null;
   if (isModular) {
     // Resolve local transform chain from 'transform-modular'
@@ -516,6 +536,9 @@ function shapeCompute(node, gm) {
     scale,
     color,
     matrix,
+    metalness,
+    roughness,
+    emissive,
   };
   if (matrix) {
     shapeData.inverseMatrix = invertMatrix4(matrix);

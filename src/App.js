@@ -4,7 +4,7 @@ import 'reactflow/dist/style.css';
 import './App.css'; // Import the CSS file
 import NodeEditor from './NodeEditor';
 import ThreeScene from './ThreeScene';
-import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode, /* TERRAIN DISABLED TerrainNode, TerrainParamsNode, */ MultNode, GroupNode } from './CustomNodes';
+import { VectorNode, SphereNode, TorusNode, BoxNode, CapsuleNode, ColorNode, RenderNode, ModeNode, MotorNode, /* TERRAIN DISABLED TerrainNode, TerrainParamsNode, */ MultNode, GroupNode, MaterialNode } from './CustomNodes';
 import { reconnectEdge } from 'reactflow';
 import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the custom edge and connection line
 import { GraphManager } from './graph/GraphManager';
@@ -155,6 +155,7 @@ const nodeTypes = {
   // TERRAIN DISABLED terrainNode: TerrainNode,
   // TERRAIN DISABLED terrainParamsNode: TerrainParamsNode,
   multNode: MultNode,
+  materialNode: MaterialNode,
 };
 
 const edgeTypes = {
@@ -687,6 +688,10 @@ function App() {
       // New DAG-based evaluation using GraphManager (cached per nodes/edges change)
       const gm = gmRef.current;
       if (!gm) return;
+      // Sync gm with latest React state before computing (catches in-place
+      // mutations from VectorNode sliders which bypass onNodesChange).
+      gm.setNodes(nodes);
+      gm.setEdges(edges);
       // Start a new frame to refresh time-dependent nodes (motors)
       gm.beginFrame();
       const renderNodes = nodes.filter(n => n.type === 'renderNode');
@@ -829,6 +834,7 @@ function App() {
       const validConnections = {
         vectorNode: ['position-configured', 'size-configured', 'rotation-configured'],
         colorNode: ['color-configured', 'color-modular'],
+        materialNode: ['material-configured', 'material-modular'],
         sphereNode: ['shape1', 'shapes', 'render'],
         torusNode: ['shape1', 'shapes', 'render'],
         boxNode: ['shape1', 'shapes', 'render'],

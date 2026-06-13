@@ -24,6 +24,16 @@ function encodeNode(node: SDFNode, layout: SDFLayout, out: Float32Array): void {
             out[b+4] = n.halfExtents[1]; out[b+5] = n.halfExtents[2]; out[b+6] = 0; out[b+7] = 0;
             break;
 
+        case 'torus':
+            out[b+0] = n.position[0]; out[b+1] = n.position[1]; out[b+2] = n.position[2]; out[b+3] = n.majorRadius;
+            out[b+4] = n.minorRadius; out[b+5] = 0; out[b+6] = 0; out[b+7] = 0;
+            break;
+
+        case 'capsule':
+            out[b+0] = n.position[0]; out[b+1] = n.position[1]; out[b+2] = n.position[2]; out[b+3] = n.radius;
+            out[b+4] = n.halfHeight; out[b+5] = 0; out[b+6] = 0; out[b+7] = 0;
+            break;
+
         case 'smoothUnion':
         case 'smoothSubtraction': {
             const op = node as SDFOperatorNode;
@@ -76,6 +86,8 @@ function collectLeaves(node: SDFNode, result: SDFNode[]): void {
     switch (node.type) {
         case 'sphere':
         case 'box':
+        case 'torus':
+        case 'capsule':
             result.push(node);
             break;
         case 'smoothUnion':

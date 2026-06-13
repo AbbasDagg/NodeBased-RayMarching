@@ -2,7 +2,7 @@
 // Bridges the flat ReactFlow shapes array to the real Gravitas SDFNode compiler.
 // Keeps the same exported API so App.js needs no changes.
 
-import { SphereNode, BoxNode, SmoothUnionNode, SmoothSubtractionNode, TransformNode } from '../gravitas/SDFSchema';
+import { SphereNode, BoxNode, TorusNode, CapsuleNode, SmoothUnionNode, SmoothSubtractionNode, TransformNode } from '../gravitas/SDFSchema';
 import { compileSDF } from '../gravitas/SDFCompiler';
 
 const BLEND_K = 0.5; // smooth blend width applied to all boolean operations
@@ -24,31 +24,56 @@ function resolveShapeType(shape) {
     return shape ?? 'sphere';
 }
 
-function shapeToLeaf(s, id) {
+function buildMaterial(s) {
     const color = hexToRgb(s.color ?? 0xffffff);
+    const metalness = s.metalness ?? 0.0;
+    const roughness = s.roughness ?? 0.5;
+    const emissive = s.emissive ? hexToRgb(s.emissive) : [0, 0, 0];
+    return { color, metalness, roughness, emissive };
+}
+
+function shapeToLeaf(s, id) {
     const shapeType = resolveShapeType(s.shape);
 
-    // Full matrix path: place primitive at origin with unit size, wrap in TransformNode.
-    // The inverse matrix already encodes position + rotation + scale + shear.
+    // Full matrix path: place primitive at origin with canonical unit size, wrap
+    // in TransformNode. The inverse matrix already encodes position + rotation +
+    // scale + shear. Canonical dims match the legacy raymarcher's hasMatrix path
+    // so rotation looks identical across pipelines.
     if (s.hasMatrix && s.inverseMatrix) {
         let leaf;
         if (shapeType === 'box') {
             leaf = new BoxNode(id, [0, 0, 0], [0.5, 0.5, 0.5]);
+        } else if (shapeType === 'torus') {
+            leaf = new TorusNode(id, [0, 0, 0], 0.5, 0.5); // major, minor (matches legacy vec2(0.5))
+        } else if (shapeType === 'capsule') {
+            leaf = new CapsuleNode(id, [0, 0, 0], 0.25, 0.5); // radius, halfHeight — real pill
         } else {
             leaf = new SphereNode(id, [0, 0, 0], 0.5);
         }
-        leaf.material = { color };
+        leaf.material = buildMaterial(s);
         const invMat = Array.isArray(s.inverseMatrix) ? s.inverseMatrix : Array.from(s.inverseMatrix);
         return new TransformNode(`t_${id}`, leaf, invMat);
     }
 
-    // Fallback: position + uniform scale only (no rotation or shear).
+    // Fallback: position + scale only (no rotation or shear).
     const pos = s.position ? [s.position.x, s.position.y, s.position.z] : [0, 0, 0];
     const scale = s.scale ?? { x: 1, y: 1, z: 1 };
 
     if (shapeType === 'box') {
         const node = new BoxNode(id, pos, [scale.x * 0.5, scale.y * 0.5, scale.z * 0.5]);
-        node.material = { color };
+        node.material = buildMaterial(s);
+        return node;
+    }
+
+    if (shapeType === 'torus') {
+        const node = new TorusNode(id, pos, Math.max(scale.x, scale.z) * 0.5, scale.y * 0.5);
+        node.material = buildMaterial(s);
+        return node;
+    }
+
+    if (shapeType === 'capsule') {
+        const node = new CapsuleNode(id, pos, Math.max(scale.x, scale.z) * 0.5, scale.y * 0.5);
+        node.material = buildMaterial(s);
         return node;
     }
 
@@ -56,7 +81,7 @@ function shapeToLeaf(s, id) {
         ? s.radius
         : Math.max(scale.x, scale.y, scale.z) * 0.5;
     const node = new SphereNode(id, pos, radius);
-    node.material = { color };
+    node.material = buildMaterial(s);
     return node;
 }
 

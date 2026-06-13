@@ -20,6 +20,8 @@ export interface LayoutResult {
 const TEXEL_COUNTS: Record<string, number> = {
     sphere: 1,
     box: 2,
+    torus: 2,   // texel0 = [pos.xyz, majorRadius], texel1 = [minorRadius, 0, 0, 0]
+    capsule: 2, // texel0 = [pos.xyz, radius],      texel1 = [halfHeight, 0, 0, 0]
     smoothUnion: 1,
     smoothSubtraction: 1,
     deformation: 1,
@@ -36,6 +38,8 @@ function layoutNode(
     switch (node.type) {
         case 'sphere':
         case 'box':
+        case 'torus':
+        case 'capsule':
             layout.set(node.id, { offset: cursor.at, materialId: matCur.at, nodeId: nodeCur.at });
             cursor.at += TEXEL_COUNTS[node.type]!;
             matCur.at++;

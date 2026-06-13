@@ -79,6 +79,10 @@ function NodeEditor({ setNodes, setEdges, isFullscreen }) {
     addNodeToCenter('colorNode', { color: '#ffffff' });
   };
 
+  const addMaterialNode = () => {
+    addNodeToCenter('materialNode', { metalness: 0.0, roughness: 0.5, emissive: '#000000' });
+  };
+
   const addRenderNode = () => {
     addNodeToCenter('renderNode', { label: 'Render', layerId: `layer-${nodeCount + 1}` });
   };
@@ -453,6 +457,7 @@ function NodeEditor({ setNodes, setEdges, isFullscreen }) {
         )}
       </div>
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addColorNode} style={{ flex: '1 1 16%' }}>Color</button>
+      <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addMaterialNode} style={{ flex: '1 1 16%' }}>Material</button>
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addModeNode} style={{ flex: '1 1 16%' }}>Mode</button>
       <button className={`pshdown2 ${isFullscreen ? 'hidden' : ''}`} onClick={addRenderNode} style={{ flex: '1 1 16%', marginRight: '4px' }}>Render</button>
       </div>

@@ -100,6 +100,44 @@ function emitNode(
             return { mapVar: `_r${o}`, smoothVar: `_mr${o}` };
         }
 
+        case 'torus': {
+            const dv0 = `_d${o}`, dv1 = `_d${o+1}`;
+            // dv0.w = majorRadius, dv1.x = minorRadius
+            const sdfExpr = `sdTorus(${pVar}.x-${dv0}.x, ${pVar}.y-${dv0}.y, ${pVar}.z-${dv0}.z, ${dv0}.w, ${dv1}.x)`;
+            mapLines.push(
+                `vec4 ${dv0} = texelFetch(uSceneData, ivec2(${o},   0), 0);`,
+                `vec4 ${dv1} = texelFetch(uSceneData, ivec2(${o+1}, 0), 0);`,
+                `vec2 _r${o} = vec2(${sdfExpr}, ${mid}.0);`,
+            );
+            smoothLines.push(
+                `vec4 ${dv0} = texelFetch(uSceneData, ivec2(${o},   0), 0);`,
+                `vec4 ${dv1} = texelFetch(uSceneData, ivec2(${o+1}, 0), 0);`,
+                `vec4 _ma${o} = texelFetch(uMaterialData, ivec2(${mid * 2},   0), 0);`,
+                `vec4 _mb${o} = texelFetch(uMaterialData, ivec2(${mid * 2+1}, 0), 0);`,
+                `MatResult _mr${o} = MatResult(${sdfExpr}, _ma${o}.rgb, _ma${o}.a, _mb${o}.r, _mb${o}.gba);`,
+            );
+            return { mapVar: `_r${o}`, smoothVar: `_mr${o}` };
+        }
+
+        case 'capsule': {
+            const dv0 = `_d${o}`, dv1 = `_d${o+1}`;
+            // dv0.w = radius, dv1.x = halfHeight
+            const sdfExpr = `sdCapsule(${pVar}.x-${dv0}.x, ${pVar}.y-${dv0}.y, ${pVar}.z-${dv0}.z, ${dv0}.w, ${dv1}.x)`;
+            mapLines.push(
+                `vec4 ${dv0} = texelFetch(uSceneData, ivec2(${o},   0), 0);`,
+                `vec4 ${dv1} = texelFetch(uSceneData, ivec2(${o+1}, 0), 0);`,
+                `vec2 _r${o} = vec2(${sdfExpr}, ${mid}.0);`,
+            );
+            smoothLines.push(
+                `vec4 ${dv0} = texelFetch(uSceneData, ivec2(${o},   0), 0);`,
+                `vec4 ${dv1} = texelFetch(uSceneData, ivec2(${o+1}, 0), 0);`,
+                `vec4 _ma${o} = texelFetch(uMaterialData, ivec2(${mid * 2},   0), 0);`,
+                `vec4 _mb${o} = texelFetch(uMaterialData, ivec2(${mid * 2+1}, 0), 0);`,
+                `MatResult _mr${o} = MatResult(${sdfExpr}, _ma${o}.rgb, _ma${o}.a, _mb${o}.r, _mb${o}.gba);`,
+            );
+            return { mapVar: `_r${o}`, smoothVar: `_mr${o}` };
+        }
+
         case 'smoothUnion': {
             const n = node as SDFOperatorNode;
             const L = emitNode(n.left,  layout, mapLines, smoothLines, pVar);

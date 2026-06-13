@@ -40,10 +40,10 @@ function encodeNode(node: SDFNode, layout: SDFLayout, out: Float32Array): void {
             break;
         }
 
-        // Pre-order: 16-float row-major inverse matrix written first, then child.
+        // Pre-order: write the 16-float row-major inverse matrix first, then child.
         case 'transform': {
             const tn = node as SDFDeformationNode;
-            for (let i = 0; i < 16; i++) out[b + i] = n.inverseMatrix[i] ?? 0;
+            for (let i = 0; i < 16; i++) out[b + i] = (n as any).inverseMatrix[i] ?? 0;
             encodeNode(tn.child, layout, out);
             break;
         }

@@ -1,6 +1,5 @@
 // Gravitas EvaluatorVM — copied from gravitas/src/sdf/EvaluatorVM.ts
-// Modified to thread invMatStack through evaluateEvaluatorVM for TransformNode support,
-// and to expose evaluateGradientNumerical() for the thesis loss function.
+// Extended to expose evaluateGradientNumerical() for the thesis loss function.
 
 import { SDFNode } from './SDFSchema';
 import { compileEvaluatorNode, evaluateEvaluatorVM } from './EvaluatorVM.generated';
@@ -13,8 +12,6 @@ export class EvaluatorVM {
     private mathStack = new Float32Array(256 * 4);
     private ptStack   = new Float32Array(256 * 3);
     private mStack    = new Float32Array(256 * 9);
-    // 12 floats per level: rows 0-2 of the 4×4 inverse matrix (row 3 = [0,0,0,1])
-    private invMatStack = new Float32Array(64 * 12);
 
     constructor(rootNode: SDFNode) {
         const opsOut: number[] = [];
@@ -26,9 +23,8 @@ export class EvaluatorVM {
     }
 
     // Returns [dist, gx, gy, gz] in out[0..3].
-    // Gradient is analytically exact (chain-ruled through TransformNode via M^T).
     evaluate(x: number, y: number, z: number, out: Float32Array) {
-        const { mathStack, ptStack, mStack, invMatStack } = this;
+        const { mathStack, ptStack, mStack } = this;
         let sp = 0, wp = 0, dp = 0;
         let px = x, py = y, pz = z;
 
@@ -36,7 +32,7 @@ export class EvaluatorVM {
             const result = evaluateEvaluatorVM.call(
                 this, this.ops[i],
                 px, py, pz, sp, wp, dp,
-                mathStack, ptStack, mStack, invMatStack
+                mathStack, ptStack, mStack,
             );
             px = result.px; py = result.py; pz = result.pz;
             sp = result.sp; wp = result.wp; dp = result.dp;

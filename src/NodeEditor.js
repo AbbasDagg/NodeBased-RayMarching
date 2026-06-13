@@ -91,10 +91,6 @@ function NodeEditor({ setNodes, setEdges, isFullscreen }) {
     addNodeToCenter('motorNode', { xRange: { min: 0, max: 10, step: 1 }, yRange: { min: 0, max: 10, step: 1 }, zRange: { min: 0, max: 10, step: 1 } });
   };
 
-  const addTransformNode = () => {
-    addNodeToCenter('transformNode', { translateX: 0, translateY: 0, translateZ: 0, rotateX: 0, rotateY: 0, rotateZ: 0 });
-  };
-
   const addMultNode = () => {
     addNodeToCenter('multNode', { scaleX: 1, scaleY: 1, scaleZ: 1 });
   };
@@ -115,7 +111,6 @@ function NodeEditor({ setNodes, setEdges, isFullscreen }) {
   const addOperatorNode = (type) => {
     if (type === 'vectorNode') addVectorNode();
     else if (type === 'motorNode') addMotorNode();
-    else if (type === 'transformNode') addTransformNode();
     else if (type === 'multNode') addMultNode();
     setShowOperatorMenu(false);
   };
@@ -431,7 +426,7 @@ function NodeEditor({ setNodes, setEdges, isFullscreen }) {
   }, []);
 
   return (
-    <div style={{ width: '100%' }}>
+    <div style={{ width: '100%', position: 'relative', zIndex: 10 }}>
       <div className={`node-editor-buttons ${isFullscreen ? 'hidden' : ''}`} style={{ width: 'calc(100% - 320px)', padding: '0px', display: 'flex', justifyContent: 'flex-start', gap: '5px', position: 'relative' }}>
       
       <div ref={shapeMenuRef} style={{ position: 'relative', flex: '1 1 20%' }}>
@@ -452,7 +447,6 @@ function NodeEditor({ setNodes, setEdges, isFullscreen }) {
           <div className="shape-menu">
             <button className="pshdown2" onClick={() => addOperatorNode('vectorNode')}>Vector</button>
             <button className="pshdown2" onClick={() => addOperatorNode('motorNode')}>Motor</button>
-            <button className="pshdown2" onClick={() => addOperatorNode('transformNode')}>Transform</button>
             <button className="pshdown2" onClick={() => addOperatorNode('multNode')}>Mult</button>
             <button className="pshdown2" onClick={addGroupNode}>Group</button>
           </div>

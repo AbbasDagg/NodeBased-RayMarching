@@ -131,7 +131,8 @@ function emitNode(
             return { mapVar: `_r${o}`, smoothVar: `_mr${o}` };
         }
 
-        // Pre-order: matrix rows at texels o..o+2 (row 3 = [0,0,0,1] implicit).
+        // Pre-order: rows 0-2 of the inverse matrix are at texels o, o+1, o+2.
+        // Transform p to local space, then evaluate the child SDF there.
         case 'transform': {
             const n = node as SDFDeformationNode;
             const pl = `_pl${o}`;

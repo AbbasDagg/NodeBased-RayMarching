@@ -23,7 +23,7 @@ const TEXEL_COUNTS: Record<string, number> = {
     smoothUnion: 1,
     smoothSubtraction: 1,
     deformation: 1,
-    transform: 4,
+    transform: 4, // 4 rows × 4 floats = full 4×4 inverse matrix
 };
 
 function layoutNode(
@@ -62,8 +62,8 @@ function layoutNode(
             break;
         }
 
-        // transform is PRE-ORDER: 4 matrix texels allocated BEFORE child so
-        // GLSLGenerator can emit the point transform before the child SDF code.
+        // transform is PRE-ORDER: matrix texels allocated before child so GLSL
+        // emits the point transform before evaluating the child SDF.
         case 'transform': {
             const n = node as SDFDeformationNode;
             layout.set(node.id, { offset: cursor.at, materialId: -1, nodeId: nodeCur.at });

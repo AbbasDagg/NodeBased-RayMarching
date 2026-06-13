@@ -1036,12 +1036,8 @@ const onReconnectEnd = useCallback((_, edge) => {
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }} onClick={closeContextMenu}>
       {/* Explicit mode indicator so the three paths are obvious */}
-      <div style={{ position: 'absolute', left: 8, top: 8, zIndex: 9999, background: 'rgba(0,0,0,0.6)', padding: '6px 8px', borderRadius: 6, pointerEvents: 'auto' }}>
-        <div style={{ color: '#fff', fontSize: 12, marginBottom: 4 }}>Mode: {useGravitasCompiler ? 'Gravitas texture' : (sdfPipelineEnabled ? 'Legacy SDF' : 'Legacy descriptor')}</div>
-        <label style={{ color: '#fff', fontSize: 13, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <input type="checkbox" checked={useGravitasCompiler} onChange={(e) => window.setGravitasCompiler ? window.setGravitasCompiler(e.target.checked) : setUseGravitasCompiler(e.target.checked)} />
-          <span style={{ userSelect: 'none' }}>Use Gravitas (texture)</span>
-        </label>
+      <div style={{ position: 'absolute', left: 8, top: 8, zIndex: 9999, background: 'rgba(0,0,0,0.6)', padding: '6px 8px', borderRadius: 6, pointerEvents: 'none' }}>
+        <div style={{ color: '#fff', fontSize: 12 }}>Mode: {useGravitasCompiler ? 'Gravitas texture' : (sdfPipelineEnabled ? 'Legacy SDF' : 'Legacy descriptor')}</div>
       </div>
       <ReactFlowProvider>
         {/* Main Node Editor Area - Full Screen */}
@@ -1057,7 +1053,7 @@ const onReconnectEnd = useCallback((_, edge) => {
           }}
         >
           <NodeEditor setNodes={setNodes} setEdges={setEdges} isFullscreen={isFullscreen} />
-          <div style={{ width: '100%', height: '100%' }}>
+          <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
             <ReactFlow
               nodes={nodes}
               edges={edges}

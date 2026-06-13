@@ -1,9 +1,9 @@
 // Gravitas EvaluatorVM.generated — copied from gravitas/src/sdf/EvaluatorVM.generated.ts
-// Extended with OP_BOX, OP_SMOOTH_SUBTRACTION, OP_PUSH_TRANSFORM, OP_POP_TRANSFORM.
+// Extended with OP_BOX, OP_SMOOTH_SUBTRACTION.
 
 import type { SDFNode } from './SDFSchema';
 import { SphereNode, SmoothUnionNode, DeformationNode,
-         BoxNode, SmoothSubtractionNode, TransformNode } from './SDFSchema';
+         BoxNode, SmoothSubtractionNode } from './SDFSchema';
 import { sdSphere, opSmoothUnion, sdBox, opSmoothSubtraction } from './primitives.generated';
 import { sdSphereGrad, opSmoothUnionDeriv, sdBoxGrad, opSmoothSubtractionDeriv } from './sdfOps.generated';
 
@@ -16,8 +16,6 @@ export const OP_POP_DEFORMATION = 4;
 // ── Extended opcodes ──────────────────────────────────────────────────────────
 export const OP_BOX = 5;
 export const OP_SMOOTH_SUBTRACTION = 6;
-export const OP_PUSH_TRANSFORM = 7;
-export const OP_POP_TRANSFORM = 8;
 
 // ── Compiler ──────────────────────────────────────────────────────────────────
 
@@ -67,21 +65,12 @@ export function compileEvaluatorNode(
             dataOut.push(n.k);
             break;
         }
-        case 'transform': {
-            const n = node as TransformNode;
-            opsOut.push(OP_PUSH_TRANSFORM);
-            for (let i = 0; i < 16; i++) dataOut.push(n.inverseMatrix[i] ?? 0);
-            compile(n.child);
-            opsOut.push(OP_POP_TRANSFORM);
-            break;
-        }
         default:
             throw new Error(`VM Compile Error: Unsupported node type ${node.type}`);
     }
 }
 
 // ── Evaluator ─────────────────────────────────────────────────────────────────
-// invMatStack: caller-provided Float32Array(64 * 12) for transform matrix storage.
 
 export function evaluateEvaluatorVM(
     this: any,
@@ -95,7 +84,6 @@ export function evaluateEvaluatorVM(
     mathStack: Float32Array,
     ptStack: Float32Array,
     mStack: Float32Array,
-    invMatStack: Float32Array
 ): { px: number; py: number; pz: number; sp: number; wp: number; dp: number } {
 
     if (op === OP_SPHERE) {
@@ -163,36 +151,6 @@ export function evaluateEvaluatorVM(
         mathStack[(new_sp - 1) * 4 + 2] = res.gy;
         mathStack[(new_sp - 1) * 4 + 3] = res.gz;
 
-    } else if (op === OP_PUSH_TRANSFORM) {
-        // Save current point
-        ptStack[new_wp * 3 + 0] = new_px;
-        ptStack[new_wp * 3 + 1] = new_py;
-        ptStack[new_wp * 3 + 2] = new_pz;
-        // Read 16-float row-major inverse matrix and save to invMatStack
-        const mb = new_wp * 12; // 12 floats: rows 0-2 (row 3 = [0,0,0,1], not needed)
-        for (let j = 0; j < 12; j++) invMatStack[mb + j] = this.data[new_dp++];
-        new_dp += 4; // skip row 3 of the matrix
-        // Apply transform: p_local = M_inv * [px, py, pz, 1]
-        const nx = invMatStack[mb+0]*new_px + invMatStack[mb+1]*new_py + invMatStack[mb+2]*new_pz + invMatStack[mb+3];
-        const ny = invMatStack[mb+4]*new_px + invMatStack[mb+5]*new_py + invMatStack[mb+6]*new_pz + invMatStack[mb+7];
-        const nz = invMatStack[mb+8]*new_px + invMatStack[mb+9]*new_py + invMatStack[mb+10]*new_pz + invMatStack[mb+11];
-        new_px = nx; new_py = ny; new_pz = nz;
-        new_wp++;
-
-    } else if (op === OP_POP_TRANSFORM) {
-        new_wp--;
-        // Rotate gradient from local space to world space via M_inv^T (upper-left 3×3)
-        const mb = new_wp * 12;
-        const lgx = mathStack[(new_sp - 1) * 4 + 1];
-        const lgy = mathStack[(new_sp - 1) * 4 + 2];
-        const lgz = mathStack[(new_sp - 1) * 4 + 3];
-        mathStack[(new_sp - 1) * 4 + 1] = invMatStack[mb+0]*lgx + invMatStack[mb+4]*lgy + invMatStack[mb+8]*lgz;
-        mathStack[(new_sp - 1) * 4 + 2] = invMatStack[mb+1]*lgx + invMatStack[mb+5]*lgy + invMatStack[mb+9]*lgz;
-        mathStack[(new_sp - 1) * 4 + 3] = invMatStack[mb+2]*lgx + invMatStack[mb+6]*lgy + invMatStack[mb+10]*lgz;
-        // Restore original point
-        new_px = ptStack[new_wp * 3 + 0];
-        new_py = ptStack[new_wp * 3 + 1];
-        new_pz = ptStack[new_wp * 3 + 2];
     }
 
     return { px: new_px, py: new_py, pz: new_pz, sp: new_sp, wp: new_wp, dp: new_dp };

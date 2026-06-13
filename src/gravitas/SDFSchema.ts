@@ -1,7 +1,7 @@
 // Gravitas SDFSchema — copied from gravitas/src/sdf/SDFSchema.ts
 // Decorators removed (they are no-ops at runtime; CRA/Babel needs experimentalDecorators
 // configured to preserve them, so we omit them here to keep the build simple).
-// Extended with BoxNode, SmoothSubtractionNode, TransformNode.
+// Extended with BoxNode, SmoothSubtractionNode, TransformNode (backend-only, no UI).
 
 export type Vector3Array = [number, number, number];
 export type QuaternionArray = [number, number, number, number];
@@ -202,8 +202,9 @@ export class SmoothSubtractionNode extends SDFSmoothOperatorNode {
     }
 }
 
-// TransformNode applies a 4×4 row-major inverse matrix (world→local) to the
-// query point before evaluating the child SDF. Enables rotation in GLSL and CPU VM.
+// TransformNode — backend only, no UI node. Applies a 4×4 row-major inverse
+// matrix to the query point before evaluating the child SDF, enabling rotation,
+// non-uniform scale, and shear passed down from the MULT node chain.
 export class TransformNode extends SDFDeformationNode {
     readonly type = 'transform';
     public inverseMatrix: number[]; // 16 floats, row-major

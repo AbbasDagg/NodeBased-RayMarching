@@ -28,21 +28,21 @@ function shapeToLeaf(s, id) {
     const color = hexToRgb(s.color ?? 0xffffff);
     const shapeType = resolveShapeType(s.shape);
 
-    // When a full world-to-local inverse matrix is available, wrap the primitive in a
-    // TransformNode so position, rotation and scale are all applied correctly in GLSL.
-    // The leaf itself lives at the origin with unit-scale dimensions (0.5 half-extent).
+    // Full matrix path: place primitive at origin with unit size, wrap in TransformNode.
+    // The inverse matrix already encodes position + rotation + scale + shear.
     if (s.hasMatrix && s.inverseMatrix) {
-        let leafNode;
+        let leaf;
         if (shapeType === 'box') {
-            leafNode = new BoxNode(id, [0, 0, 0], [0.5, 0.5, 0.5]);
+            leaf = new BoxNode(id, [0, 0, 0], [0.5, 0.5, 0.5]);
         } else {
-            leafNode = new SphereNode(id, [0, 0, 0], 0.5);
+            leaf = new SphereNode(id, [0, 0, 0], 0.5);
         }
-        leafNode.material = { color };
-        return new TransformNode(`t_${id}`, leafNode, s.inverseMatrix);
+        leaf.material = { color };
+        const invMat = Array.isArray(s.inverseMatrix) ? s.inverseMatrix : Array.from(s.inverseMatrix);
+        return new TransformNode(`t_${id}`, leaf, invMat);
     }
 
-    // Fallback: no matrix — use position and scale directly (translation-only shapes)
+    // Fallback: position + uniform scale only (no rotation or shear).
     const pos = s.position ? [s.position.x, s.position.y, s.position.z] : [0, 0, 0];
     const scale = s.scale ?? { x: 1, y: 1, z: 1 };
 

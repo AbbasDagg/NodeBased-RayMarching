@@ -56,13 +56,15 @@ const ThreeScene = forwardRef((props, ref) => {
         }
         
         // Per-shape PBR material (from a Material node on this shape's handle).
-        // emissive arrives as a hex string; convert to a THREE.Color (vec3 in GLSL).
+        // emissive arrives as a hex string; convert to a THREE.Color (vec3 in GLSL)
+        // and scale by emissiveIntensity (HDR — values >1 saturate at display).
         let emissiveColor;
         if (typeof shapeData.emissive === 'string') {
           emissiveColor = new THREE.Color(parseInt(shapeData.emissive.replace('#', ''), 16));
         } else {
           emissiveColor = new THREE.Color(0x000000);
         }
+        emissiveColor.multiplyScalar(shapeData.emissiveIntensity ?? 1.0);
 
         // Build the entity object
         const entity = {

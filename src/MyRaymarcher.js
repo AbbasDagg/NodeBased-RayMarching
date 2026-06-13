@@ -1099,10 +1099,11 @@ class Raymarcher extends Mesh {
         // Ensure sampler declaration exists and wrap the adapter's map(vec3)->vec2 into the expected SDF map() function
         const decls = runtimePacket.declarations ? `${runtimePacket.declarations}\n` : '';
         const sceneMap = runtimePacket.mapGLSL;
-        // PBR format: 2 texels per material — texel (matIdx*2) = [r,g,b,metalness],
-        // texel (matIdx*2+1) = [roughness, emR, emG, emB]. Material rides in the
-        // SDF struct so it survives getNormal()'s repeated map() calls.
-        const wrapper = `\nSDF map(const in vec3 p) {\n  vec2 m = grav_map(p);\n  int matIdx = int(round(m.y));\n  vec4 colorData = texelFetch(uMaterialData, ivec2(matIdx * 2,     0), 0);\n  vec4 pbrData   = texelFetch(uMaterialData, ivec2(matIdx * 2 + 1, 0), 0);\n  return SDF(m.x, colorData.rgb, colorData.a, pbrData.r, pbrData.gba);\n}`;
+        // PBR format: 3 texels per material — texel (matIdx*3) = [r,g,b,metalness],
+        // texel (matIdx*3+1) = [roughness, emR, emG, emB], texel (matIdx*3+2) =
+        // [emissiveIntensity, specular*, ao*, reserved] (*reserved). Material rides in
+        // the SDF struct so it survives getNormal()'s repeated map() calls.
+        const wrapper = `\nSDF map(const in vec3 p) {\n  vec2 m = grav_map(p);\n  int matIdx = int(round(m.y));\n  vec4 colorData = texelFetch(uMaterialData, ivec2(matIdx * 3,     0), 0);\n  vec4 pbrData   = texelFetch(uMaterialData, ivec2(matIdx * 3 + 1, 0), 0);\n  vec4 emData    = texelFetch(uMaterialData, ivec2(matIdx * 3 + 2, 0), 0);\n  return SDF(m.x, colorData.rgb, colorData.a, pbrData.r, pbrData.gba * emData.x);\n}`;
         wrappedGlsl = decls + 'uniform sampler2D uSceneData;\nuniform sampler2D uMaterialData;\n' + sceneMap + wrapper;
 
         // Debug override already handled above before gravitas code generation.

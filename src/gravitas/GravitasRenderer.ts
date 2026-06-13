@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import type { SDFRenderPacket } from './SDFCompiler';
+import { MATERIAL_TEXELS } from './DataEncoder';
 import { GLSL_PRIMITIVES, GLSL_OPERATORS, FRAG_SHADER_BODY } from './glslShaders';
 
 // Vertex shader: fullscreen quad in NDC, no MVP transform.
@@ -61,7 +62,7 @@ export class GravitasMaterial extends (THREE.ShaderMaterial as any) {
 
     constructor(packet: SDFRenderPacket) {
         const sceneTex = makeTexture(packet.sceneData, packet.totalTexels);
-        const matTex   = makeTexture(packet.materialData, packet.totalMaterials * 2);
+        const matTex   = makeTexture(packet.materialData, packet.totalMaterials * MATERIAL_TEXELS);
 
         super({
             vertexShader: VERT_SHADER,
@@ -107,7 +108,7 @@ export class GravitasMaterial extends (THREE.ShaderMaterial as any) {
             this._sceneTex.dispose();
             this._matTex.dispose();
             this._sceneTex = makeTexture(packet.sceneData, packet.totalTexels);
-            this._matTex   = makeTexture(packet.materialData, packet.totalMaterials * 2);
+            this._matTex   = makeTexture(packet.materialData, packet.totalMaterials * MATERIAL_TEXELS);
             (this as any).uniforms.uSceneData.value    = this._sceneTex;
             (this as any).uniforms.uMaterialData.value = this._matTex;
         } else {

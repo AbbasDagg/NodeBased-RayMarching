@@ -75,9 +75,10 @@ function emitNode(
             );
             smoothLines.push(
                 `vec4 ${dv} = texelFetch(uSceneData, ivec2(${o}, 0), 0);`,
-                `vec4 _ma${o} = texelFetch(uMaterialData, ivec2(${mid * 2},   0), 0);`,
-                `vec4 _mb${o} = texelFetch(uMaterialData, ivec2(${mid * 2+1}, 0), 0);`,
-                `MatResult _mr${o} = MatResult(${sdfExpr}, _ma${o}.rgb, _ma${o}.a, _mb${o}.r, _mb${o}.gba);`,
+                `vec4 _ma${o} = texelFetch(uMaterialData, ivec2(${mid * 3},   0), 0);`,
+                `vec4 _mb${o} = texelFetch(uMaterialData, ivec2(${mid * 3+1}, 0), 0);`,
+                `vec4 _mc${o} = texelFetch(uMaterialData, ivec2(${mid * 3+2}, 0), 0);`,
+                `MatResult _mr${o} = MatResult(${sdfExpr}, _ma${o}.rgb, _ma${o}.a, _mb${o}.r, _mb${o}.gba * _mc${o}.x);`,
             );
             return { mapVar: `_r${o}`, smoothVar: `_mr${o}` };
         }
@@ -93,9 +94,10 @@ function emitNode(
             smoothLines.push(
                 `vec4 ${dv0} = texelFetch(uSceneData, ivec2(${o},   0), 0);`,
                 `vec4 ${dv1} = texelFetch(uSceneData, ivec2(${o+1}, 0), 0);`,
-                `vec4 _ma${o} = texelFetch(uMaterialData, ivec2(${mid * 2},   0), 0);`,
-                `vec4 _mb${o} = texelFetch(uMaterialData, ivec2(${mid * 2+1}, 0), 0);`,
-                `MatResult _mr${o} = MatResult(${sdfExpr}, _ma${o}.rgb, _ma${o}.a, _mb${o}.r, _mb${o}.gba);`,
+                `vec4 _ma${o} = texelFetch(uMaterialData, ivec2(${mid * 3},   0), 0);`,
+                `vec4 _mb${o} = texelFetch(uMaterialData, ivec2(${mid * 3+1}, 0), 0);`,
+                `vec4 _mc${o} = texelFetch(uMaterialData, ivec2(${mid * 3+2}, 0), 0);`,
+                `MatResult _mr${o} = MatResult(${sdfExpr}, _ma${o}.rgb, _ma${o}.a, _mb${o}.r, _mb${o}.gba * _mc${o}.x);`,
             );
             return { mapVar: `_r${o}`, smoothVar: `_mr${o}` };
         }
@@ -112,9 +114,10 @@ function emitNode(
             smoothLines.push(
                 `vec4 ${dv0} = texelFetch(uSceneData, ivec2(${o},   0), 0);`,
                 `vec4 ${dv1} = texelFetch(uSceneData, ivec2(${o+1}, 0), 0);`,
-                `vec4 _ma${o} = texelFetch(uMaterialData, ivec2(${mid * 2},   0), 0);`,
-                `vec4 _mb${o} = texelFetch(uMaterialData, ivec2(${mid * 2+1}, 0), 0);`,
-                `MatResult _mr${o} = MatResult(${sdfExpr}, _ma${o}.rgb, _ma${o}.a, _mb${o}.r, _mb${o}.gba);`,
+                `vec4 _ma${o} = texelFetch(uMaterialData, ivec2(${mid * 3},   0), 0);`,
+                `vec4 _mb${o} = texelFetch(uMaterialData, ivec2(${mid * 3+1}, 0), 0);`,
+                `vec4 _mc${o} = texelFetch(uMaterialData, ivec2(${mid * 3+2}, 0), 0);`,
+                `MatResult _mr${o} = MatResult(${sdfExpr}, _ma${o}.rgb, _ma${o}.a, _mb${o}.r, _mb${o}.gba * _mc${o}.x);`,
             );
             return { mapVar: `_r${o}`, smoothVar: `_mr${o}` };
         }
@@ -131,9 +134,10 @@ function emitNode(
             smoothLines.push(
                 `vec4 ${dv0} = texelFetch(uSceneData, ivec2(${o},   0), 0);`,
                 `vec4 ${dv1} = texelFetch(uSceneData, ivec2(${o+1}, 0), 0);`,
-                `vec4 _ma${o} = texelFetch(uMaterialData, ivec2(${mid * 2},   0), 0);`,
-                `vec4 _mb${o} = texelFetch(uMaterialData, ivec2(${mid * 2+1}, 0), 0);`,
-                `MatResult _mr${o} = MatResult(${sdfExpr}, _ma${o}.rgb, _ma${o}.a, _mb${o}.r, _mb${o}.gba);`,
+                `vec4 _ma${o} = texelFetch(uMaterialData, ivec2(${mid * 3},   0), 0);`,
+                `vec4 _mb${o} = texelFetch(uMaterialData, ivec2(${mid * 3+1}, 0), 0);`,
+                `vec4 _mc${o} = texelFetch(uMaterialData, ivec2(${mid * 3+2}, 0), 0);`,
+                `MatResult _mr${o} = MatResult(${sdfExpr}, _ma${o}.rgb, _ma${o}.a, _mb${o}.r, _mb${o}.gba * _mc${o}.x);`,
             );
             return { mapVar: `_r${o}`, smoothVar: `_mr${o}` };
         }

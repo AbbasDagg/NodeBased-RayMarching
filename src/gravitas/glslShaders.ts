@@ -434,16 +434,19 @@ void main() {
             int   m1      = m0 + 1;
             float mBlend  = fract(matIdF);
 
-            // Texel layout: material i → texels 2i (color+metalness) and 2i+1 (roughness+emissive)
-            vec4 mat0a = texelFetch(uMaterialData, ivec2(m0 * 2,     0), 0);
-            vec4 mat0b = texelFetch(uMaterialData, ivec2(m0 * 2 + 1, 0), 0);
-            vec4 mat1a = texelFetch(uMaterialData, ivec2(m1 * 2,     0), 0);
-            vec4 mat1b = texelFetch(uMaterialData, ivec2(m1 * 2 + 1, 0), 0);
+            // Texel layout: material i → texels 3i (color+metalness), 3i+1 (roughness+emissive),
+            // 3i+2 (emissiveIntensity, specular*, ao*, reserved).
+            vec4 mat0a = texelFetch(uMaterialData, ivec2(m0 * 3,     0), 0);
+            vec4 mat0b = texelFetch(uMaterialData, ivec2(m0 * 3 + 1, 0), 0);
+            vec4 mat0c = texelFetch(uMaterialData, ivec2(m0 * 3 + 2, 0), 0);
+            vec4 mat1a = texelFetch(uMaterialData, ivec2(m1 * 3,     0), 0);
+            vec4 mat1b = texelFetch(uMaterialData, ivec2(m1 * 3 + 1, 0), 0);
+            vec4 mat1c = texelFetch(uMaterialData, ivec2(m1 * 3 + 2, 0), 0);
 
             albedo = mix(mat0a.rgb,  mat1a.rgb,  mBlend);
             metalness = mix(mat0a.a, mat1a.a, mBlend);
             roughness = mix(mat0b.r, mat1b.r, mBlend);
-            emissive = mix(mat0b.gba, mat1b.gba, mBlend);
+            emissive = mix(mat0b.gba * mat0c.x, mat1b.gba * mat1c.x, mBlend);
         }
 
         // ── Shading ──────────────────────────────────────────────────────────

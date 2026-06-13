@@ -63,9 +63,14 @@ function encodeNode(node: SDFNode, layout: SDFLayout, out: Float32Array): void {
     }
 }
 
-// PBR material data — 2 texels (8 floats) per leaf, same traversal order as LayoutManager.
-//   texel 2i   → [r, g, b, metalness]
-//   texel 2i+1 → [roughness, emissiveR, emissiveG, emissiveB]
+// PBR material data — 3 texels (12 floats) per leaf, same traversal order as LayoutManager.
+//   texel 3i   → [r, g, b, metalness]
+//   texel 3i+1 → [roughness, emissiveR, emissiveG, emissiveB]
+//   texel 3i+2 → [emissiveIntensity, specular*, ao*, reserved]   (*reserved — not consumed yet)
+// The 3rd texel is reserved headroom so specular/IOR/AO can be added later without
+// re-plumbing the texel stride across the compiler + shaders.
+export const MATERIAL_TEXELS = 3;
+
 export function encodeMaterials(nodes: SDFNode[], out: Float32Array): void {
     const leaves: SDFNode[] = [];
     for (const node of nodes) collectLeaves(node, leaves);
@@ -76,9 +81,11 @@ export function encodeMaterials(nodes: SDFNode[], out: Float32Array): void {
         const metalness: number = mat.metalness ?? 0.0;
         const roughness: number = mat.roughness ?? 0.5;
         const emv: [number, number, number] = mat.emissive ?? [0, 0, 0];
-        const b = i * 8;
-        out[b+0] = color[0]; out[b+1] = color[1]; out[b+2] = color[2]; out[b+3] = metalness;
-        out[b+4] = roughness; out[b+5] = emv[0]; out[b+6] = emv[1]; out[b+7] = emv[2];
+        const emissiveIntensity: number = mat.emissiveIntensity ?? 1.0;
+        const b = i * MATERIAL_TEXELS * 4;
+        out[b+0]  = color[0]; out[b+1] = color[1]; out[b+2] = color[2]; out[b+3] = metalness;
+        out[b+4]  = roughness; out[b+5] = emv[0]; out[b+6] = emv[1]; out[b+7] = emv[2];
+        out[b+8]  = emissiveIntensity; out[b+9] = 0; out[b+10] = 0; out[b+11] = 0;
     }
 }
 

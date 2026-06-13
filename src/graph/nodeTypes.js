@@ -188,6 +188,7 @@ export const nodeRegistry = {
         metalness: node.data.metalness ?? 0.0,
         roughness: node.data.roughness ?? 0.5,
         emissive: node.data.emissive ?? '#000000',
+        emissiveIntensity: node.data.emissiveIntensity ?? 1.0,
       }
     })
   },
@@ -471,7 +472,9 @@ export const nodeRegistry = {
             // eslint-disable-next-line no-console
             console.log('[renderNode] compiled order:', shapesCompiled.map(s => `${s.operation}:${s.shape}`));
           }
-          return { shapes: shapesCompiled };
+          // Expose the folded AST tree too — the gravitas pipeline builds its
+          // SDFNode tree from this (nesting-preserving) instead of the flat shapes.
+          return { shapes: shapesCompiled, ast };
         } catch (e) {
           // eslint-disable-next-line no-console
           console.warn('AST compile failed; falling back to legacy shapes:', e);
@@ -507,10 +510,12 @@ function shapeCompute(node, gm) {
   let metalness = 0.0;
   let roughness = 0.5;
   let emissive = '#000000';
+  let emissiveIntensity = 1.0;
   if (matSrcs.length && matSrcs[0] && matSrcs[0].material) {
     metalness = matSrcs[0].material.metalness ?? 0.0;
     roughness = matSrcs[0].material.roughness ?? 0.5;
     emissive = matSrcs[0].material.emissive ?? '#000000';
+    emissiveIntensity = matSrcs[0].material.emissiveIntensity ?? 1.0;
   }
 
   let matrix = null;
@@ -539,6 +544,7 @@ function shapeCompute(node, gm) {
     metalness,
     roughness,
     emissive,
+    emissiveIntensity,
   };
   if (matrix) {
     shapeData.inverseMatrix = invertMatrix4(matrix);
@@ -546,8 +552,8 @@ function shapeCompute(node, gm) {
   }
 
   const ast = isModular
-    ? astPrimitive({ shape: node.data.shape, color, mode: 'modular', matrix, metalness, roughness, emissive })
-    : astPrimitive({ shape: node.data.shape, color, mode: 'configured', position, rotation, scale, metalness, roughness, emissive });
+    ? astPrimitive({ shape: node.data.shape, color, mode: 'modular', matrix, metalness, roughness, emissive, emissiveIntensity })
+    : astPrimitive({ shape: node.data.shape, color, mode: 'configured', position, rotation, scale, metalness, roughness, emissive, emissiveIntensity });
 
   // SDF pipeline
   let sdf = null;

@@ -1,6 +1,6 @@
 import type { SDFNode } from './SDFSchema';
 import { computeLayout } from './LayoutManager';
-import { encodeScene, encodeMaterials } from './DataEncoder';
+import { encodeScene, encodeMaterials, MATERIAL_TEXELS } from './DataEncoder';
 import { generateGLSL } from './GLSLGenerator';
 import { GLSL_PRIMITIVES, GLSL_OPERATORS } from './glslShaders';
 
@@ -56,7 +56,7 @@ export function compileSDF(
 
     const mapGLSL   = generateGLSL(nodes, layout);
     const sceneData = new Float32Array(Math.max(totalTexels, 1) * 4);
-    const materialData = new Float32Array(Math.max(totalMaterials, 1) * 2 * 4);
+    const materialData = new Float32Array(Math.max(totalMaterials, 1) * MATERIAL_TEXELS * 4);
 
     encodeScene(nodes, layout, sceneData);
     encodeMaterials(nodes, materialData);

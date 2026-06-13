@@ -137,7 +137,7 @@ export const decomposeMatrix = (m) => {
 
 // ===== AST constructors =====
 
-export const astPrimitive = ({ shape, color, position, rotation, scale, mode, matrix, metalness, roughness, emissive }) => ({
+export const astPrimitive = ({ shape, color, position, rotation, scale, mode, matrix, metalness, roughness, emissive, emissiveIntensity }) => ({
   kind: 'primitive',
   shape,
   color,
@@ -154,6 +154,7 @@ export const astPrimitive = ({ shape, color, position, rotation, scale, mode, ma
   metalness,
   roughness,
   emissive,
+  emissiveIntensity,
 });
 
 export const astTransform = (matrix, child) => ({ kind: 'transform', matrix, child });
@@ -186,6 +187,7 @@ export const compileAstToShapes = (ast, { debug = false } = {}) => {
         metalness: prim.metalness,
         roughness: prim.roughness,
         emissive: prim.emissive,
+        emissiveIntensity: prim.emissiveIntensity,
       });
     } else {
       out.push({
@@ -199,6 +201,7 @@ export const compileAstToShapes = (ast, { debug = false } = {}) => {
         metalness: prim.metalness,
         roughness: prim.roughness,
         emissive: prim.emissive,
+        emissiveIntensity: prim.emissiveIntensity,
       });
     }
   };
@@ -266,4 +269,69 @@ export const compileAstToShapes = (ast, { debug = false } = {}) => {
   }
 
   return out;
+};
+
+// ===== Compiler to a TREE (preserves nesting) =====
+//
+// compileAstToShapes (above) flattens the AST into a flat descriptor list, which
+// cannot represent right-nested CSG like  A ∪ (B − C)  — it collapses to (A ∪ B) − C.
+// compileAstToTree keeps the structure: it returns a BINARY tree whose leaves are
+// fully-resolved shape descriptors and whose internal nodes are
+//   { op: 'union' | 'subtraction' | 'intersection', left, right }.
+// The gravitas adapter maps this straight onto SmoothUnion/Subtraction/Intersection
+// nodes, so sdf(union(sdf, sdf)) is represented faithfully.
+//
+// Every leaf is resolved to a canonical primitive + full transform matrix
+// (hasMatrix: true), for BOTH configured and modular shapes — so configured-mode
+// position/rotation/scale all reach the renderer (the old flat path dropped
+// configured rotation in gravitas).
+export const compileAstToTree = (ast) => {
+  const resolveLeaf = (prim, accumulatedMatrix) => {
+    const localMat = prim.mode === 'modular'
+      ? (prim.matrix || identityMatrix())
+      : composePRS(prim); // configured: build matrix from position/rotation/scale
+    const finalMat = multiplyMatrix(accumulatedMatrix, localMat);
+    const inv = invertMatrix4(finalMat);
+    const dec = decomposeMatrix(finalMat);
+    return {
+      leaf: {
+        shape: prim.shape,
+        color: prim.color,
+        position: dec.position,
+        rotation: dec.rotation,
+        scale: dec.scale,
+        matrix: finalMat,
+        inverseMatrix: inv,
+        hasMatrix: true,
+        metalness: prim.metalness,
+        roughness: prim.roughness,
+        emissive: prim.emissive,
+        emissiveIntensity: prim.emissiveIntensity,
+      },
+    };
+  };
+
+  const walk = (node, accumulatedMatrix) => {
+    if (!node) return null;
+    if (node.kind === 'transform') {
+      const m = multiplyMatrix(accumulatedMatrix, node.matrix || identityMatrix());
+      return walk(node.child, m);
+    }
+    if (node.kind === 'primitive') {
+      return resolveLeaf(node, accumulatedMatrix);
+    }
+    if (node.kind === 'fold') {
+      let tree = walk(node.base, accumulatedMatrix);
+      for (const o of node.ops || []) {
+        const right = walk(o.ast, accumulatedMatrix);
+        if (!right) continue;
+        if (!tree) { tree = right; continue; }
+        tree = { op: o.op || 'union', left: tree, right };
+      }
+      return tree;
+    }
+    return null;
+  };
+
+  return walk(ast, identityMatrix());
 };

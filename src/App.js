@@ -10,7 +10,7 @@ import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the c
 import { GraphManager } from './graph/GraphManager';
 import { runSdfTests } from './graph/testSdfFunction';
 import { buildSdfRuntimePacket } from './graph/sdfRuntime';
-import { buildGravitasRuntimePacketFromShapes } from './graph/gravitasAdapter';
+import { buildGravitasRuntimePacketFromShapes, buildGravitasRuntimePacketFromAsts } from './graph/gravitasAdapter';
 
 // Make test function available in console
 if (typeof window !== 'undefined') {
@@ -707,22 +707,40 @@ function App() {
 
       let runtimePacket = null;
       if (useGravitasCompiler) {
-        // Build gravitas-style packet from shapes (texture-backed path)
-        const allShapes = [];
-        renderNodes.forEach((renderNode, renderGroupIndex) => {
-          const s = gm.computeRenderShapes(renderNode.id);
-          if (s && s.length) {
-            allShapes.push(...s.map((shapeData) => ({
-              ...shapeData,
-              __renderGroup: renderGroupIndex,
-            })));
+        // Preferred path: build the gravitas SDFNode tree from each render node's
+        // AST tree, which preserves nesting like sdf(union(sdf, sdf)). Falls back
+        // to the flat-shapes path if the AST pipeline isn't producing trees.
+        const groupAsts = [];
+        let allHaveAst = renderNodes.length > 0;
+        renderNodes.forEach((renderNode) => {
+          const out = gm.computeNode(renderNode.id);
+          if (out && out.ast) {
+            groupAsts.push(out.ast);
+          } else {
+            allHaveAst = false;
           }
         });
-        if (allShapes.length > 0) {
-          const gravPacket = buildGravitasRuntimePacketFromShapes(allShapes, sdfRuntimeCacheRef.current);
-          // Disabled logging for performance
-          runtimePacket = gravPacket;
+
+        let gravPacket = null;
+        if (groupAsts.length > 0 && allHaveAst) {
+          gravPacket = buildGravitasRuntimePacketFromAsts(groupAsts, sdfRuntimeCacheRef.current);
+        } else {
+          // Fallback: flat-shapes path (texture-backed) when no AST is available.
+          const allShapes = [];
+          renderNodes.forEach((renderNode, renderGroupIndex) => {
+            const s = gm.computeRenderShapes(renderNode.id);
+            if (s && s.length) {
+              allShapes.push(...s.map((shapeData) => ({
+                ...shapeData,
+                __renderGroup: renderGroupIndex,
+              })));
+            }
+          });
+          if (allShapes.length > 0) {
+            gravPacket = buildGravitasRuntimePacketFromShapes(allShapes, sdfRuntimeCacheRef.current);
+          }
         }
+        if (gravPacket) runtimePacket = gravPacket;
       } else if (sdfPipelineEnabled && allSdfs.length > 0) {
         const { SdfUnion } = require('./graph/sdfFunction');
         const combinedSdf = allSdfs.length === 1 ? allSdfs[0] : new SdfUnion(allSdfs, 0.5);

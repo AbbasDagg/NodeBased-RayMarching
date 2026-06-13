@@ -23,6 +23,7 @@ export interface MaterialDef {
     metalness?: number;
     roughness?: number;
     emissive?: Vector3Array;
+    emissiveIntensity?: number;
 }
 
 // ── Base classes (from Gravitas) ─────────────────────────────────────────────

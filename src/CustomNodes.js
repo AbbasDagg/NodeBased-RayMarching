@@ -1199,12 +1199,14 @@ export function MaterialNode({ id, data }) {
   const [metalness, setMetalness] = useState(data.metalness ?? 0.0);
   const [roughness, setRoughness] = useState(data.roughness ?? 0.5);
   const [emissive, setEmissive] = useState(data.emissive ?? '#000000');
+  const [emissiveIntensity, setEmissiveIntensity] = useState(data.emissiveIntensity ?? 1.0);
 
   useEffect(() => {
     setMetalness(data.metalness ?? 0.0);
     setRoughness(data.roughness ?? 0.5);
     setEmissive(data.emissive ?? '#000000');
-  }, [data.metalness, data.roughness, data.emissive, id]);
+    setEmissiveIntensity(data.emissiveIntensity ?? 1.0);
+  }, [data.metalness, data.roughness, data.emissive, data.emissiveIntensity, id]);
 
   const update = (key, value) => {
     data[key] = value;
@@ -1234,6 +1236,12 @@ export function MaterialNode({ id, data }) {
           <input type="color" value={emissive}
             onChange={e => { setEmissive(e.target.value); update('emissive', e.target.value); }}
             className="nodrag" style={{ width: '100%', height: '28px', cursor: 'pointer', border: `1px solid ${accent}`, padding: 0 }} />
+        </div>
+        <div style={{ width: '100%' }}>
+          <label style={{ fontSize: '11px', color: '#aaa' }}>Emissive Intensity: <span style={{ color: accent }}>{emissiveIntensity.toFixed(2)}</span></label>
+          <input type="range" min="0" max="8" step="0.1" value={emissiveIntensity}
+            onChange={e => { const v = parseFloat(e.target.value); setEmissiveIntensity(v); update('emissiveIntensity', v); }}
+            className="nodrag" style={{ width: '100%', accentColor: accent }} />
         </div>
         <NodeOutputDebug nodeId={id} />
       </div>

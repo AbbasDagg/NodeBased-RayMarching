@@ -4,6 +4,7 @@
 
 import { SphereNode, BoxNode, TorusNode, CapsuleNode, SmoothUnionNode, SmoothSubtractionNode, TransformNode } from '../gravitas/SDFSchema';
 import { compileSDF } from '../gravitas/SDFCompiler';
+import { compileAstToTree } from './sdfAst';
 
 const BLEND_K = 0.5; // smooth blend width applied to all boolean operations
 
@@ -29,7 +30,8 @@ function buildMaterial(s) {
     const metalness = s.metalness ?? 0.0;
     const roughness = s.roughness ?? 0.5;
     const emissive = s.emissive ? hexToRgb(s.emissive) : [0, 0, 0];
-    return { color, metalness, roughness, emissive };
+    const emissiveIntensity = s.emissiveIntensity ?? 1.0;
+    return { color, metalness, roughness, emissive, emissiveIntensity };
 }
 
 function shapeToLeaf(s, id) {
@@ -138,4 +140,53 @@ export function buildGravitasRuntimePacketFromShapes(shapes, previousPacket = nu
     return compileSDF([combined], previousPacket);
 }
 
-export default { buildGravitasRuntimePacketFromShapes };
+// ── Tree path (preserves nesting) ────────────────────────────────────────────
+// Recursively map a resolved shape-tree (from compileAstToTree) onto a Gravitas
+// SDFNode tree. Unlike buildTreeFromShapes (a flat left-leaning chain of leaves),
+// this keeps real subtrees, so sdf(union(sdf, sdf)) survives end to end.
+function treeToGravitas(treeNode, idPrefix) {
+    if (!treeNode) return null;
+    if (treeNode.leaf) {
+        return shapeToLeaf(treeNode.leaf, idPrefix);
+    }
+    const left  = treeToGravitas(treeNode.left,  `${idPrefix}L`);
+    const right = treeToGravitas(treeNode.right, `${idPrefix}R`);
+    if (!left) return right;
+    if (!right) return left;
+    const op = treeNode.op || 'union';
+    if (op === 'subtraction') {
+        return new SmoothSubtractionNode(`${idPrefix}_sub`, left, right, BLEND_K);
+    }
+    if (op === 'intersection') {
+        // No SmoothIntersectionNode in the gravitas pipeline yet — approximate with
+        // a union so geometry still renders (no regression vs. the old flat path).
+        // TODO(next): add SmoothIntersectionNode for a faithful intersection.
+        return new SmoothUnionNode(`${idPrefix}_int`, left, right, BLEND_K);
+    }
+    return new SmoothUnionNode(`${idPrefix}_uni`, left, right, BLEND_K);
+}
+
+// Build a gravitas packet from one AST per render node. Each render node's AST is
+// compiled to a nesting-preserving tree; separate render nodes are hard-unioned
+// (k=0) so they stay isolated, matching the per-layer behaviour.
+export function buildGravitasRuntimePacketFromAsts(asts, previousPacket = null) {
+    if (!asts || asts.length === 0) return null;
+
+    const groupRoots = [];
+    asts.forEach((ast, i) => {
+        const tree = compileAstToTree(ast);
+        const gravTree = treeToGravitas(tree, `g${i}_`);
+        if (gravTree) groupRoots.push(gravTree);
+    });
+
+    if (groupRoots.length === 0) return null;
+
+    let combined = groupRoots[0];
+    for (let i = 1; i < groupRoots.length; i++) {
+        combined = new SmoothUnionNode(`grp${i}`, combined, groupRoots[i], 0);
+    }
+
+    return compileSDF([combined], previousPacket);
+}
+
+export default { buildGravitasRuntimePacketFromShapes, buildGravitasRuntimePacketFromAsts };

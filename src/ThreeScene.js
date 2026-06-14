@@ -6,6 +6,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
 import { GUI } from 'lil-gui';
 import Raymarcher from './MyRaymarcher';
+import { GravitasMaterial } from './gravitas/GravitasRenderer';
 
 const SCALING_FACTOR = 1; // Scale up shapes to fix a small bug in the raymarcher
 
@@ -17,6 +18,14 @@ const ThreeScene = forwardRef((props, ref) => {
   const controlsRef = useRef(null); // Use ref to store the orbit controls
   const velocityRef = useRef(new THREE.Vector2(0, 0)); // Track the camera's velocity
   const lastPositionRef = useRef(new THREE.Vector2(0, 0)); // Track the last position to calculate velocity
+  // Gravitas (prof's) renderer — a separate fullscreen-quad scene rendered instead
+  // of MyRaymarcher when its pipeline is selected. Has its own analytic lights.
+  const gravSceneRef = useRef(null);
+  const gravMaterialRef = useRef(null);
+  const gravQuadRef = useRef(null);
+  const gravActiveRef = useRef(false);
+  const clockRef = useRef(null);
+  const tmpSizeRef = useRef(new THREE.Vector2(1, 1));
 
   useImperativeHandle(ref, () => ({
     addShape: (shapeData, layerId) => {
@@ -158,6 +167,23 @@ const ThreeScene = forwardRef((props, ref) => {
         raymarcherRef.current.setCustomSdfMap(glslCode);
       }
     },
+    // Feed a compiled gravitas packet to the prof's GravitasRenderer (lazily built).
+    setGravitasPacket: (packet) => {
+      if (!packet || !packet.mapGLSL || !gravSceneRef.current) return;
+      if (!gravMaterialRef.current) {
+        gravMaterialRef.current = new GravitasMaterial(packet);
+        const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), gravMaterialRef.current);
+        quad.frustumCulled = false;
+        gravQuadRef.current = quad;
+        gravSceneRef.current.add(quad);
+      } else {
+        gravMaterialRef.current.applyPacket(packet);
+      }
+    },
+    // Toggle whether the animate loop draws the GravitasRenderer scene instead of MyRaymarcher.
+    setGravitasRendererActive: (active) => {
+      gravActiveRef.current = !!active;
+    },
     getSdfRuntimeStats: () => {
       if (raymarcherRef.current && typeof raymarcherRef.current.getSdfRuntimeStats === 'function') {
         return raymarcherRef.current.getSdfRuntimeStats();
@@ -241,6 +267,21 @@ const ThreeScene = forwardRef((props, ref) => {
     raymarcherRef.current = raymarcher;
     scene.add(raymarcher);
 
+    // ── Gravitas (prof's) renderer scene ──────────────────────────────────────
+    // A separate scene holding the fullscreen-quad GravitasMaterial plus analytic
+    // lights. His shader lights via Three.js lights (no env-map IBL), so without
+    // these the surface would render black. Rendered only when its pipeline is on.
+    const gravScene = new THREE.Scene();
+    const keyLight = new THREE.DirectionalLight(0xffffff, 3.0);
+    keyLight.position.set(4, 6, 5);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    fillLight.position.set(-5, 2, 3);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    rimLight.position.set(0, -3, -5);
+    gravScene.add(keyLight, fillLight, rimLight);
+    gravSceneRef.current = gravScene;
+    clockRef.current = new THREE.Clock();
+
     const environments = {
       RoomEnvironment: 'RoomEnvironment', // built in
       BrightSky: 'maps/industrial_sunset_puresky_4k.hdr', // Keep, bright sky
@@ -297,7 +338,22 @@ const ThreeScene = forwardRef((props, ref) => {
       }
 
       controls.update(); // Update controls with new angles
-      renderer.render(scene, camera);
+
+      if (gravActiveRef.current && gravMaterialRef.current && gravSceneRef.current) {
+        // Prof's GravitasRenderer path: sync camera/resolution/time uniforms, then
+        // draw the fullscreen-quad scene (with its analytic lights) instead of MyRaymarcher.
+        camera.updateMatrixWorld(); // ensure matrixWorld is current before we read it
+        const u = gravMaterialRef.current.uniforms;
+        camera.getWorldPosition(u.uCameraPos.value);
+        u.uCameraMatrix.value.copy(camera.matrixWorld);
+        u.uFov.value = camera.fov;
+        renderer.getDrawingBufferSize(tmpSizeRef.current);
+        u.uResolution.value.copy(tmpSizeRef.current);
+        u.uTime.value = clockRef.current ? clockRef.current.getElapsedTime() : 0;
+        renderer.render(gravSceneRef.current, camera);
+      } else {
+        renderer.render(scene, camera);
+      }
     };
     animate();
 

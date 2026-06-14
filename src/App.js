@@ -408,6 +408,12 @@ function App() {
     if (typeof window === 'undefined') return false;
     return !!window.USE_GRAVITAS_ENGINE;
   });
+  // Render the gravitas packet via the prof's GravitasRenderer (analytic lights)
+  // instead of MyRaymarcher. Only meaningful when useGravitasCompiler is true.
+  const [useGravitasRenderer, setUseGravitasRenderer] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !!window.USE_GRAVITAS_RENDERER;
+  });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const debugCaptureLastAtRef = useRef(0);
   const fullscreenTimeoutRef = useRef(null);
@@ -418,6 +424,7 @@ function App() {
     if (typeof window === 'undefined') return;
     window.USE_SDF_PIPELINE = !!sdfPipelineEnabled;
     window.USE_GRAVITAS_ENGINE = !!useGravitasCompiler;
+    window.USE_GRAVITAS_RENDERER = !!useGravitasRenderer;
     window.__SDF_RUNTIME_OVERLAY__ = !!sdfRuntimeOverlayEnabled;
     window.__SDF_DEBUG_VERBOSE__ = !!sdfVerboseDebugEnabled;
     window.__NODE_OUTPUT_DEBUG__ = !!nodeOutputDebugEnabled;
@@ -460,6 +467,20 @@ function App() {
       return window.setGravitasCompiler(next);
     };
 
+    window.setGravitasRenderer = (enabled) => {
+      const next = !!enabled;
+      window.USE_GRAVITAS_RENDERER = next;
+      if (next) {
+        // His renderer only runs on the gravitas compiler pipeline.
+        window.USE_GRAVITAS_ENGINE = true;
+        window.USE_SDF_PIPELINE = false;
+        setUseGravitasCompiler(true);
+        setSdfPipelineEnabled(false);
+      }
+      setUseGravitasRenderer(next);
+      return next;
+    };
+
     window.setSdfRuntimeOverlayEnabled = (enabled) => {
       const next = !!enabled;
       window.__SDF_RUNTIME_OVERLAY__ = next;
@@ -485,7 +506,7 @@ function App() {
       setSdfVerboseDebugEnabled(next);
       return next;
     };
-  }, [sdfPipelineEnabled, useGravitasCompiler, sdfRuntimeOverlayEnabled, sdfVerboseDebugEnabled, nodeOutputDebugEnabled, nodeOutputDebugMode, nodeOutputChannel]);
+  }, [sdfPipelineEnabled, useGravitasCompiler, useGravitasRenderer, sdfRuntimeOverlayEnabled, sdfVerboseDebugEnabled, nodeOutputDebugEnabled, nodeOutputDebugMode, nodeOutputChannel]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -769,6 +790,17 @@ function App() {
       // If a runtime packet was produced (either gravitas texture path or SDF pipeline), apply it
       if (runtimePacket) {
         sdfRuntimeCacheRef.current = runtimePacket;
+
+        // Prof's GravitasRenderer path: hand the same compiled packet to his shader
+        // and draw via the GravitasRenderer scene instead of MyRaymarcher.
+        if (useGravitasRenderer && useGravitasCompiler && runtimePacket.mapGLSL) {
+          threeSceneRef.current.setGravitasPacket?.(runtimePacket);
+          threeSceneRef.current.setGravitasRendererActive?.(true);
+          threeSceneRef.current.setCustomSdfMap(null); // keep MyRaymarcher idle
+          return;
+        }
+
+        threeSceneRef.current.setGravitasRendererActive?.(false);
         threeSceneRef.current.setCustomSdfMap(runtimePacket);
 
         // Add one dummy bounding sphere for all SDFs so scene bounds are covered
@@ -784,6 +816,7 @@ function App() {
         return; // Skip legacy rendering when runtime packet applied
       } else {
         sdfRuntimeCacheRef.current = null;
+        threeSceneRef.current.setGravitasRendererActive?.(false);
         threeSceneRef.current.setCustomSdfMap(null);
       }
       
@@ -797,7 +830,7 @@ function App() {
         });
       });
     }
-  }, [nodes, edges, nodeOutputDebugMode, nodeOutputChannel, sdfPipelineEnabled, useGravitasCompiler]);
+  }, [nodes, edges, nodeOutputDebugMode, nodeOutputChannel, sdfPipelineEnabled, useGravitasCompiler, useGravitasRenderer]);
   
   
   useEffect(() => {
@@ -1061,7 +1094,7 @@ const onReconnectEnd = useCallback((_, edge) => {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }} onClick={closeContextMenu}>
       {/* Explicit mode indicator so the three paths are obvious */}
       <div style={{ position: 'absolute', left: 8, top: 8, zIndex: 9999, background: 'rgba(0,0,0,0.6)', padding: '6px 8px', borderRadius: 6, pointerEvents: 'none' }}>
-        <div style={{ color: '#fff', fontSize: 12 }}>Mode: {useGravitasCompiler ? 'Gravitas texture' : (sdfPipelineEnabled ? 'Legacy SDF' : 'Legacy descriptor')}</div>
+        <div style={{ color: '#fff', fontSize: 12 }}>Mode: {useGravitasCompiler ? (useGravitasRenderer ? 'Gravitas (his renderer)' : 'Gravitas (your renderer)') : (sdfPipelineEnabled ? 'Legacy SDF' : 'Legacy descriptor')}</div>
       </div>
       <ReactFlowProvider>
         {/* Main Node Editor Area - Full Screen */}
@@ -1194,22 +1227,28 @@ const onReconnectEnd = useCallback((_, edge) => {
             >
               <div style={{ padding: '6px 8px', fontSize: '11px', color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Render Mode</div>
               {[
-                { key: 'gravitas', label: 'Gravitas texture' },
+                { key: 'gravitas', label: 'Gravitas (your renderer)' },
+                { key: 'gravitas-his', label: 'Gravitas (his renderer)' },
                 { key: 'sdf', label: 'Legacy SDF' },
                 { key: 'legacy', label: 'Legacy descriptor' },
               ].map((item) => {
-                const active = (item.key === 'gravitas' && useGravitasCompiler) || (item.key === 'sdf' && sdfPipelineEnabled && !useGravitasCompiler) || (item.key === 'legacy' && !sdfPipelineEnabled && !useGravitasCompiler);
+                const active = (item.key === 'gravitas' && useGravitasCompiler && !useGravitasRenderer) || (item.key === 'gravitas-his' && useGravitasCompiler && useGravitasRenderer) || (item.key === 'sdf' && sdfPipelineEnabled && !useGravitasCompiler) || (item.key === 'legacy' && !sdfPipelineEnabled && !useGravitasCompiler);
                 return (
                   <button
                     key={item.key}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (item.key === 'gravitas') {
+                        window.setGravitasRenderer?.(false);
                         window.setGravitasCompiler?.(true);
+                      } else if (item.key === 'gravitas-his') {
+                        window.setGravitasRenderer?.(true); // implies gravitas compiler on
                       } else if (item.key === 'sdf') {
+                        window.setGravitasRenderer?.(false);
                         window.setGravitasCompiler?.(false);
                         window.setSdfPipelineEnabled?.(true);
                       } else {
+                        window.setGravitasRenderer?.(false);
                         window.setGravitasCompiler?.(false);
                         window.setSdfPipelineEnabled?.(false);
                       }

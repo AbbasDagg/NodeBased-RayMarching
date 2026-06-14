@@ -26,6 +26,10 @@ dfgLutStub.needsUpdate = true;
 function buildFragmentShader(mapGLSL: string): string {
     return [
         THREE.ShaderChunk.common,
+        // bsdfs holds BRDF_Lambert / F_Schlick / D_GGX / V_GGX_SmithCorrelated in modern
+        // Three (≥ r125-ish). The frag body + lights_physical chunk reference them, so it
+        // MUST be included (after common, before lights_physical) or the shader won't compile.
+        THREE.ShaderChunk.bsdfs,
         THREE.ShaderChunk.lights_pars_begin,
         THREE.ShaderChunk.lights_physical_pars_fragment,
         GLSL_PRIMITIVES,
@@ -65,6 +69,10 @@ export class GravitasMaterial extends (THREE.ShaderMaterial as any) {
         const matTex   = makeTexture(packet.materialData, packet.totalMaterials * MATERIAL_TEXELS);
 
         super({
+            // NOTE: do NOT set glslVersion: GLSL3. For a non-raw ShaderMaterial in WebGL2,
+            // three already prepends `#version 300 es` (so texelFetch works) AND, only when
+            // glslVersion is unset, the `gl_FragColor`→out + `texture2D`→texture compat shims
+            // this shader relies on. Setting GLSL3 removes those shims and breaks compilation.
             vertexShader: VERT_SHADER,
             fragmentShader: buildFragmentShader(packet.mapGLSL),
             uniforms: THREE.UniformsUtils.merge([

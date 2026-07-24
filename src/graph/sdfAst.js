@@ -168,7 +168,7 @@ export const astFold = (base, ops) => ({ kind: 'fold', base, ops: ops || [] });
 export const compileAstToShapes = (ast, { debug = false } = {}) => {
   const out = [];
 
-  const emitPrimitive = (prim, operation) => {
+  const emitPrimitive = (prim, operation, blendK) => {
     if (prim.mode === 'modular') {
       const matrix = prim.matrix || identityMatrix();
       const inv = invertMatrix4(matrix);
@@ -177,6 +177,7 @@ export const compileAstToShapes = (ast, { debug = false } = {}) => {
       out.push({
         shape: prim.shape,
         operation,
+        blendK,
         color: prim.color,
         position: dec.position,
         rotation: dec.rotation,
@@ -193,6 +194,7 @@ export const compileAstToShapes = (ast, { debug = false } = {}) => {
       out.push({
         shape: prim.shape,
         operation,
+        blendK,
         color: prim.color,
         position: prim.position,
         rotation: prim.rotation,
@@ -206,18 +208,18 @@ export const compileAstToShapes = (ast, { debug = false } = {}) => {
     }
   };
 
-  const walk = (node, opForThisNode, accumulatedMatrix) => {
+  const walk = (node, opForThisNode, kForThisNode, accumulatedMatrix) => {
     if (!node) return;
     if (node.kind === 'transform') {
       const m = multiplyMatrix(accumulatedMatrix, node.matrix || identityMatrix());
-      walk(node.child, opForThisNode, m);
+      walk(node.child, opForThisNode, kForThisNode, m);
       return;
     }
     if (node.kind === 'primitive') {
       if (node.mode === 'modular') {
         const baseMat = node.matrix || identityMatrix();
         const finalMat = multiplyMatrix(accumulatedMatrix, baseMat);
-        emitPrimitive({ ...node, matrix: finalMat }, opForThisNode);
+        emitPrimitive({ ...node, matrix: finalMat }, opForThisNode, kForThisNode);
       } else {
         // configured primitives must preserve their explicit PRS.
         // If a transform wrapper exists, apply it by composing PRS -> matrix, then decompose.
@@ -230,9 +232,9 @@ export const compileAstToShapes = (ast, { debug = false } = {}) => {
             position: dec.position,
             rotation: dec.rotation,
             scale: dec.scale,
-          }, opForThisNode);
+          }, opForThisNode, kForThisNode);
         } else {
-          emitPrimitive(node, opForThisNode);
+          emitPrimitive(node, opForThisNode, kForThisNode);
         }
       }
       return;
@@ -240,7 +242,10 @@ export const compileAstToShapes = (ast, { debug = false } = {}) => {
     if (node.kind === 'fold') {
       // IMPORTANT: our shader backend is a *flat* fold over a descriptor list.
       // If a fold expression is used as an operand of (subtraction/intersection),
-      // we must propagate the parent op into the fold's emitted primitives.
+      // we must propagate the parent op (and its blend k) into the fold's
+      // emitted primitives — same reasoning as mapOp below, applied to k so a
+      // per-ModeNode blend width (see ModeNode's "Blend" slider) survives
+      // flattening into this shader backend's per-shape descriptor list.
       //
       // For union-only subexpressions this matches distributive behavior:
       //   A - (B ∪ C)  ==  A - B - C
@@ -249,19 +254,21 @@ export const compileAstToShapes = (ast, { debug = false } = {}) => {
       // flat backend can't represent full nesting; we approximate by pushing the
       // parent op into all emitted primitives.
       const parentOp = opForThisNode || 'union';
+      const parentK = kForThisNode;
       const baseOp = parentOp;
       const mapOp = (childOp) => (parentOp === 'union' ? (childOp || 'union') : parentOp);
+      const mapK = (childK) => (parentOp === 'union' ? (childK ?? parentK) : parentK);
 
-      walk(node.base, baseOp, accumulatedMatrix);
+      walk(node.base, baseOp, parentK, accumulatedMatrix);
       for (const o of node.ops || []) {
-        walk(o.ast, mapOp(o.op), accumulatedMatrix);
+        walk(o.ast, mapOp(o.op), mapK(o.k), accumulatedMatrix);
       }
       return;
     }
     // unknown kind
   };
 
-  walk(ast, 'union', identityMatrix());
+  walk(ast, 'union', undefined, identityMatrix());
 
   if (debug) {
     // eslint-disable-next-line no-console
@@ -326,7 +333,8 @@ export const compileAstToTree = (ast) => {
         const right = walk(o.ast, accumulatedMatrix);
         if (!right) continue;
         if (!tree) { tree = right; continue; }
-        tree = { op: o.op || 'union', left: tree, right };
+        // k: per-op smooth-blend width from the Mode node (undefined → adapter default)
+        tree = { op: o.op || 'union', k: o.k, left: tree, right };
       }
       return tree;
     }

@@ -10,7 +10,7 @@ import CustomEdge, { CustomConnectionLine } from './CustomEdge'; // Import the c
 import { GraphManager } from './graph/GraphManager';
 import { runSdfTests } from './graph/testSdfFunction';
 import { buildSdfRuntimePacket } from './graph/sdfRuntime';
-import { buildGravitasRuntimePacketFromShapes, buildGravitasRuntimePacketFromAsts } from './graph/gravitasAdapter';
+import { buildGravitasRuntimePacketFromShapes, buildGravitasRuntimePacketFromAsts, buildSdfRootFromAsts } from './graph/gravitasAdapter';
 
 // Make test function available in console
 if (typeof window !== 'undefined') {
@@ -414,6 +414,8 @@ function App() {
     if (typeof window === 'undefined') return false;
     return !!window.USE_GRAVITAS_RENDERER;
   });
+  // Gravitas gradient-field overlay (CPU EvaluatorVM arrow field).
+  const [gradientFieldEnabled, setGradientFieldEnabled] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const debugCaptureLastAtRef = useRef(0);
   const fullscreenTimeoutRef = useRef(null);
@@ -726,6 +728,24 @@ function App() {
         }
       });
 
+      // Gradient-field overlay: build a CPU-evaluable SDF root regardless of
+      // which render pipeline is active (legacy descriptor / legacy SDF /
+      // gravitas) — the overlay is a diagnostic over whatever SDF is
+      // currently on screen, not a gravitas-only feature. renderNode.compute
+      // now always attaches `ast` when available, so this works in every mode.
+      // Only bothers doing the work when the overlay is actually toggled on.
+      if (gradientFieldEnabled) {
+        const gradAsts = [];
+        renderNodes.forEach((renderNode) => {
+          const out = gm.computeNode(renderNode.id);
+          if (out && out.ast) gradAsts.push(out.ast);
+        });
+        const gradRoot = gradAsts.length ? buildSdfRootFromAsts(gradAsts) : null;
+        threeSceneRef.current.setGradientRoot?.(gradRoot);
+      } else {
+        threeSceneRef.current.setGradientRoot?.(null);
+      }
+
       let runtimePacket = null;
       if (useGravitasCompiler) {
         // Preferred path: build the gravitas SDFNode tree from each render node's
@@ -830,7 +850,7 @@ function App() {
         });
       });
     }
-  }, [nodes, edges, nodeOutputDebugMode, nodeOutputChannel, sdfPipelineEnabled, useGravitasCompiler, useGravitasRenderer]);
+  }, [nodes, edges, nodeOutputDebugMode, nodeOutputChannel, sdfPipelineEnabled, useGravitasCompiler, useGravitasRenderer, gradientFieldEnabled]);
   
   
   useEffect(() => {
@@ -1184,6 +1204,7 @@ const onReconnectEnd = useCallback((_, edge) => {
         {/* Settings dropdown */}
         <div
           className="nodrag"
+          data-render-chrome="true"
           style={{
             position: 'absolute',
             top: '10px',
@@ -1276,6 +1297,13 @@ const onReconnectEnd = useCallback((_, edge) => {
               <div style={{ padding: '6px 8px', fontSize: '11px', color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Debug</div>
               {[
                 { key: 'nodeOutputs', label: `Node Outputs: ${nodeOutputDebugEnabled ? 'ON' : 'OFF'}`, onClick: () => setNodeOutputDebugEnabled((v) => !v) },
+                { key: 'gradField', label: `Gradient Field: ${gradientFieldEnabled ? 'ON' : 'OFF'}`, onClick: () => {
+                  setGradientFieldEnabled((v) => {
+                    const next = !v;
+                    threeSceneRef.current?.setGradientFieldEnabled?.(next);
+                    return next;
+                  });
+                } },
                 { key: 'runtimePanel', label: `Runtime Panel: ${sdfRuntimeOverlayEnabled ? 'ON' : 'OFF'}`, onClick: () => setSdfRuntimeOverlayEnabled((v) => !v) },
                 { key: 'verbose', label: `Verbose Shader Debug: ${sdfVerboseDebugEnabled ? 'ON' : 'OFF'}`, onClick: () => setSdfVerboseDebugEnabled((v) => !v) },
                 { key: 'outMode', label: `Output Mode: ${nodeOutputDebugMode === 'full' ? 'FULL' : 'COMPACT'}`, onClick: () => setNodeOutputDebugMode((v) => (v === 'full' ? 'compact' : 'full')) },
@@ -1404,6 +1432,7 @@ const onReconnectEnd = useCallback((_, edge) => {
         {/* SDF runtime debug overlay */}
         {sdfPipelineEnabled && sdfRuntimeOverlayEnabled && sdfDebugStats && (
           <div
+            data-render-chrome="true"
             style={{
               position: 'absolute',
               top: '150px',
@@ -1436,6 +1465,7 @@ const onReconnectEnd = useCallback((_, edge) => {
         {/* Fullscreen Toggle Button for Rendering Area */}
         <div
           onClick={toggleFullscreen}
+          data-render-chrome="true"
           style={{
             position: 'absolute',
             bottom: '10px',

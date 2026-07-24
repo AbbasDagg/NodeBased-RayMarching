@@ -131,13 +131,22 @@ export function buildGravitasRuntimePacketFromShapes(shapes, previousPacket = nu
 
     if (groupRoots.length === 0) return null;
 
-    // Hard-union group roots: k=0 collapses to min(a,b) with no blend zone.
+    // Each render group is a top-level object (his per-object model): the
+    // generated map() hard-unions them by res-min behind per-object bounding
+    // sphere guards, so groups stay isolated AND get culled when far away.
+    const packet = compileSDF(groupRoots, previousPacket);
+    packet.sdfRoot = vmRootFromGroupRoots(groupRoots);
+    return packet;
+}
+
+// Single CPU-evaluable root for the EvaluatorVM (gradient overlay / fitting):
+// chain the group roots with k=0 smooth unions (hard min — the TS op guards k<=0).
+function vmRootFromGroupRoots(groupRoots) {
     let combined = groupRoots[0];
     for (let i = 1; i < groupRoots.length; i++) {
-        combined = new SmoothUnionNode(`grp${i}`, combined, groupRoots[i], 0);
+        combined = new SmoothUnionNode(`vmgrp${i}`, combined, groupRoots[i], 0);
     }
-
-    return compileSDF([combined], previousPacket);
+    return combined;
 }
 
 // ── Tree path (preserves nesting) ────────────────────────────────────────────
@@ -154,16 +163,31 @@ function treeToGravitas(treeNode, idPrefix) {
     if (!left) return right;
     if (!right) return left;
     const op = treeNode.op || 'union';
+    // Per-node blend width from the Mode node; BLEND_K only as fallback.
+    const k = typeof treeNode.k === 'number' ? treeNode.k : BLEND_K;
     if (op === 'subtraction') {
-        return new SmoothSubtractionNode(`${idPrefix}_sub`, left, right, BLEND_K);
+        return new SmoothSubtractionNode(`${idPrefix}_sub`, left, right, k);
     }
     if (op === 'intersection') {
         // No SmoothIntersectionNode in the gravitas pipeline yet — approximate with
         // a union so geometry still renders (no regression vs. the old flat path).
         // TODO(next): add SmoothIntersectionNode for a faithful intersection.
-        return new SmoothUnionNode(`${idPrefix}_int`, left, right, BLEND_K);
+        return new SmoothUnionNode(`${idPrefix}_int`, left, right, k);
     }
-    return new SmoothUnionNode(`${idPrefix}_uni`, left, right, BLEND_K);
+    return new SmoothUnionNode(`${idPrefix}_uni`, left, right, k);
+}
+
+// Shared by buildGravitasRuntimePacketFromAsts and buildSdfRootFromAsts: turns
+// one AST per render node into an array of gravitas SDFNode tree roots (each
+// nesting-preserving, via compileAstToTree + treeToGravitas).
+function gravitasRootsFromAsts(asts) {
+    const groupRoots = [];
+    asts.forEach((ast, i) => {
+        const tree = compileAstToTree(ast);
+        const gravTree = treeToGravitas(tree, `g${i}_`);
+        if (gravTree) groupRoots.push(gravTree);
+    });
+    return groupRoots;
 }
 
 // Build a gravitas packet from one AST per render node. Each render node's AST is
@@ -172,21 +196,24 @@ function treeToGravitas(treeNode, idPrefix) {
 export function buildGravitasRuntimePacketFromAsts(asts, previousPacket = null) {
     if (!asts || asts.length === 0) return null;
 
-    const groupRoots = [];
-    asts.forEach((ast, i) => {
-        const tree = compileAstToTree(ast);
-        const gravTree = treeToGravitas(tree, `g${i}_`);
-        if (gravTree) groupRoots.push(gravTree);
-    });
-
+    const groupRoots = gravitasRootsFromAsts(asts);
     if (groupRoots.length === 0) return null;
 
-    let combined = groupRoots[0];
-    for (let i = 1; i < groupRoots.length; i++) {
-        combined = new SmoothUnionNode(`grp${i}`, combined, groupRoots[i], 0);
-    }
-
-    return compileSDF([combined], previousPacket);
+    const packet = compileSDF(groupRoots, previousPacket);
+    packet.sdfRoot = vmRootFromGroupRoots(groupRoots);
+    return packet;
 }
 
-export default { buildGravitasRuntimePacketFromShapes, buildGravitasRuntimePacketFromAsts };
+// Build ONLY a CPU-evaluable SDFNode root (no texture/GLSL compile) from one
+// AST per render node. Used to feed the gradient-field overlay's EvaluatorVM
+// regardless of which render pipeline (legacy descriptor / legacy SDF /
+// gravitas) is actually drawing pixels — the overlay is a diagnostic over
+// "whatever SDF is currently on screen," not a gravitas-only feature.
+export function buildSdfRootFromAsts(asts) {
+    if (!asts || asts.length === 0) return null;
+    const groupRoots = gravitasRootsFromAsts(asts);
+    if (groupRoots.length === 0) return null;
+    return vmRootFromGroupRoots(groupRoots);
+}
+
+export default { buildGravitasRuntimePacketFromShapes, buildGravitasRuntimePacketFromAsts, buildSdfRootFromAsts };

@@ -2,6 +2,7 @@ import type { SDFNode } from './SDFSchema';
 import { computeLayout } from './LayoutManager';
 import { encodeScene, encodeMaterials, MATERIAL_TEXELS } from './DataEncoder';
 import { generateGLSL } from './GLSLGenerator';
+import { BoundsCalculator } from './BoundsCalculator';
 import { GLSL_PRIMITIVES, GLSL_OPERATORS } from './glslShaders';
 
 export interface SDFRenderPacket {
@@ -12,6 +13,11 @@ export interface SDFRenderPacket {
     topologyHash: string;
     totalTexels: number;
     totalMaterials: number;
+    sdfRoot?: SDFNode;          // CPU-evaluable tree root (EvaluatorVM / gradient overlay)
+    // Per-object bounding spheres (BoundsCalculator) for the uObjectCenter /
+    // uObjectRadius guards in the generated map(). One entry per top-level root.
+    objectCenters: number[][];
+    objectRadii: number[];
 }
 
 // Compact string that uniquely identifies the tree structure (not parameters).
@@ -45,10 +51,14 @@ export function compileSDF(
     const hash = topologyHash(nodes);
 
     // Fast path: topology unchanged → reuse GLSL, just refresh texture data in-place.
+    // Bounds are parameter-dependent (positions/sizes), so recompute them here too.
     if (previousPacket && previousPacket.topologyHash === hash) {
         const { layout } = computeLayout(nodes);
         encodeScene(nodes, layout, previousPacket.sceneData);
         encodeMaterials(nodes, previousPacket.materialData);
+        const bounds = BoundsCalculator.computeRootBounds(nodes);
+        previousPacket.objectCenters = bounds.map(b => b.center as number[]);
+        previousPacket.objectRadii  = bounds.map(b => b.radius);
         return previousPacket;
     }
 
@@ -61,7 +71,13 @@ export function compileSDF(
     encodeScene(nodes, layout, sceneData);
     encodeMaterials(nodes, materialData);
 
+    const bounds = BoundsCalculator.computeRootBounds(nodes);
+
     const declarations = GLSL_PRIMITIVES + '\n' + GLSL_OPERATORS;
 
-    return { mapGLSL, declarations, sceneData, materialData, topologyHash: hash, totalTexels, totalMaterials };
+    return {
+        mapGLSL, declarations, sceneData, materialData, topologyHash: hash, totalTexels, totalMaterials,
+        objectCenters: bounds.map(b => b.center as number[]),
+        objectRadii: bounds.map(b => b.radius),
+    };
 }

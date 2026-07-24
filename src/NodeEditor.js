@@ -380,6 +380,42 @@ function NodeEditor({ setNodes, setEdges, isFullscreen }) {
     }
   };
 
+  // Shared by file-based import and the dataset-automation hook below: validates
+  // ids, strips dangling edges, and applies the graph. Throws on hard failure;
+  // returns the applied node count on success (0 means "no valid nodes").
+  const applyParsedGraph = (parsed, { fitView = true } = {}) => {
+    if (!parsed || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
+      throw new Error('Invalid graph JSON. Expected an object with nodes and edges arrays.');
+    }
+
+    validateImportIdsOrThrow(parsed.nodes, parsed.edges);
+
+    const cleanedNodes = parsed.nodes.map(toMinimalNode).filter((node) => node.id && node.type);
+    const nodeIds = new Set(cleanedNodes.map((node) => String(node.id)));
+    const cleanedEdges = parsed.edges
+      .map(toMinimalEdge)
+      .filter((edge) => edge.source && edge.target)
+      .filter((edge) => nodeIds.has(String(edge.source)) && nodeIds.has(String(edge.target)));
+
+    if (cleanedNodes.length === 0) {
+      return 0;
+    }
+
+    saveToHistory();
+    applyGraph(cleanedNodes, cleanedEdges);
+    setNodeCount(cleanedNodes.length);
+
+    if (fitView) {
+      requestAnimationFrame(() => {
+        if (typeof reactFlowInstance.fitView === 'function') {
+          reactFlowInstance.fitView({ padding: 0.2, duration: 250 });
+        }
+      });
+    }
+
+    return cleanedNodes.length;
+  };
+
   const importGraphJson = async (event) => {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
@@ -387,40 +423,38 @@ function NodeEditor({ setNodes, setEdges, isFullscreen }) {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-
-      if (!parsed || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
-        alert('Invalid graph JSON. Expected an object with nodes and edges arrays.');
-        return;
-      }
-
-      validateImportIdsOrThrow(parsed.nodes, parsed.edges);
-
-      const cleanedNodes = parsed.nodes.map(toMinimalNode).filter((node) => node.id && node.type);
-      const nodeIds = new Set(cleanedNodes.map((node) => String(node.id)));
-      const cleanedEdges = parsed.edges
-        .map(toMinimalEdge)
-        .filter((edge) => edge.source && edge.target)
-        .filter((edge) => nodeIds.has(String(edge.source)) && nodeIds.has(String(edge.target)));
-
-      if (cleanedNodes.length === 0) {
+      const count = applyParsedGraph(parsed);
+      if (count === 0) {
         alert('Import failed: no valid nodes found.');
-        return;
       }
-
-      saveToHistory();
-      applyGraph(cleanedNodes, cleanedEdges);
-      setNodeCount(cleanedNodes.length);
-
-      requestAnimationFrame(() => {
-        if (typeof reactFlowInstance.fitView === 'function') {
-          reactFlowInstance.fitView({ padding: 0.2, duration: 250 });
-        }
-      });
     } catch (error) {
       console.error('Error importing graph JSON:', error);
       alert('Failed to import graph JSON. Please check the file format.');
     }
   };
+
+  // Dataset-automation hook (see scripts/dataset/capture.js). Bypasses the file
+  // picker entirely so a headless script can load a generated {nodes, edges}
+  // graph directly. Returns a promise that resolves two animation frames after
+  // the graph is applied, giving the render loop (16ms interval in App.js) time
+  // to pick up the change before the caller takes a screenshot.
+  // applyParsedGraphRef always points at the latest closure (fresh setNodeCount/
+  // reactFlowInstance) without re-registering the window hook on every render.
+  const applyParsedGraphRef = useRef(applyParsedGraph);
+  applyParsedGraphRef.current = applyParsedGraph;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    window.__loadDatasetGraph = (nodes, edges) => {
+      const count = applyParsedGraphRef.current({ nodes, edges }, { fitView: false });
+      return new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(count)));
+      });
+    };
+    return () => {
+      delete window.__loadDatasetGraph;
+    };
+  }, []);
 
   useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);

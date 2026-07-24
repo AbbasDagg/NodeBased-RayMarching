@@ -337,6 +337,10 @@ export const nodeRegistry = {
         return { ...s, position: dec.position, rotation: dec.rotation, scale: dec.scale, matrix: finalMat, inverseMatrix: inv, hasMatrix: true };
       };
 
+      // Per-node smooth-blend width (Gravitas k). Carried on the AST fold ops so
+      // the gravitas tree gets one k per boolean operation instead of a global.
+      const blendK = typeof node.data.blendK === 'number' ? node.data.blendK : 0.5;
+
       let shapes = [];
       let ast = null;
       if (node.data.mode === 'subtraction') {
@@ -346,7 +350,7 @@ export const nodeRegistry = {
         });
 
         if (baseAst) {
-          ast = astFold(baseAst, opAsts.map(a => ({ op: 'subtraction', ast: a })));
+          ast = astFold(baseAst, opAsts.map(a => ({ op: 'subtraction', ast: a, k: blendK })));
         }
       } else if (node.data.mode === 'intersection') {
         baseShapes.forEach(b => {
@@ -355,14 +359,14 @@ export const nodeRegistry = {
         });
 
         if (baseAst) {
-          ast = astFold(baseAst, opAsts.map(a => ({ op: 'intersection', ast: a })));
+          ast = astFold(baseAst, opAsts.map(a => ({ op: 'intersection', ast: a, k: blendK })));
         }
       } else {
         baseShapes.forEach(b => shapes.push(applyGroup({ ...b, operation: 'union' })));
         opShapes.forEach(o => shapes.push(applyGroup({ ...o, operation: 'union' })));
 
         if (baseAst) {
-          ast = astFold(baseAst, opAsts.map(a => ({ op: 'union', ast: a })));
+          ast = astFold(baseAst, opAsts.map(a => ({ op: 'union', ast: a, k: blendK })));
         }
       }
 
@@ -379,7 +383,6 @@ export const nodeRegistry = {
         });
         
         if (baseSdf && opSdfs.length) {
-          const blendK = 0.5;
           if (node.data.mode === 'subtraction') {
             // SdfSubtraction(base, subtractedChildren[], blending)
             sdf = new SdfSubtraction(baseSdf, opSdfs, blendK);
@@ -438,6 +441,16 @@ export const nodeRegistry = {
         if (out && out.sdf) sdfs.push(out.sdf);
       });
 
+      // Fold the upstream ASTs once, regardless of which render pipeline is
+      // active. The gradient-field overlay (and the gravitas pipeline) both
+      // need this `ast` — previously it was only attached to the return value
+      // in the AST-pipeline branch below, so selecting "Legacy SDF" silently
+      // starved the gradient overlay of a root (renderNode.compute returned
+      // early without `ast` at all in that branch).
+      const foldedAst = (USE_AST_PIPELINE && asts.length)
+        ? astFold(asts[0], asts.slice(1).map(a => ({ op: 'union', ast: a })))
+        : null;
+
       // SDF pipeline: generate GLSL
       if (useSdfPipeline() && sdfs.length) {
         if (isSdfVerboseDebugEnabled()) {
@@ -450,7 +463,7 @@ export const nodeRegistry = {
             console.log(`      Has .toGLSL(): ${typeof sdf.toGLSL === 'function'}`);
           });
         }
-        
+
         const rootSdf = sdfs.length === 1 ? sdfs[0] : new SdfUnion(sdfs, 0.5);
         if (isSdfVerboseDebugEnabled()) {
           const glslCode = rootSdf.toGLSL('p');
@@ -458,27 +471,25 @@ export const nodeRegistry = {
           console.log(glslCode);
           console.log('======================\n');
         }
-        
+
         // Still return shapes for now (backward compatibility)
-        return { shapes, sdf: rootSdf };
+        return { shapes, sdf: rootSdf, ast: foldedAst };
       }
 
-      if (USE_AST_PIPELINE && asts.length) {
-        // Union all upstream ASTs under a single fold.
-        const ast = astFold(asts[0], asts.slice(1).map(a => ({ op: 'union', ast: a })));
+      if (foldedAst) {
         try {
-          const shapesCompiled = compileAstToShapes(ast, { debug: isAstDebugEnabled() });
+          const shapesCompiled = compileAstToShapes(foldedAst, { debug: isAstDebugEnabled() });
           if (isAstDebugEnabled()) {
             // eslint-disable-next-line no-console
             console.log('[renderNode] compiled order:', shapesCompiled.map(s => `${s.operation}:${s.shape}`));
           }
           // Expose the folded AST tree too — the gravitas pipeline builds its
           // SDFNode tree from this (nesting-preserving) instead of the flat shapes.
-          return { shapes: shapesCompiled, ast };
+          return { shapes: shapesCompiled, ast: foldedAst };
         } catch (e) {
           // eslint-disable-next-line no-console
           console.warn('AST compile failed; falling back to legacy shapes:', e);
-          return { shapes };
+          return { shapes, ast: foldedAst };
         }
       }
 

@@ -15,41 +15,56 @@ import { SDFOperatorNode, SDFDeformationNode } from './SDFSchema';
 //   arg a = cutter, arg b = base  (a carves into b: result = max(-a, b))
 // In SmoothSubtractionNode: left=base, right=cutter → emit (right, left) to the operator.
 
+// Emits his per-object guarded structure: each top-level root is wrapped in a
+// bounding-sphere test against the current best distance (uObjectCenter /
+// uObjectRadius, computed by BoundsCalculator), so far-away objects are skipped.
+// Multiple roots combine by res-min — a hard union, same as his renderer.
 export function generateGLSL(nodes: SDFNode[], layout: SDFLayout): string {
-    const mapLines: string[] = [];
-    const smoothLines: string[] = [];
-    const mapRoots: string[] = [];
-    const smoothRoots: string[] = [];
-
-    for (const node of nodes) {
-        const { mapVar, smoothVar } = emitNode(node, layout, mapLines, smoothLines, 'p');
-        mapRoots.push(mapVar);
-        smoothRoots.push(smoothVar);
+    // Empty scene — his stub behavior (no uniforms; arrays of size 0 are invalid GLSL).
+    if (nodes.length === 0) {
+        return [
+            'vec2 grav_map(vec3 p) { return vec2(1e10, 0.0); }',
+            '',
+            'MatResult mapSmooth(vec3 p) { return MatResult(1e10, vec3(0.0), 0.0, 0.5, vec3(0.0)); }',
+        ].join('\n');
     }
 
-    // If there are multiple top-level roots, union them together.
-    let mapResult   = mapRoots[0];
-    let smoothResult = smoothRoots[0];
-    for (let i = 1; i < mapRoots.length; i++) {
-        mapResult    = `opUnionMat(${mapResult}, ${mapRoots[i]})`;
-        smoothResult = `opUnionMR(${smoothResult}, ${smoothRoots[i]})`;
-    }
+    const header = [
+        `#define OBJECT_COUNT ${nodes.length}`,
+        'uniform vec3  uObjectCenter[OBJECT_COUNT];',
+        'uniform float uObjectRadius[OBJECT_COUNT];',
+    ];
 
-    const gravMap = [
-        'vec2 grav_map(vec3 p) {',
-        ...mapLines.map(l => '  ' + l),
-        `  return ${mapResult};`,
-        '}',
-    ].join('\n');
-
-    const mapSmooth = [
+    const mapBody: string[] = ['vec2 grav_map(vec3 p) {', '  vec2 res = vec2(1e10, 0.0);'];
+    const smoothBody: string[] = [
         'MatResult mapSmooth(vec3 p) {',
-        ...smoothLines.map(l => '  ' + l),
-        `  return ${smoothResult};`,
-        '}',
-    ].join('\n');
+        '  MatResult res = MatResult(1e10, vec3(0.0), 0.0, 0.5, vec3(0.0));',
+    ];
 
-    return gravMap + '\n\n' + mapSmooth;
+    nodes.forEach((node, i) => {
+        const mapLines: string[] = [];
+        const smoothLines: string[] = [];
+        const { mapVar, smoothVar } = emitNode(node, layout, mapLines, smoothLines, 'p');
+
+        mapBody.push(`  // Object ${i} — bounding sphere guard`);
+        mapBody.push(`  float _bb${i} = length(p - uObjectCenter[${i}]) - uObjectRadius[${i}];`);
+        mapBody.push(`  if (_bb${i} < res.x) {`);
+        mapBody.push(...mapLines.map(l => '    ' + l));
+        mapBody.push(`    if (${mapVar}.x < res.x) res = ${mapVar};`);
+        mapBody.push('  }');
+
+        smoothBody.push(`  // Object ${i} — bounding sphere guard`);
+        smoothBody.push(`  float _sb${i} = length(p - uObjectCenter[${i}]) - uObjectRadius[${i}];`);
+        smoothBody.push(`  if (_sb${i} < res.d) {`);
+        smoothBody.push(...smoothLines.map(l => '    ' + l));
+        smoothBody.push(`    if (${smoothVar}.d < res.d) res = ${smoothVar};`);
+        smoothBody.push('  }');
+    });
+
+    mapBody.push('  return res;', '}');
+    smoothBody.push('  return res;', '}');
+
+    return [...header, ...mapBody, '', ...smoothBody].join('\n');
 }
 
 // Returns { mapVar, smoothVar } — the result variable names for each output function.

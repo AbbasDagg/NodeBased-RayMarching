@@ -72,6 +72,7 @@ function NodeOutputDebug({ nodeId }) {
 
 export function ModeNode({ id, data }) {
   const [mode, setMode] = useState(data.mode || 'union');
+  const [blendK, setBlendK] = useState(typeof data.blendK === 'number' ? data.blendK : 0.5);
   const reactFlowInstance = useReactFlow();
 
   // Sync dropdown with data.mode changes (e.g., after duplication or reconnection)
@@ -80,6 +81,12 @@ export function ModeNode({ id, data }) {
       setMode(data.mode);
     }
   }, [data.mode]);
+
+  useEffect(() => {
+    if (typeof data.blendK === 'number' && data.blendK !== blendK) {
+      setBlendK(data.blendK);
+    }
+  }, [data.blendK]);
 
   const handleModeChange = (e) => {
     const newMode = e.target.value;
@@ -96,19 +103,32 @@ export function ModeNode({ id, data }) {
     );
   };
 
+  const handleBlendChange = (e) => {
+    const v = parseFloat(e.target.value);
+    setBlendK(v);
+    // Mutate in place (like VectorNode) — handleRenderScene syncs gm every frame.
+    data.blendK = v;
+  };
+
   return (
-    <div className="card modeNode" style={{ width: '190px', height: '175px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #a970ff', borderRadius: '8px' }}>
+    <div className="card modeNode" style={{ width: '190px', height: '205px', background: 'linear-gradient(135deg, #2d3436 0%, #1e272e 100%)', border: '2px solid #a970ff', borderRadius: '8px' }}>
       <div style={{ padding: '10px', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', height: '100%' }}>
         <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px', color: '#a970ff', textTransform: 'uppercase', letterSpacing: '1px' }}>Mode</div>
         <select
           value={mode}
           onChange={handleModeChange}
-          style={{ width: '130px', marginBottom: '8px', padding: '5px', borderRadius: '4px', background: '#1b1f22', color: '#a970ff', border: '1px solid #a970ff' }}
+          style={{ width: '130px', marginBottom: '6px', padding: '5px', borderRadius: '4px', background: '#1b1f22', color: '#a970ff', border: '1px solid #a970ff' }}
         >
           <option value="union">Union</option>
           <option value="subtraction">Subtraction</option>
           <option value="intersection">Intersection</option>
         </select>
+        <div style={{ width: '130px', marginBottom: '4px' }}>
+          <label style={{ fontSize: '10px', color: '#aaa' }}>Blend: <span style={{ color: '#a970ff' }}>{blendK.toFixed(2)}</span></label>
+          <input type="range" min="0" max="2" step="0.01" value={blendK}
+            onChange={handleBlendChange}
+            className="nodrag" style={{ width: '100%', accentColor: '#a970ff' }} />
+        </div>
         {/* Left side handles with consistent labels placed lower */}
         <div style={{ position: 'absolute', left: '8px', top: '48%', fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>Base</div>
         <Handle key="shape1" type="target" position={Position.Left} id="shape1" style={{ top: '50%', ...modeHandleStyleLeft }} />

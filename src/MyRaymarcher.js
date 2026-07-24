@@ -1,4 +1,4 @@
-import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, Mesh, Frustum, Vector3, Matrix4, Vector2, Sphere, PlaneGeometry, WebGLRenderTarget, DepthTexture, UnsignedShortType, RawShaderMaterial, GLSL3, MathUtils, TorusGeometry, ShaderChunk, DataTexture, RGBAFormat, FloatType, NearestFilter, ClampToEdgeWrapping, Color } from 'three';
+import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, Mesh, Frustum, Vector3, Matrix4, Vector2, Sphere, PlaneGeometry, WebGLRenderTarget, DepthTexture, UnsignedShortType, RawShaderMaterial, GLSL3, MathUtils, TorusGeometry, ShaderChunk, DataTexture, RGBAFormat, FloatType, NearestFilter, ClampToEdgeWrapping, Color, Quaternion } from 'three';
 
 var lighting = "#ifdef ENVMAP_TYPE_CUBE_UV\n\n#define PI 3.141592653589793\n#define RECIPROCAL_PI 0.3183098861837907\n\nstruct GeometricContext {\n  vec3 normal;\n  vec3 viewDir;\n};\n\nstruct PhysicalMaterial {\n  vec3 diffuseColor;\n  float roughness;\n  vec3 specularColor;\n  float specularF90;\n};\n\nstruct ReflectedLight {\n  vec3 indirectDiffuse;\n  vec3 indirectSpecular;\n};\n\nvec3 BRDF_Lambert(const in vec3 diffuseColor) {\n  return RECIPROCAL_PI * diffuseColor;\n}\n\nvec2 DFGApprox(const in vec3 normal, const in vec3 viewDir, const in float roughness) {\n  float dotNV = saturate(dot(normal, viewDir));\n  const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);\n  const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);\n  vec4 r = roughness * c0 + c1;\n  float a004 = min(r.x * r.x, exp2(-9.28 * dotNV)) * r.x + r.y;\n  vec2 fab = vec2(-1.04, 1.04) * a004 + r.zw;\n  return fab;\n}\n\nvoid computeMultiscattering(const in vec3 normal, const in vec3 viewDir, const in vec3 specularColor, const in float specularF90, const in float roughness, inout vec3 singleScatter, inout vec3 multiScatter) {\n  vec2 fab = DFGApprox(normal, viewDir, roughness);\n  vec3 FssEss = specularColor * fab.x + specularF90 * fab.y;\n  float Ess = fab.x + fab.y;\n  float Ems = 1.0 - Ess;\n  vec3 Favg = specularColor + (1.0 - specularColor) * 0.047619;\n  vec3 Fms = FssEss * Favg / (1.0 - Ems * Favg);\n  singleScatter += FssEss;\n  multiScatter += Fms * Ems;\n}\n\nvoid RE_IndirectDiffuse(const in vec3 irradiance, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {\n  reflectedLight.indirectDiffuse += irradiance * BRDF_Lambert(material.diffuseColor);\n}\n\nvoid RE_IndirectSpecular(const in vec3 radiance, const in vec3 irradiance, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {\n  vec3 singleScattering = vec3(0.0);\n  vec3 multiScattering = vec3(0.0);\n  vec3 cosineWeightedIrradiance = irradiance * RECIPROCAL_PI;\n  computeMultiscattering(geometry.normal, geometry.viewDir, material.specularColor, material.specularF90, material.roughness, singleScattering, multiScattering);\n  vec3 diffuse = material.diffuseColor * (1.0 - (singleScattering + multiScattering));\n  reflectedLight.indirectSpecular += radiance * singleScattering;\n  reflectedLight.indirectSpecular += multiScattering * cosineWeightedIrradiance;\n  reflectedLight.indirectDiffuse += diffuse * cosineWeightedIrradiance;\n}\n\nvec3 getIBLRadiance(const in vec3 viewDir, const in vec3 normal, const in float roughness) {\n  vec3 reflectVec = reflect(-viewDir, normal);\n  reflectVec = normalize(mix(reflectVec, normal, roughness * roughness));\n  vec4 envMapColor = textureCubeUV(envMap, reflectVec, roughness);\n  return envMapColor.rgb * envMapIntensity;\n}\n\nvec3 getIBLIrradiance(const in vec3 normal) {\n  vec3 envMapColor = textureCubeUV(envMap, normal, 1.0).rgb;\n  return PI * envMapColor * envMapIntensity;\n}\n\nvec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse) {\n  GeometricContext geometry;\n  geometry.normal = normal;\n  geometry.viewDir = normalize(cameraPosition - position);\n\n  PhysicalMaterial material;\n  material.diffuseColor = diffuse * (1.0 - metalness);\n  material.roughness = max(min(roughness, 1.0), 0.0525);\n  material.specularColor = mix(vec3(0.04), diffuse, metalness);\n  material.specularF90 = 1.0;\n\n  ReflectedLight reflectedLight = ReflectedLight(vec3(0.0), vec3(0.0));\n  vec3 radiance = getIBLRadiance(geometry.viewDir, geometry.normal, material.roughness);\n  vec3 irradiance = getIBLIrradiance(geometry.normal);\n  RE_IndirectDiffuse(irradiance, geometry, material, reflectedLight);\n  RE_IndirectSpecular(radiance, irradiance, geometry, material, reflectedLight);\n\n  return reflectedLight.indirectDiffuse + reflectedLight.indirectSpecular;\n}\n\n#else\n\nvec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse) {\n  return diffuse * envMapIntensity;\n}\n\n#endif\n";
 
@@ -28,6 +28,7 @@ struct Entity {
   float metalness; // per-shape PBR metalness (from Material node)
   float roughness; // per-shape PBR roughness (from Material node)
   vec3 emissive;   // per-shape emissive color (from Material node)
+  float blendK;    // per-op smooth-blend width (from the Mode node's Blend slider)
   /* TERRAIN DISABLED - Terrain parameters
   float octaves;
   float amplitude;
@@ -473,19 +474,23 @@ SDF opSmoothIntersection(const in SDF a, const in SDF b, const in float k) {
 __CUSTOM_SDF_MAP__
 #else
 // Legacy descriptor-based map function
+// Each entity carries its own blendK (from the Mode node's Blend slider) rather
+// than sharing one global width -- mirrors how the AST/gravitas pipelines give
+// each boolean op its own k. The global blending uniform (Settings panel) no
+// longer affects this fold; entities always carry an explicit blendK now.
 SDF map(const in vec3 p) {
   SDF scene = sdEntity(p, entities[0]);
   for (int i = 1, l = min(numEntities, MAX_ENTITIES); i < l; i++) {
     switch (entities[i].operation) {
       default:
       case 0:
-        scene = opSmoothUnion(scene, sdEntity(p, entities[i]), blending);
+        scene = opSmoothUnion(scene, sdEntity(p, entities[i]), entities[i].blendK);
         break;
       case 1:
-        scene = opSmoothSubtraction(scene, sdEntity(p, entities[i]), blending);
+        scene = opSmoothSubtraction(scene, sdEntity(p, entities[i]), entities[i].blendK);
         break;
       case 2:
-        scene = opSmoothIntersection(scene, sdEntity(p, entities[i]), blending);
+        scene = opSmoothIntersection(scene, sdEntity(p, entities[i]), entities[i].blendK);
         break;
     }
   }
@@ -625,7 +630,14 @@ class Raymarcher extends Mesh {
       fragmentShader: raymarcherFragment.replace('#include <lighting>', lighting),
       defines: {
         CONETRACING: !!conetracing,
-        MAX_ENTITIES: 0,
+        // NEVER 0: `uniform Entity entities[MAX_ENTITIES];` with size 0 is invalid
+        // GLSL (array size must be > 0) — the shader is guaranteed to fail to
+        // compile on mount, then get force-rebuilt one frame later the moment
+        // any shape appears (onBeforeRender bumps this to entities.length). That
+        // compile-fail-then-immediate-rebuild churn on every fresh page load is
+        // a real, reproducible trigger for WebGL driver stalls under automation
+        // (rapid page reloads) — starting from a valid 1-entity array avoids it.
+        MAX_ENTITIES: 1,
         MAX_DISTANCE: '1000.0',
         MAX_ITERATIONS: 200,
         MIN_COVERAGE: '0.02',
@@ -645,8 +657,29 @@ class Raymarcher extends Mesh {
         resolution: { value: new Vector2() },
         roughness: { value: roughness },
         numEntities: { value: 0 },
+        // Starts with exactly MAX_ENTITIES (1) placeholder entities — matching
+        // the initial compiled shader's declared array size from the very
+        // first frame. Starting empty (value: []) while MAX_ENTITIES: 1 was
+        // already baked into the shader at construction meant the FIRST render
+        // call (before any real shape exists, e.g. a layer with 0 entities)
+        // crashed inside Three.js's own uniform upload (`entities[0]` reading
+        // `.color` off an array with zero elements) — independent of and
+        // before the onBeforeRender growth logic ever runs.
         entities: {
-          value: [],
+          value: [{
+            color: new Color(),
+            operation: 0,
+            position: new Vector3(),
+            rotation: new Quaternion(),
+            scale: new Vector3(1, 1, 1),
+            shape: 0,
+            invMatrix: new Matrix4(),
+            hasMatrix: 0.0,
+            metalness: 0.0,
+            roughness: 0.5,
+            emissive: new Color(0x000000),
+            blendK: 0.5,
+          }],
           properties: {
             color: {},
             operation: {},
@@ -659,6 +692,7 @@ class Raymarcher extends Mesh {
             metalness: {},
             roughness: {},
             emissive: {},
+            blendK: {},
             octaves: {},
             amplitude: {},
             clampYMin: {},
@@ -804,7 +838,13 @@ class Raymarcher extends Mesh {
     camera.getWorldPosition(_position);
     const sortedLayers = layers
       .reduce((layers, entities, layer) => {
-        if (defines.MAX_ENTITIES < entities.length) {
+        // Check the ACTUAL uniform value array length, not defines.MAX_ENTITIES —
+        // they can go out of sync (e.g. MAX_ENTITIES starts at 1 to keep the
+        // initial shader valid, while uniforms.entities.value still starts at
+        // []); comparing against the define let entities.length === MAX_ENTITIES
+        // (1 === 1) skip regeneration even though value[] was still empty,
+        // crashing every frame on value[0].color being undefined.
+        if (uniforms.entities.value.length < entities.length) {
           defines.MAX_ENTITIES = entities.length;
           uniforms.entities.value = entities.map(Raymarcher.cloneEntity);
           raymarcher.material.needsUpdate = true;
@@ -862,7 +902,7 @@ class Raymarcher extends Mesh {
       uniforms.numEntities.value = entities.length;
       // Debug logging disabled for performance
       // Per-frame logging disabled for performance; uncomment for debugging
-    entities.forEach(({ color, operation, position, rotation, scale, shape, invMatrix, hasMatrix, metalness, roughness, emissive/* TERRAIN DISABLED , octaves, amplitude, clampYMin, clampYMax, offsetX, offsetZ, seed, dispClampMin, dispClampMax, peakGain, valleyGain, useColorRamp, smoothingStrength, dispApplyMinY, dispApplyMaxY, dispFeather */ }, i) => {
+    entities.forEach(({ color, operation, position, rotation, scale, shape, invMatrix, hasMatrix, metalness, roughness, emissive, blendK/* TERRAIN DISABLED , octaves, amplitude, clampYMin, clampYMax, offsetX, offsetZ, seed, dispClampMin, dispClampMax, peakGain, valleyGain, useColorRamp, smoothingStrength, dispApplyMinY, dispApplyMaxY, dispFeather */ }, i) => {
         const uniform = uniforms.entities.value[i];
         uniform.color.copy(color);
         uniform.operation = operation;
@@ -874,6 +914,7 @@ class Raymarcher extends Mesh {
       uniform.hasMatrix = hasMatrix;
       uniform.metalness = (metalness !== undefined ? metalness : 0.0);
       uniform.roughness = (roughness !== undefined ? roughness : 0.5);
+      uniform.blendK = (blendK !== undefined ? blendK : 0.5);
       if (uniform.emissive && uniform.emissive.copy && emissive) uniform.emissive.copy(emissive);
         /* TERRAIN DISABLED
         // If debugForce is on, override terrain uniforms to strong values
@@ -950,7 +991,7 @@ class Raymarcher extends Mesh {
     }));
   }
 
-  static cloneEntity({ color, operation, position, rotation, scale, shape, metalness, roughness, emissive/* TERRAIN DISABLED , terrainParams */ }) {
+  static cloneEntity({ color, operation, position, rotation, scale, shape, metalness, roughness, emissive, blendK/* TERRAIN DISABLED , terrainParams */ }) {
     const entity = {
       color: color.clone(),
       operation,
@@ -963,6 +1004,7 @@ class Raymarcher extends Mesh {
       metalness: metalness !== undefined ? metalness : 0.0,
       roughness: roughness !== undefined ? roughness : 0.5,
       emissive: emissive && emissive.clone ? emissive.clone() : new Color(0x000000),
+      blendK: blendK !== undefined ? blendK : 0.5,
       /* TERRAIN DISABLED
       // Default terrain parameters - octaves=0 means NO terrain displacement
       octaves: 0,
@@ -1184,6 +1226,20 @@ void main() {
           stats.mode = 'gravitas-texture-with-matrices';
         } catch (e) {
           console.warn('Failed to build uSceneData texture:', e);
+        }
+      }
+
+      // Per-object bounding spheres for the generated map()'s culling guards
+      // (uObjectCenter / uObjectRadius, computed by BoundsCalculator each frame).
+      if (runtimePacket.objectCenters && runtimePacket.objectRadii) {
+        const centers = runtimePacket.objectCenters.map((c) => new Vector3(c[0], c[1], c[2]));
+        const radii = runtimePacket.objectRadii.slice();
+        if (!material.uniforms.uObjectCenter) {
+          material.uniforms.uObjectCenter = { value: centers };
+          material.uniforms.uObjectRadius = { value: radii };
+        } else {
+          material.uniforms.uObjectCenter.value = centers;
+          material.uniforms.uObjectRadius.value = radii;
         }
       }
 

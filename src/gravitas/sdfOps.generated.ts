@@ -68,3 +68,34 @@ export function opSmoothSubtractionDeriv(
     const bWeight = baseD > -cutterD ? m : 1.0 - m;
     return { base: 1.0 - bWeight, cutter: -bWeight };
 }
+
+// Gradient of sdTorus w.r.t. the (local) sample point.
+export function sdTorusGrad(
+    x: number, y: number, z: number,
+    R: number, _r: number
+): { x: number; y: number; z: number } {
+    const L = Math.sqrt(x * x + z * z);
+    if (L < 1e-10) {
+        // On the hole axis: distance field is rotationally symmetric; the radial
+        // direction is degenerate, fall back to the Y component only.
+        const M0 = Math.sqrt(R * R + y * y);
+        return { x: 0, y: M0 < 1e-10 ? 1 : y / M0, z: 0 };
+    }
+    const q = L - R;
+    const M = Math.sqrt(q * q + y * y);
+    if (M < 1e-10) return { x: x / L, y: 0, z: z / L };
+    return { x: (q / M) * (x / L), y: y / M, z: (q / M) * (z / L) };
+}
+
+// Gradient of sdCapsule w.r.t. the (local) sample point.
+// d = |(x, y - clamp(y, -seg, seg), z)| - radius; where cy != 0 its y-derivative is 1.
+export function sdCapsuleGrad(
+    x: number, y: number, z: number,
+    radius: number, halfHeight: number
+): { x: number; y: number; z: number } {
+    const seg = Math.max(halfHeight - radius, 0);
+    const cy = y - Math.max(-seg, Math.min(seg, y));
+    const len = Math.sqrt(x * x + cy * cy + z * z);
+    if (len < 1e-10) return { x: 0, y: 1, z: 0 };
+    return { x: x / len, y: cy / len, z: z / len };
+}

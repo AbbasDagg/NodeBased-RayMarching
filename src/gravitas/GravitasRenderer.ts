@@ -90,6 +90,8 @@ export class GravitasMaterial extends (THREE.ShaderMaterial as any) {
                     uTime:           { value: 0.0 },
                     uClearColor:     { value: new THREE.Color(0x000000) },
                     uFogDensity:     { value: 0.0 },
+                    uObjectCenter:   { value: [] },
+                    uObjectRadius:   { value: [] },
                 },
             ]),
             lights: true,
@@ -104,6 +106,16 @@ export class GravitasMaterial extends (THREE.ShaderMaterial as any) {
         // in-place Float32Array updates later reach the GPU.
         (this as any).uniforms.uSceneData.value    = sceneTex;
         (this as any).uniforms.uMaterialData.value = matTex;
+        this._applyBounds(packet);
+    }
+
+    // Per-object bounding spheres for the generated map()'s culling guards.
+    private _applyBounds(packet: SDFRenderPacket): void {
+        const centers = (packet.objectCenters || []).map(
+            (c: number[]) => new THREE.Vector3(c[0], c[1], c[2])
+        );
+        (this as any).uniforms.uObjectCenter.value = centers;
+        (this as any).uniforms.uObjectRadius.value = (packet.objectRadii || []).slice();
     }
 
     // Update from a new packet. Rebuilds shader only when topology changes.
@@ -125,5 +137,7 @@ export class GravitasMaterial extends (THREE.ShaderMaterial as any) {
             this._matTex.image.data.set(packet.materialData);
             this._matTex.needsUpdate = true;
         }
+        // Bounds move with shape parameters — refresh on every packet.
+        this._applyBounds(packet);
     }
 }

@@ -7,6 +7,8 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
 import { GUI } from 'lil-gui';
 import Raymarcher from './MyRaymarcher';
 import { GravitasMaterial } from './gravitas/GravitasRenderer';
+import { GradientFieldOverlay } from './gravitas/GradientFieldOverlay';
+import { EvaluatorVM } from './gravitas/EvaluatorVM';
 
 const SCALING_FACTOR = 1; // Scale up shapes to fix a small bug in the raymarcher
 
@@ -26,6 +28,12 @@ const ThreeScene = forwardRef((props, ref) => {
   const gravActiveRef = useRef(false);
   const clockRef = useRef(null);
   const tmpSizeRef = useRef(new THREE.Vector2(1, 1));
+  // Gradient field overlay (ported from Gravitas) — CPU EvaluatorVM sampled on a
+  // slice plane, drawn as an arrow field on top of whichever renderer is active.
+  const gradOverlayRef = useRef(null);
+  const gradVmRef = useRef(null);
+  const gradVmBuiltAtRef = useRef(0);
+  const latestSdfRootRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
     addShape: (shapeData, layerId) => {
@@ -86,6 +94,7 @@ const ThreeScene = forwardRef((props, ref) => {
           metalness: shapeData.metalness ?? 0.0,
           roughness: shapeData.roughness ?? 0.5,
           emissive: emissiveColor,
+          blendK: shapeData.blendK ?? 0.5,
         };
         // Direct matrix path for modular shapes
         if (shapeData.hasMatrix && shapeData.inverseMatrix) {
@@ -166,6 +175,24 @@ const ThreeScene = forwardRef((props, ref) => {
       if (raymarcherRef.current) {
         raymarcherRef.current.setCustomSdfMap(glslCode);
       }
+    },
+    // Gradient-field overlay root — the SOLE writer of latestSdfRootRef. Called
+    // every frame from App.js (regardless of which render pipeline is active),
+    // decoupling the overlay from gravitas-packet lifecycle entirely.
+    setGradientRoot: (root) => {
+      latestSdfRootRef.current = root || null;
+    },
+    // Toggle the Gravitas gradient-field overlay (arrow field on a slice plane).
+    // Fewer, BIGGER, always-on-top markers (see GradientFieldOverlay's
+    // depthTest:false) — prioritizing "impossible to miss" over a dense,
+    // subtle field. gridExtent 6 matches the "10x10 window" shapes actually
+    // live in; arrowScale 2.5 makes each marker bigger than a typical shape.
+    setGradientFieldEnabled: (enabled) => {
+      if (!gradOverlayRef.current) {
+        gradOverlayRef.current = new GradientFieldOverlay({ gridResolution: 9, gridExtent: 6, arrowScale: 2.5 });
+      }
+      gradOverlayRef.current.setVisible(!!enabled);
+      if (!enabled) gradVmRef.current = null;
     },
     // Feed a compiled gravitas packet to the prof's GravitasRenderer (lazily built).
     setGravitasPacket: (packet) => {
@@ -317,10 +344,44 @@ const ThreeScene = forwardRef((props, ref) => {
 
     const gui = new GUI({ title: 'Settings' });
     gui.close();
+    // lil-gui appends its own root element straight to document.body (outside
+    // React), fixed at the page's top-right — which visually overlaps the
+    // top-right corner of this canvas since it fills the right half of the
+    // screen. Mark it so dataset capture (scripts/dataset/capture.js) can hide
+    // it the same way it hides the React-side overlay chrome.
+    gui.domElement.setAttribute('data-render-chrome', 'true');
     gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
     gui.add(raymarcher.userData, 'blending', 0, 2, 0.01);
     gui.add(raymarcher.userData, 'envMapIntensity', 0, 2, 0.01);
     gui.add({ envMap: 'RoomEnvironment' }, 'envMap', Object.keys(environments)).onChange(loadEnvironment);
+
+    // Dataset-capture hook (scripts/dataset/capture.js): the interactive default
+    // (0.6) trades sharpness for real-time framerate, which reads as "pixelated"
+    // in a still screenshot where framerate doesn't matter. Lets the capture
+    // script render at full resolution without changing the live default.
+    window.__setRenderResolution = (value) => {
+      if (raymarcherRef.current) {
+        raymarcherRef.current.userData.resolution = value;
+      }
+    };
+
+    // Dataset-capture hook: move the camera along its current direction from
+    // the orbit target to a new distance (the default z=36 makes shapes look
+    // small/far in a still screenshot). Recomputing from the CURRENT position
+    // (rather than hardcoding an axis) keeps this correct even if orbiting has
+    // already happened; controls.update() re-derives OrbitControls' internal
+    // spherical state from the new position immediately, so it isn't fought on
+    // the next animate() tick. Doesn't touch the live interactive default.
+    window.__setCameraDistance = (distance) => {
+      const cam = cameraRef.current;
+      const ctrl = controlsRef.current;
+      if (!cam || !ctrl) return;
+      const dir = cam.position.clone().sub(ctrl.target);
+      if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
+      dir.normalize().multiplyScalar(distance);
+      cam.position.copy(ctrl.target).add(dir);
+      ctrl.update();
+    };
 
     const animate = () => {
       requestAnimationFrame(animate);
@@ -354,12 +415,50 @@ const ThreeScene = forwardRef((props, ref) => {
       } else {
         renderer.render(scene, camera);
       }
+
+      // Gradient-field overlay pass (his autoClear=false overlay pattern) — drawn
+      // on top of whichever renderer just filled the frame. render() must NOT be
+      // gated behind `root` being present: with no root yet (e.g. toggled on
+      // before any shapes exist) the overlay should still draw its rebuilt arrow
+      // pool (default upward arrows at their grid positions) instead of drawing
+      // nothing at all, which is what made it look completely broken before.
+      const overlay = gradOverlayRef.current;
+      if (overlay && overlay.visible) {
+        // MyRaymarcher writes real gl_FragDepth for every raymarched hit, so the
+        // depth buffer holds meaningful surface depth after the render() call
+        // above. Without clearing it, the arrows (default depth-tested Object3Ds)
+        // get hidden behind/inside any shape whose surface is closer to the
+        // camera than the arrow's world position — which is most of the grid for
+        // a typical centered scene. Clear depth so the overlay always draws on
+        // top, exactly like a debug overlay should.
+        renderer.clearDepth();
+        const root = latestSdfRootRef.current;
+        if (root) {
+          // Rebuild the CPU evaluator at most every 250 ms — params bake into the
+          // VM data array, so slider edits keep flowing without a per-frame rebuild.
+          const now = performance.now();
+          if (!gradVmRef.current || now - gradVmBuiltAtRef.current > 250) {
+            try {
+              gradVmRef.current = new EvaluatorVM(root);
+              gradVmBuiltAtRef.current = now;
+            } catch (e) {
+              gradVmRef.current = null;
+            }
+          }
+        } else {
+          gradVmRef.current = null;
+        }
+        overlay.update(gradVmRef.current);
+        overlay.render(renderer, camera);
+      }
     };
     animate();
 
     return () => {
       renderer.dispose();
       gui.destroy();
+      delete window.__setRenderResolution;
+      delete window.__setCameraDistance;
     };
   }, []);
 
